@@ -2,4 +2,10 @@ package eu.kanade.tachiyomi.util
 
 actual typealias PlatformUri = android.net.Uri
 
-actual typealias PlatformProgressListener = eu.kanade.tachiyomi.network.ProgressListener
+actual typealias PlatformBitmap = android.graphics.Bitmap
+
+actual object PlatformBitmapFactory {
+    actual fun decodeStream(stream: java.io.InputStream): PlatformBitmap? {
+        return android.graphics.BitmapFactory.decodeStream(stream)
+    }
+}

@@ -51,7 +51,7 @@ fun Call.asObservable(): Observable<Response> {
     }
 }
 
-fun Call.asObservableSuccess(): Observable<Response> {
+actual fun Call.asObservableSuccess(): Observable<Response> {
     return asObservable().doOnNext { response ->
         if (!response.isSuccessful) {
             response.close()
@@ -86,12 +86,12 @@ private suspend fun Call.await(callStack: Array<StackTraceElement>): Response {
     }
 }
 
-suspend fun Call.await(): Response {
+actual suspend fun Call.await(): Response {
     val callStack = Exception().stackTrace.run { copyOfRange(1, size) }
     return await(callStack)
 }
 
-suspend fun Call.awaitSuccess(): Response {
+actual suspend fun Call.awaitSuccess(): Response {
     val callStack = Exception().stackTrace.run { copyOfRange(1, size) }
     val response = await(callStack)
     if (!response.isSuccessful) {
@@ -101,7 +101,7 @@ suspend fun Call.awaitSuccess(): Response {
     return response
 }
 
-fun OkHttpClient.newCachelessCallWithProgress(request: Request, listener: ProgressListener): Call {
+actual fun OkHttpClient.newCachelessCallWithProgress(request: Request, listener: ProgressListener): Call {
     val progressClient = newBuilder()
         .cache(null)
         .callTimeout(30, java.util.concurrent.TimeUnit.HOURS)

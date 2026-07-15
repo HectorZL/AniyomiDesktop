@@ -4,6 +4,8 @@ expect abstract class PlatformUri {
     abstract override fun toString(): String
 }
 
-expect interface PlatformProgressListener {
-    fun update(bytesRead: Long, contentLength: Long, done: Boolean)
+expect class PlatformBitmap
+
+expect object PlatformBitmapFactory {
+    fun decodeStream(stream: java.io.InputStream): PlatformBitmap?
 }

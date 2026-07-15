@@ -1,7 +1,7 @@
 package eu.kanade.tachiyomi.animesource.online
 
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
+import eu.kanade.tachiyomi.util.PlatformBitmap
+import eu.kanade.tachiyomi.util.PlatformBitmapFactory
 import eu.kanade.tachiyomi.animesource.AnimeCatalogueSource
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
 import eu.kanade.tachiyomi.animesource.model.AnimesPage
@@ -12,8 +12,8 @@ import eu.kanade.tachiyomi.animesource.model.SEpisode
 import eu.kanade.tachiyomi.animesource.model.ThumbnailInfo
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.network.GET
-import eu.kanade.tachiyomi.network.NetworkHelper
-import eu.kanade.tachiyomi.network.ProgressListener
+import eu.kanade.tachiyomi.network.compat.NetworkHelper
+import eu.kanade.tachiyomi.network.compat.ProgressListener
 import eu.kanade.tachiyomi.network.asObservableSuccess
 import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.network.newCachelessCallWithProgress
@@ -447,9 +447,9 @@ abstract class AnimeHttpSource : AnimeCatalogueSource {
      * @param url the url for the image tiles
      * @return the image bitmap
      */
-    open suspend fun getImageTile(url: String): Bitmap? {
+    open suspend fun getImageTile(url: String): PlatformBitmap? {
         return client.newCall(GET(url, headers)).execute().body.byteStream().use {
-            BitmapFactory.decodeStream(it)
+            PlatformBitmapFactory.decodeStream(it)
         }
     }
 

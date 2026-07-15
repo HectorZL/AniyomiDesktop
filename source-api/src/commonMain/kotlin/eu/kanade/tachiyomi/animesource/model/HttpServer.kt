@@ -1,8 +1,6 @@
 package eu.kanade.tachiyomi.animesource.model
 
 import fi.iki.elonen.NanoHTTPD
-import logcat.LogPriority
-import tachiyomi.core.common.util.system.logcat
 
 open class HttpServer : NanoHTTPD(0) {
     val url: String
@@ -20,7 +18,7 @@ open class HttpServer : NanoHTTPD(0) {
             super.start()
             isRunning = true
         } catch (e: Exception) {
-            logcat(LogPriority.DEBUG, e) { "Failed to start http server" }
+            System.err.println("Failed to start http server: ${e.message}")
         }
     }
 

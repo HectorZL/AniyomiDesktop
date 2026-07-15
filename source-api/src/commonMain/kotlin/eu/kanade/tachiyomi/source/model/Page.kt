@@ -1,6 +1,6 @@
 package eu.kanade.tachiyomi.source.model
 
-import eu.kanade.tachiyomi.util.PlatformProgressListener as ProgressListener
+import eu.kanade.tachiyomi.network.compat.ProgressListener
 import eu.kanade.tachiyomi.util.PlatformUri as Uri
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow

@@ -17,10 +17,10 @@ private val DEFAULT_CACHE_CONTROL = CacheControl.Builder().maxAge(10, MINUTES).b
 private val DEFAULT_HEADERS = Headers.Builder().build()
 private val DEFAULT_BODY: RequestBody = FormBody.Builder().build()
 
-fun GET(
+actual fun GET(
     url: String,
-    headers: Headers = DEFAULT_HEADERS,
-    cache: CacheControl = DEFAULT_CACHE_CONTROL,
+    headers: Headers,
+    cache: CacheControl,
 ): Request {
     return GET(url.toHttpUrl(), headers, cache)
 }
