@@ -271,12 +271,18 @@ fun MainScreen() {
     // Dynamic sources loaded from extensions
     val dynamicSources = remember { mutableStateListOf<AnimeHttpSource>() }
 
+    // Track installed JARs to update the UI reactively
+    val installedJars = remember { mutableStateListOf<String>() }
+
     // Load local extensions on startup
     LaunchedEffect(Unit) {
         withContext(Dispatchers.IO) {
             try {
+                val files = eu.kanade.tachiyomi.extension.ExtensionManager.extensionsDir.listFiles { _, name -> name.endsWith(".jar") }
+                val jarNames = files?.map { it.name } ?: emptyList()
                 val local = eu.kanade.tachiyomi.extension.ExtensionManager.loadLocalExtensions()
                 withContext(Dispatchers.Main) {
+                    installedJars.addAll(jarNames)
                     dynamicSources.addAll(local.filterIsInstance<AnimeHttpSource>())
                 }
             } catch (e: Exception) {
@@ -452,14 +458,19 @@ fun MainScreen() {
                     "examinar" -> BrowseTab(
                         dynamicSources = dynamicSources,
                         repoUrl = appSettings.extensionRepoUrl,
+                        installedJars = installedJars,
                         onAnimeClick = { selectedAnime = it },
-                        onInstallSuccess = { loadedSources ->
+                        onInstallSuccess = { loadedSources, jarName ->
                             dynamicSources.addAll(loadedSources)
+                            if (!installedJars.contains(jarName)) {
+                                installedJars.add(jarName)
+                            }
                         },
-                        onUninstallSuccess = { pkg ->
+                        onUninstallSuccess = { pkg, jarName ->
                             dynamicSources.removeAll { source ->
                                 source.javaClass.name.startsWith(pkg)
                             }
+                            installedJars.remove(jarName)
                         }
                     )
                     "configuracion" -> SettingsTab(
@@ -717,9 +728,10 @@ fun HistoryTab(
 fun BrowseTab(
     dynamicSources: List<AnimeHttpSource>,
     repoUrl: String,
+    installedJars: List<String>,
     onAnimeClick: (RealAnime) -> Unit,
-    onInstallSuccess: (List<AnimeHttpSource>) -> Unit,
-    onUninstallSuccess: (String) -> Unit
+    onInstallSuccess: (List<AnimeHttpSource>, String) -> Unit,
+    onUninstallSuccess: (String, String) -> Unit
 ) {
     var selectedSource by remember { mutableStateOf<AnimeHttpSource?>(null) }
 
@@ -774,7 +786,7 @@ fun BrowseTab(
                         }
                     }
                 }
-                1 -> ExtensionsSection(repoUrl, dynamicSources, onInstallSuccess, onUninstallSuccess)
+                1 -> ExtensionsSection(repoUrl, dynamicSources, installedJars, onInstallSuccess, onUninstallSuccess)
             }
         }
     }
@@ -820,8 +832,9 @@ fun SourceItemCard(name: String, lang: String, version: String, onClick: () -> U
 fun ExtensionsSection(
     repoUrl: String,
     dynamicSources: List<AnimeHttpSource>,
-    onInstallSuccess: (List<AnimeHttpSource>) -> Unit,
-    onUninstallSuccess: (String) -> Unit
+    installedJars: List<String>,
+    onInstallSuccess: (List<AnimeHttpSource>, String) -> Unit,
+    onUninstallSuccess: (String, String) -> Unit
 ) {
     var extensionsList by remember { mutableStateOf<List<eu.kanade.tachiyomi.extension.ExtensionInfo>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
@@ -853,8 +866,9 @@ fun ExtensionsSection(
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(extensionsList) { ext ->
-                    val jarFile = File(eu.kanade.tachiyomi.extension.ExtensionManager.extensionsDir, ext.apk.removeSuffix(".apk") + ".jar")
-                    val isInstalled = jarFile.exists()
+                    val jarName = ext.apk.removeSuffix(".apk") + ".jar"
+                    val jarFile = File(eu.kanade.tachiyomi.extension.ExtensionManager.extensionsDir, jarName)
+                    val isInstalled = installedJars.contains(jarName)
                     
                     var isActionLoading by remember { mutableStateOf(false) }
 
@@ -888,11 +902,11 @@ fun ExtensionsSection(
                                                 if (isInstalled) {
                                                     // Uninstall
                                                     if (jarFile.exists()) jarFile.delete()
-                                                    onUninstallSuccess(ext.pkg)
+                                                    onUninstallSuccess(ext.pkg, jarName)
                                                 } else {
                                                     // Install
                                                     val loaded = eu.kanade.tachiyomi.extension.ExtensionManager.installExtension(repoUrl, ext)
-                                                    onInstallSuccess(loaded.filterIsInstance<AnimeHttpSource>())
+                                                    onInstallSuccess(loaded.filterIsInstance<AnimeHttpSource>(), jarName)
                                                 }
                                             } catch (e: Exception) {
                                                 e.printStackTrace()

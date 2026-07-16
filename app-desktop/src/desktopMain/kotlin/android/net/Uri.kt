@@ -7,10 +7,17 @@ import java.nio.charset.StandardCharsets
 
 class Uri private constructor(private val uri: URI) {
 
-    fun getScheme(): String? = uri.scheme
-    fun getHost(): String? = uri.host
-    fun getPath(): String? = uri.path
-    fun getQuery(): String? = uri.query
+    val scheme: String? get() = uri.scheme
+    val host: String? get() = uri.host
+    val path: String? get() = uri.path
+    val query: String? get() = uri.query
+    val fragment: String? get() = uri.fragment
+    val pathSegments: List<String> get() {
+        val p = uri.path ?: return emptyList()
+        return p.split("/").filter { it.isNotEmpty() }
+    }
+    val lastPathSegment: String? get() = pathSegments.lastOrNull()
+
     override fun toString(): String = uri.toString()
 
     fun getQueryParameter(key: String): String? {
