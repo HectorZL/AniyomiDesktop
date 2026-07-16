@@ -30,6 +30,9 @@ import androidx.compose.ui.input.key.*
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.foundation.focusable
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.verticalScroll
@@ -172,11 +175,23 @@ fun AsyncImage(
                     bitmap = imageBitmap!!,
                     contentDescription = contentDescription,
                     modifier = Modifier.then(
-                        if (contentScale == ContentScale.FillWidth) Modifier.fillMaxWidth()
-                        else if (contentScale == ContentScale.FillHeight) Modifier.fillMaxHeight()
-                        else if (contentScale == ContentScale.Fit) Modifier.fillMaxSize()
-                        else Modifier.fillMaxSize()
-                    ).rotate(rotationAngle).graphicsLayer(scaleX = zoomFactor, scaleY = zoomFactor),
+                        if (zoomFactor <= 1f) {
+                            when (contentScale) {
+                                ContentScale.FillWidth -> Modifier.fillMaxWidth(zoomFactor)
+                                ContentScale.FillHeight -> Modifier.fillMaxHeight(zoomFactor)
+                                ContentScale.Fit -> Modifier.fillMaxSize(zoomFactor)
+                                else -> Modifier.wrapContentSize()
+                            }
+                        } else {
+                            val base = when (contentScale) {
+                                ContentScale.FillWidth -> Modifier.fillMaxWidth()
+                                ContentScale.FillHeight -> Modifier.fillMaxHeight()
+                                ContentScale.Fit -> Modifier.fillMaxSize()
+                                else -> Modifier.wrapContentSize()
+                            }
+                            base.graphicsLayer(scaleX = zoomFactor, scaleY = zoomFactor)
+                        }
+                    ).rotate(rotationAngle),
                     contentScale = contentScale
                 )
             }
@@ -267,11 +282,23 @@ fun MangaPageImage(
                     bitmap = imageBitmap!!,
                     contentDescription = contentDescription,
                     modifier = Modifier.then(
-                        if (contentScale == ContentScale.FillWidth) Modifier.fillMaxWidth()
-                        else if (contentScale == ContentScale.FillHeight) Modifier.fillMaxHeight()
-                        else if (contentScale == ContentScale.Fit) Modifier.fillMaxSize()
-                        else Modifier.wrapContentSize()
-                    ).rotate(rotationAngle).graphicsLayer(scaleX = zoomFactor, scaleY = zoomFactor),
+                        if (zoomFactor <= 1f) {
+                            when (contentScale) {
+                                ContentScale.FillWidth -> Modifier.fillMaxWidth(zoomFactor)
+                                ContentScale.FillHeight -> Modifier.fillMaxHeight(zoomFactor)
+                                ContentScale.Fit -> Modifier.fillMaxSize(zoomFactor)
+                                else -> Modifier.wrapContentSize()
+                            }
+                        } else {
+                            val base = when (contentScale) {
+                                ContentScale.FillWidth -> Modifier.fillMaxWidth()
+                                ContentScale.FillHeight -> Modifier.fillMaxHeight()
+                                ContentScale.Fit -> Modifier.fillMaxSize()
+                                else -> Modifier.wrapContentSize()
+                            }
+                            base.graphicsLayer(scaleX = zoomFactor, scaleY = zoomFactor)
+                        }
+                    ).rotate(rotationAngle),
                     contentScale = contentScale,
                 )
             }
@@ -2093,11 +2120,29 @@ fun MangaReaderScreen(
         }
     }
 
+    val verticalScrollState = rememberScrollState()
+    val horizontalScrollState = rememberScrollState()
+
     // Scroll adaptativo según zoom
     val scrollModifier = if (zoomFactor > 1f || scaleMode == ScaleMode.ORIGINAL) {
-        Modifier.verticalScroll(rememberScrollState()).horizontalScroll(rememberScrollState())
+        Modifier.verticalScroll(verticalScrollState).horizontalScroll(horizontalScrollState)
     } else {
         Modifier
+    }
+
+    // Modifier para arrastrar con el mouse (Mouse drag to scroll)
+    val dragModifier = Modifier.pointerInput(zoomFactor, scaleMode, readingMode) {
+        detectDragGestures { change, dragAmount ->
+            change.consume()
+            scope.launch {
+                if (readingMode == ReadingMode.VERTICAL_SCROLL) {
+                    listState.scrollBy(-dragAmount.y)
+                } else if (zoomFactor > 1f || scaleMode == ScaleMode.ORIGINAL) {
+                    verticalScrollState.scrollBy(-dragAmount.y)
+                    horizontalScrollState.scrollBy(-dragAmount.x)
+                }
+            }
+        }
     }
 
     Column(
@@ -2191,7 +2236,7 @@ fun MangaReaderScreen(
                     Box(modifier = Modifier.fillMaxSize()) {
                         LazyColumn(
                             state = listState,
-                            modifier = Modifier.fillMaxSize().then(scrollModifier),
+                            modifier = Modifier.fillMaxSize().then(scrollModifier).then(dragModifier),
                             verticalArrangement = Arrangement.spacedBy(4.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
@@ -2262,7 +2307,7 @@ fun MangaReaderScreen(
 
                 readingMode == ReadingMode.SINGLE_PAGE -> {
                     Box(
-                        modifier = Modifier.fillMaxSize().then(scrollModifier),
+                        modifier = Modifier.fillMaxSize().then(scrollModifier).then(dragModifier),
                         contentAlignment = Alignment.Center
                     ) {
                         val page = pages[currentPageIndex]
@@ -2314,7 +2359,7 @@ fun MangaReaderScreen(
 
                 readingMode == ReadingMode.DOUBLE_PAGE -> {
                     Row(
-                        modifier = Modifier.fillMaxSize().then(scrollModifier),
+                        modifier = Modifier.fillMaxSize().then(scrollModifier).then(dragModifier),
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
