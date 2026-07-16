@@ -35,6 +35,7 @@ kotlin {
 compose.desktop {
     application {
         mainClass = "MainKt"
+        jvmArgs += listOf("-noverify", "-Xverify:none")
         nativeDistributions {
             targetFormats(org.jetbrains.compose.desktop.application.dsl.TargetFormat.Msi)
             packageName = "AniyomiDesktop"

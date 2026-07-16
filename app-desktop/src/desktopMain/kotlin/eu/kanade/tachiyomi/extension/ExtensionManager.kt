@@ -116,7 +116,8 @@ object ExtensionManager {
                             loadedSources.addAll(factoryInstance.createSources())
                         }
                     } catch (e: Throwable) {
-                        // Suppress individual class loading errors
+                        println("[LOAD_EXT_ERR] Error al cargar clase $className: ${e.message}")
+                        e.printStackTrace()
                     }
                 }
             }

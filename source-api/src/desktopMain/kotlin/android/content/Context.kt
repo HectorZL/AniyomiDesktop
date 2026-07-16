@@ -8,6 +8,10 @@ open class Context {
     fun getSharedPreferences(name: String, mode: Int): SharedPreferences {
         return SharedPreferences(name)
     }
+
+    companion object {
+        const val MODE_PRIVATE = 0
+    }
 }
 
 class SharedPreferences(private val name: String) {
@@ -105,4 +109,8 @@ class SharedPreferences(private val name: String) {
             return true
         }
     }
+}
+
+open class ContextWrapper(private val base: Context?) : Context() {
+    fun getBaseContext(): Context? = base
 }
