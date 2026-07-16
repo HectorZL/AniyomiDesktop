@@ -34,7 +34,7 @@ kotlin {
 
 compose.desktop {
     application {
-        mainClass = "eu.kanade.tachiyomi.animesource.TestPlayerStateKt"
+        mainClass = "MainKt"
         jvmArgs += listOf("-noverify", "-Xverify:none")
         nativeDistributions {
             targetFormats(org.jetbrains.compose.desktop.application.dsl.TargetFormat.Msi)
