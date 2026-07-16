@@ -5,7 +5,7 @@ import java.net.URLDecoder
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 
-class Uri private constructor(private val uri: URI) {
+abstract class Uri protected constructor(internal val uri: URI) {
 
     val scheme: String? get() = uri.scheme
     val host: String? get() = uri.host
@@ -18,7 +18,7 @@ class Uri private constructor(private val uri: URI) {
     }
     val lastPathSegment: String? get() = pathSegments.lastOrNull()
 
-    override fun toString(): String = uri.toString()
+    abstract override fun toString(): String
 
     fun getQueryParameter(key: String): String? {
         val query = uri.query ?: return null
@@ -81,14 +81,18 @@ class Uri private constructor(private val uri: URI) {
                 uriString += p
             }
             if (query != null) uriString += "?$query"
-            return Uri(URI.create(uriString))
+            return StringUri(URI.create(uriString))
         }
     }
 
     companion object {
         @JvmStatic
         fun parse(uriString: String): Uri {
-            return Uri(URI.create(uriString))
+            return StringUri(URI.create(uriString))
         }
     }
+}
+
+private class StringUri(uri: URI) : Uri(uri) {
+    override fun toString(): String = uri.toString()
 }

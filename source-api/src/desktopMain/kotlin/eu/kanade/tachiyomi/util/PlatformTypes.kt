@@ -1,8 +1,6 @@
 package eu.kanade.tachiyomi.util
 
-actual abstract class PlatformUri {
-    actual abstract override fun toString(): String
-}
+actual typealias PlatformUri = android.net.Uri
 
 actual class PlatformBitmap
 
