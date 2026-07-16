@@ -25,6 +25,8 @@ kotlin {
                 
                 implementation(kotlinx.coroutines.core)
                 implementation("io.github.kdroidfilter:composemediaplayer:0.10.0")
+                implementation("de.femtopedia.dex2jar:dex-translator:2.4.37")
+                implementation("de.femtopedia.dex2jar:dex-tools:2.4.37")
             }
         }
     }

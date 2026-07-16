@@ -47,6 +47,13 @@ import javax.imageio.ImageIO
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
+import eu.kanade.tachiyomi.animesource.AnimeSource
+import eu.kanade.tachiyomi.extension.ExtensionManager
+import eu.kanade.tachiyomi.extension.ExtensionInfo
+import eu.kanade.tachiyomi.animesource.model.SAnime
+import eu.kanade.tachiyomi.animesource.model.SEpisode
+import eu.kanade.tachiyomi.animesource.model.Video
 
 // Data structures for Real Anime
 @Serializable
@@ -54,7 +61,8 @@ data class RealAnime(
     val title: String,
     val description: String,
     val thumbnailUrl: String,
-    val url: String
+    val url: String,
+    val sourceName: String = "AnimeFLV"
 )
 
 @Serializable
@@ -128,7 +136,8 @@ fun loadHistory(): List<HistoryItem> {
 
 @Serializable
 data class AppSettings(
-    val extensionDirPath: String = ""
+    val extensionDirPath: String = "",
+    val extensionRepoUrl: String = ""
 )
 
 fun saveSettings(settings: AppSettings) {
@@ -144,19 +153,21 @@ fun saveSettings(settings: AppSettings) {
 
 fun loadSettings(): AppSettings {
     val defaultPath = File(System.getProperty("user.home"), "AppData/Local/AniyomiDesktop/extensions").absolutePath
+    val defaultRepo = "https://raw.githubusercontent.com/yuzono/anime-repo/repo/index.min.json"
     try {
         val appDir = File(System.getProperty("user.home"), "AppData/Local/AniyomiDesktop")
         val file = File(appDir, "settings.json")
         if (file.exists()) {
             val loaded = Json.decodeFromString<AppSettings>(file.readText())
-            if (loaded.extensionDirPath.isNotEmpty()) {
-                return loaded
-            }
+            return AppSettings(
+                extensionDirPath = if (loaded.extensionDirPath.isNotEmpty()) loaded.extensionDirPath else defaultPath,
+                extensionRepoUrl = if (loaded.extensionRepoUrl.isNotEmpty()) loaded.extensionRepoUrl else defaultRepo
+            )
         }
     } catch (e: Exception) {
         e.printStackTrace()
     }
-    return AppSettings(extensionDirPath = defaultPath)
+    return AppSettings(extensionDirPath = defaultPath, extensionRepoUrl = defaultRepo)
 }
 
 
@@ -257,6 +268,23 @@ fun MainScreen() {
     val historyList = remember { mutableStateListOf<HistoryItem>().apply { addAll(loadHistory()) } }
     var appSettings by remember { mutableStateOf(loadSettings()) }
 
+    // Dynamic sources loaded from extensions
+    val dynamicSources = remember { mutableStateListOf<AnimeHttpSource>() }
+
+    // Load local extensions on startup
+    LaunchedEffect(Unit) {
+        withContext(Dispatchers.IO) {
+            try {
+                val local = eu.kanade.tachiyomi.extension.ExtensionManager.loadLocalExtensions()
+                withContext(Dispatchers.Main) {
+                    dynamicSources.addAll(local.filterIsInstance<AnimeHttpSource>())
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
     // Auto-save library when list contents change
     LaunchedEffect(libraryList.toList()) {
         saveLibrary(libraryList)
@@ -325,9 +353,15 @@ fun MainScreen() {
             }
         }
     } else if (selectedAnime != null) {
+        val activeSource = if (selectedAnime!!.sourceName == "AnimeFLV") {
+            eu.kanade.tachiyomi.animesource.AnimeFlv()
+        } else {
+            dynamicSources.find { it.name == selectedAnime!!.sourceName } ?: eu.kanade.tachiyomi.animesource.AnimeFlv()
+        }
         // Shared Anime Details Screen
         AnimeDetailsScreen(
             anime = selectedAnime!!,
+            source = activeSource,
             libraryList = libraryList,
             historyList = historyList,
             onBack = { 
@@ -415,7 +449,19 @@ fun MainScreen() {
                             activeVideoUrl = item.videoUrl
                         }
                     )
-                    "examinar" -> BrowseTab(onAnimeClick = { selectedAnime = it })
+                    "examinar" -> BrowseTab(
+                        dynamicSources = dynamicSources,
+                        repoUrl = appSettings.extensionRepoUrl,
+                        onAnimeClick = { selectedAnime = it },
+                        onInstallSuccess = { loadedSources ->
+                            dynamicSources.addAll(loadedSources)
+                        },
+                        onUninstallSuccess = { pkg ->
+                            dynamicSources.removeAll { source ->
+                                source.javaClass.name.startsWith(pkg)
+                            }
+                        }
+                    )
                     "configuracion" -> SettingsTab(
                         appSettings = appSettings,
                         onSettingsChange = { newSettings ->
@@ -668,66 +714,201 @@ fun HistoryTab(
 }
 
 @Composable
-fun BrowseTab(onAnimeClick: (RealAnime) -> Unit) {
-    var selectedSource by remember { mutableStateOf<String?>(null) }
+fun BrowseTab(
+    dynamicSources: List<AnimeHttpSource>,
+    repoUrl: String,
+    onAnimeClick: (RealAnime) -> Unit,
+    onInstallSuccess: (List<AnimeHttpSource>) -> Unit,
+    onUninstallSuccess: (String) -> Unit
+) {
+    var selectedSource by remember { mutableStateOf<AnimeHttpSource?>(null) }
 
-    if (selectedSource == "animeflv") {
+    if (selectedSource != null) {
         SourceCatalogScreen(
+            source = selectedSource!!,
             onBack = { selectedSource = null },
             onAnimeClick = onAnimeClick
         )
     } else {
-        Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-            Text(
-                text = "Examinar Fuentes",
-                style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = "Fuentes de Anime",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { selectedSource = "animeflv" },
-                shape = RoundedCornerShape(8.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        var tabIndex by remember { mutableStateOf(0) } // 0 = Fuentes, 1 = Extensiones
+        
+        Column(modifier = Modifier.fillMaxSize()) {
+            TabRow(
+                selectedTabIndex = tabIndex,
+                containerColor = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.primary
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(4.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
+                Tab(selected = tabIndex == 0, onClick = { tabIndex = 0 }, text = { Text("Fuentes") })
+                Tab(selected = tabIndex == 1, onClick = { tabIndex = 1 }, text = { Text("Extensiones") })
+            }
+            
+            when (tabIndex) {
+                0 -> {
+                    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
                         Text(
-                            text = "FLV",
-                            color = Color.White,
-                            style = MaterialTheme.typography.titleSmall
+                            text = "Examinar Fuentes",
+                            style = MaterialTheme.typography.headlineMedium,
+                            color = MaterialTheme.colorScheme.onBackground
                         )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        
+                        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            // Built-in Native Source
+                            item {
+                                SourceItemCard(
+                                    name = "AnimeFLV (Nativa)",
+                                    lang = "es",
+                                    version = "1.0.0",
+                                    onClick = { selectedSource = eu.kanade.tachiyomi.animesource.AnimeFlv() }
+                                )
+                            }
+                            // Dynamic Sources from extensions
+                            items(dynamicSources) { source ->
+                                SourceItemCard(
+                                    name = source.name,
+                                    lang = source.lang,
+                                    version = "1.0.0",
+                                    onClick = { selectedSource = source }
+                                )
+                            }
+                        }
                     }
-                    Spacer(modifier = Modifier.width(16.dp))
-                    Column {
-                        Text(
-                            text = "AnimeFLV (Nativa)",
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                        Text(
-                            text = "Idioma: Español | Versión 1.0.0",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                }
+                1 -> ExtensionsSection(repoUrl, dynamicSources, onInstallSuccess, onUninstallSuccess)
+            }
+        }
+    }
+}
+
+@Composable
+fun SourceItemCard(name: String, lang: String, version: String, onClick: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(4.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = name.take(3).uppercase(),
+                    color = Color.White,
+                    style = MaterialTheme.typography.titleSmall
+                )
+            }
+            Spacer(modifier = Modifier.width(16.dp))
+            Column {
+                Text(text = name, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    text = "Idioma: ${lang.uppercase()} | Versión $version",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun ExtensionsSection(
+    repoUrl: String,
+    dynamicSources: List<AnimeHttpSource>,
+    onInstallSuccess: (List<AnimeHttpSource>) -> Unit,
+    onUninstallSuccess: (String) -> Unit
+) {
+    var extensionsList by remember { mutableStateOf<List<eu.kanade.tachiyomi.extension.ExtensionInfo>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(repoUrl) {
+        isLoading = true
+        errorMessage = null
+        try {
+            val list = eu.kanade.tachiyomi.extension.ExtensionManager.fetchRepository(repoUrl)
+            extensionsList = list
+        } catch (e: Exception) {
+            errorMessage = e.message
+        } finally {
+            isLoading = false
+        }
+    }
+
+    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+        if (isLoading) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+        } else if (errorMessage != null) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("Error al cargar repositorio:\n$errorMessage", color = MaterialTheme.colorScheme.error)
+            }
+        } else {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(extensionsList) { ext ->
+                    val jarFile = File(eu.kanade.tachiyomi.extension.ExtensionManager.extensionsDir, ext.apk.removeSuffix(".apk") + ".jar")
+                    val isInstalled = jarFile.exists()
+                    
+                    var isActionLoading by remember { mutableStateOf(false) }
+
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(text = ext.name, style = MaterialTheme.typography.titleMedium)
+                                Text(
+                                    text = "Paquete: ${ext.pkg}\nIdioma: ${ext.lang.uppercase()} | v${ext.version}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            
+                            if (isActionLoading) {
+                                CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                            } else {
+                                Button(
+                                    onClick = {
+                                        scope.launch {
+                                            isActionLoading = true
+                                            try {
+                                                if (isInstalled) {
+                                                    // Uninstall
+                                                    if (jarFile.exists()) jarFile.delete()
+                                                    onUninstallSuccess(ext.pkg)
+                                                } else {
+                                                    // Install
+                                                    val loaded = eu.kanade.tachiyomi.extension.ExtensionManager.installExtension(repoUrl, ext)
+                                                    onInstallSuccess(loaded.filterIsInstance<AnimeHttpSource>())
+                                                }
+                                            } catch (e: Exception) {
+                                                e.printStackTrace()
+                                            } finally {
+                                                isActionLoading = false
+                                            }
+                                        }
+                                    },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = if (isInstalled) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                                    )
+                                ) {
+                                    Text(if (isInstalled) "Desinstalar" else "Instalar")
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -736,27 +917,21 @@ fun BrowseTab(onAnimeClick: (RealAnime) -> Unit) {
 }
 
 @Composable
-fun SourceCatalogScreen(onBack: () -> Unit, onAnimeClick: (RealAnime) -> Unit) {
+fun SourceCatalogScreen(source: AnimeHttpSource, onBack: () -> Unit, onAnimeClick: (RealAnime) -> Unit) {
     var animeList by remember { mutableStateOf<List<RealAnime>>(emptyList()) }
     var searchQuery by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
-    val source = remember { AnimeFlv() }
 
     // Load anime list
     LaunchedEffect(searchQuery) {
         isLoading = true
         scope.launch(Dispatchers.IO) {
             try {
-                val response = if (searchQuery.trim().isEmpty()) {
-                    source.client.newCall(source.popularAnimeRequest(1)).execute()
-                } else {
-                    source.client.newCall(source.searchAnimeRequest(1, searchQuery.trim(), AnimeFilterList())).execute()
-                }
                 val page = if (searchQuery.trim().isEmpty()) {
-                    source.popularAnimeParse(response)
+                    source.getPopularAnime(1)
                 } else {
-                    source.searchAnimeParse(response)
+                    source.getSearchAnime(1, searchQuery.trim(), AnimeFilterList())
                 }
                 withContext(Dispatchers.Main) {
                     animeList = page.animes.map {
@@ -764,7 +939,8 @@ fun SourceCatalogScreen(onBack: () -> Unit, onAnimeClick: (RealAnime) -> Unit) {
                             title = it.title,
                             description = it.description ?: "Cargando descripción...",
                             thumbnailUrl = it.thumbnail_url ?: "",
-                            url = it.url
+                            url = it.url,
+                            sourceName = source.name
                         )
                     }
                     isLoading = false
@@ -788,7 +964,7 @@ fun SourceCatalogScreen(onBack: () -> Unit, onAnimeClick: (RealAnime) -> Unit) {
             }
             Spacer(modifier = Modifier.width(16.dp))
             Text(
-                text = "Catálogo AnimeFLV",
+                text = "Catálogo ${source.name}",
                 style = MaterialTheme.typography.headlineMedium,
                 modifier = Modifier.weight(1f)
             )
@@ -915,7 +1091,20 @@ fun SettingsTab(
                         Text("Examinar...")
                     }
                 }
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "URL del repositorio de extensiones:",
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                TextField(
+                    value = appSettings.extensionRepoUrl,
+                    onValueChange = { onSettingsChange(appSettings.copy(extensionRepoUrl = it)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    shape = RoundedCornerShape(8.dp)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
                 Text(
                     text = "La carga de APKs traducirá los archivos DEX a JAR o los interpretará mediante la JVM de escritorio para ejecutar los scrapers nativos de Android en PC.",
                     style = MaterialTheme.typography.bodySmall,
@@ -952,6 +1141,7 @@ fun SettingsTab(
 @Composable
 fun AnimeDetailsScreen(
     anime: RealAnime,
+    source: AnimeHttpSource,
     libraryList: MutableList<RealAnime>,
     historyList: MutableList<HistoryItem>,
     onBack: () -> Unit,
@@ -963,7 +1153,6 @@ fun AnimeDetailsScreen(
     var videos by remember { mutableStateOf<List<RealVideo>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
-    val source = remember { AnimeFlv() }
 
     val isInLibrary = libraryList.any { it.url == anime.url }
 
@@ -973,12 +1162,12 @@ fun AnimeDetailsScreen(
         episodes = emptyList()
         scope.launch(Dispatchers.IO) {
             try {
-                val animeUrl = anime.url
-                val detailResponse = source.client.newCall(GET(source.baseUrl + animeUrl, source.headers)).execute()
-                val parsedAnime = source.animeDetailsParse(detailResponse.asJsoup())
-                
-                val epResponse = source.client.newCall(GET(source.baseUrl + animeUrl, source.headers)).execute()
-                val parsedEpisodes = source.episodeListParse(epResponse)
+                val sAnime = SAnime.create().apply {
+                    url = anime.url
+                    title = anime.title
+                }
+                val parsedAnime = source.getAnimeDetails(sAnime)
+                val parsedEpisodes = source.getEpisodeList(sAnime)
                 
                 withContext(Dispatchers.Main) {
                     detailAnime = detailAnime.copy(description = parsedAnime.description ?: "")
@@ -1007,11 +1196,11 @@ fun AnimeDetailsScreen(
             videos = emptyList()
             scope.launch(Dispatchers.IO) {
                 try {
-                    val epUrl = selectedEpisode!!.url
-                    val fullUrl = source.baseUrl + epUrl
-                    println("[DEPURE] Solicitando episodio a: $fullUrl")
-                    val response = source.client.newCall(GET(fullUrl, source.headers)).execute()
-                    val parsedVideos = source.videoListParse(response)
+                    val sEpisode = SEpisode.create().apply {
+                        url = selectedEpisode!!.url
+                        name = selectedEpisode!!.name
+                    }
+                    val parsedVideos = source.getVideoList(sEpisode)
                     println("[DEPURE] Servidores encontrados en la página: ${parsedVideos.size}")
                     
                     withContext(Dispatchers.Main) {
