@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
 import io.github.kdroidfilter.composemediaplayer.VideoPlayerSurface
 import io.github.kdroidfilter.composemediaplayer.rememberVideoPlayerState
 import io.github.kdroidfilter.composemediaplayer.SubtitleTrack
@@ -30,6 +31,9 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.foundation.shape.CircleShape
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -399,12 +403,16 @@ fun MainScreen(
                     exit = fadeOut()
                 ) {
                     Box(modifier = Modifier.fillMaxSize()) {
-                        // Top Bar (Volver, Title, Browser)
+                        // Top Bar (smooth dark gradient)
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(Color.Black.copy(alpha = 0.6f))
-                                .padding(16.dp)
+                                .background(
+                                    Brush.verticalGradient(
+                                        colors = listOf(Color.Black.copy(alpha = 0.85f), Color.Transparent)
+                                    )
+                                )
+                                .padding(horizontal = 24.dp, vertical = 20.dp)
                                 .align(Alignment.TopStart),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
@@ -413,22 +421,35 @@ fun MainScreen(
                                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Button(
+                                IconButton(
                                     onClick = {
                                         playerState.stop()
                                         activeVideoUrl = null
-                                    }
+                                    },
+                                    modifier = Modifier.background(Color.White.copy(alpha = 0.15f), shape = CircleShape)
                                 ) {
-                                    Text("Volver")
+                                    Icon(
+                                        imageVector = Icons.Default.ArrowBack,
+                                        contentDescription = "Volver",
+                                        tint = Color.White
+                                    )
                                 }
-                                Text(
-                                    text = "${currentAnime.title} - ${currentEpisode.name}",
-                                    color = Color.White,
-                                    style = MaterialTheme.typography.titleMedium
-                                )
+                                Column {
+                                    Text(
+                                        text = currentAnime.title,
+                                        color = Color.White,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = currentEpisode.name,
+                                        color = Color.White.copy(alpha = 0.7f),
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
                             }
                             
-                            Button(
+                            IconButton(
                                 onClick = {
                                     try {
                                         Desktop.getDesktop().browse(URI(activeVideoUrl!!))
@@ -436,18 +457,49 @@ fun MainScreen(
                                         e.printStackTrace()
                                     }
                                 },
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+                                modifier = Modifier.background(Color.White.copy(alpha = 0.15f), shape = CircleShape)
                             ) {
-                                Text("Navegador")
+                                Icon(
+                                    imageVector = Icons.Default.OpenInNew,
+                                    contentDescription = "Navegador",
+                                    tint = Color.White
+                                )
                             }
                         }
 
-                        // Bottom Controls Bar
+                        // Center Play/Pause button
+                        IconButton(
+                            onClick = {
+                                if (playerState.isPlaying) {
+                                    playerState.pause()
+                                } else {
+                                    playerState.play()
+                                }
+                            },
+                            modifier = Modifier
+                                .align(Alignment.Center)
+                                .size(72.dp)
+                                .background(Color.Black.copy(alpha = 0.5f), shape = CircleShape)
+                                .border(1.5.dp, Color.White.copy(alpha = 0.25f), shape = CircleShape)
+                        ) {
+                            Icon(
+                                imageVector = if (playerState.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                contentDescription = "Play/Pause",
+                                tint = Color.White,
+                                modifier = Modifier.size(38.dp)
+                            )
+                        }
+
+                        // Bottom Controls Bar (smooth dark gradient)
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(Color.Black.copy(alpha = 0.6f))
-                                .padding(16.dp)
+                                .background(
+                                    Brush.verticalGradient(
+                                        colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f))
+                                    )
+                                )
+                                .padding(horizontal = 24.dp, vertical = 20.dp)
                                 .align(Alignment.BottomCenter)
                         ) {
                             // Subtitles & Audio Track Row
@@ -462,21 +514,25 @@ fun MainScreen(
                                     Box {
                                         Button(
                                             onClick = { showSubtitleMenu = true },
-                                            colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray)
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = Color.White.copy(alpha = 0.15f),
+                                                contentColor = Color.White
+                                            ),
+                                            shape = RoundedCornerShape(20.dp)
                                         ) {
                                             Icon(Icons.Default.Subtitles, contentDescription = "Subtítulos", tint = Color.White)
                                             Spacer(modifier = Modifier.width(8.dp))
                                             Text(
-                                                text = playerState.currentSubtitleTrack?.language ?: if (playerState.subtitlesEnabled) "Activos" else "Desactivados",
-                                                color = Color.White
+                                                text = playerState.currentSubtitleTrack?.language ?: if (playerState.subtitlesEnabled) "Activos" else "Desactivados"
                                             )
                                         }
                                         DropdownMenu(
                                             expanded = showSubtitleMenu,
-                                            onDismissRequest = { showSubtitleMenu = false }
+                                            onDismissRequest = { showSubtitleMenu = false },
+                                            modifier = Modifier.background(Color(0xFF1E1E1E))
                                         ) {
                                             DropdownMenuItem(
-                                                text = { Text("Desactivar Subtítulos") },
+                                                text = { Text("Desactivar Subtítulos", color = Color.White) },
                                                 onClick = {
                                                     playerState.subtitlesEnabled = false
                                                     playerState.disableSubtitles()
@@ -485,7 +541,7 @@ fun MainScreen(
                                             )
                                             playerState.availableSubtitleTracks.forEach { track ->
                                                 DropdownMenuItem(
-                                                    text = { Text(track.language.ifEmpty { "Desconocido" }) },
+                                                    text = { Text(track.language.ifEmpty { "Desconocido" }, color = Color.White) },
                                                     onClick = {
                                                         playerState.subtitlesEnabled = true
                                                         playerState.selectSubtitleTrack(track)
@@ -498,19 +554,13 @@ fun MainScreen(
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(12.dp))
 
-                            // Progress Slider Row
+                            // Progress Slider Row (full screen width slider)
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
-                                    text = playerState.positionText,
-                                    color = Color.White,
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
-                                
                                 Slider(
                                     value = playerState.sliderPos,
                                     onValueChange = {
@@ -520,87 +570,121 @@ fun MainScreen(
                                         playerState.seekFinished()
                                     },
                                     valueRange = 0f..1000f,
-                                    modifier = Modifier.weight(1f).padding(horizontal = 16.dp),
+                                    modifier = Modifier.weight(1f),
                                     colors = SliderDefaults.colors(
                                         thumbColor = MaterialTheme.colorScheme.primary,
-                                        activeTrackColor = MaterialTheme.colorScheme.primary
+                                        activeTrackColor = MaterialTheme.colorScheme.primary,
+                                        inactiveTrackColor = Color.White.copy(alpha = 0.24f)
                                     )
-                                )
-
-                                Text(
-                                    text = playerState.durationText,
-                                    color = Color.White,
-                                    style = MaterialTheme.typography.bodyMedium
                                 )
                             }
 
                             Spacer(modifier = Modifier.height(8.dp))
 
-                            // Play/Pause & Volume Row
+                            // Play/Pause, Skips, Volume, and Fullscreen Row
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                ) {
                                     // Play/Pause button
                                     IconButton(
                                         onClick = {
-                                            if (playerState.isPlaying) {
-                                                playerState.pause()
-                                            } else {
-                                                playerState.play()
-                                            }
+                                            if (playerState.isPlaying) playerState.pause() else playerState.play()
                                         }
                                     ) {
                                         Icon(
                                             imageVector = if (playerState.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                                             contentDescription = "Reproducir/Pausar",
                                             tint = Color.White,
-                                            modifier = Modifier.size(36.dp)
+                                            modifier = Modifier.size(32.dp)
                                         )
                                     }
 
-                                    Spacer(modifier = Modifier.width(16.dp))
-
-                                    // Restart button
+                                    // Skip Back 10s button
                                     IconButton(
                                         onClick = {
-                                            playerState.restart()
+                                            val delta = 10000f / (if (playerState.duration > 0) playerState.duration.toFloat() else 1f)
+                                            playerState.seekTo((playerState.sliderPos - delta).coerceIn(0f, 1000f))
                                         }
                                     ) {
                                         Icon(
-                                            imageVector = Icons.Default.Replay,
-                                            contentDescription = "Reiniciar",
+                                            imageVector = Icons.Default.Replay10,
+                                            contentDescription = "Retroceder 10s",
                                             tint = Color.White,
                                             modifier = Modifier.size(28.dp)
                                         )
                                     }
-                                }
 
-                                // Volume Slider
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    val isMuted = playerState.volume == 0f
+                                    // Skip Forward 10s button
                                     IconButton(
                                         onClick = {
-                                            playerState.volume = if (isMuted) 0.5f else 0f
+                                            val delta = 10000f / (if (playerState.duration > 0) playerState.duration.toFloat() else 1f)
+                                            playerState.seekTo((playerState.sliderPos + delta).coerceIn(0f, 1000f))
                                         }
                                     ) {
                                         Icon(
-                                            imageVector = if (isMuted) Icons.Default.VolumeOff else if (playerState.volume < 0.5f) Icons.Default.VolumeDown else Icons.Default.VolumeUp,
-                                            contentDescription = "Volumen",
-                                            tint = Color.White
+                                            imageVector = Icons.Default.Forward10,
+                                            contentDescription = "Adelantar 10s",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(28.dp)
                                         )
                                     }
-                                    Slider(
-                                        value = playerState.volume,
-                                        onValueChange = { playerState.volume = it },
-                                        valueRange = 0f..1f,
-                                        modifier = Modifier.width(120.dp),
-                                        colors = SliderDefaults.colors(
-                                            thumbColor = Color.White,
-                                            activeTrackColor = Color.White
+
+                                    // Volume Control
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        val isMuted = playerState.volume == 0f
+                                        IconButton(
+                                            onClick = {
+                                                playerState.volume = if (isMuted) 0.5f else 0f
+                                            }
+                                        ) {
+                                            Icon(
+                                                imageVector = if (isMuted) Icons.Default.VolumeOff else if (playerState.volume < 0.5f) Icons.Default.VolumeDown else Icons.Default.VolumeUp,
+                                                contentDescription = "Volumen",
+                                                tint = Color.White
+                                            )
+                                        }
+                                        Slider(
+                                            value = playerState.volume,
+                                            onValueChange = { playerState.volume = it },
+                                            valueRange = 0f..1f,
+                                            modifier = Modifier.width(100.dp),
+                                            colors = SliderDefaults.colors(
+                                                thumbColor = Color.White,
+                                                activeTrackColor = Color.White,
+                                                inactiveTrackColor = Color.White.copy(alpha = 0.24f)
+                                            )
                                         )
+                                    }
+
+                                    // Time Indicator
+                                    Text(
+                                        text = "${playerState.positionText} / ${playerState.durationText}",
+                                        color = Color.White.copy(alpha = 0.85f),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+
+                                // Fullscreen Toggle
+                                IconButton(
+                                    onClick = {
+                                        playerState.isFullscreen = !playerState.isFullscreen
+                                    }
+                                ) {
+                                    Icon(
+                                        imageVector = if (playerState.isFullscreen) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,
+                                        contentDescription = "Pantalla Completa",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(30.dp)
                                     )
                                 }
                             }
