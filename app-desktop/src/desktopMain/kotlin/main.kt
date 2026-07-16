@@ -22,8 +22,14 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
+import androidx.compose.foundation.BorderStroke
 import io.github.kdroidfilter.composemediaplayer.VideoPlayerSurface
 import io.github.kdroidfilter.composemediaplayer.rememberVideoPlayerState
+import io.github.kdroidfilter.composemediaplayer.SubtitleTrack
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -137,7 +143,8 @@ fun loadHistory(): List<HistoryItem> {
 @Serializable
 data class AppSettings(
     val extensionDirPath: String = "",
-    val extensionRepoUrl: String = ""
+    val extensionRepoUrl: String = "",
+    val themeColor: String = "Orange"
 )
 
 fun saveSettings(settings: AppSettings) {
@@ -161,13 +168,14 @@ fun loadSettings(): AppSettings {
             val loaded = Json.decodeFromString<AppSettings>(file.readText())
             return AppSettings(
                 extensionDirPath = if (loaded.extensionDirPath.isNotEmpty()) loaded.extensionDirPath else defaultPath,
-                extensionRepoUrl = if (loaded.extensionRepoUrl.isNotEmpty()) loaded.extensionRepoUrl else defaultRepo
+                extensionRepoUrl = if (loaded.extensionRepoUrl.isNotEmpty()) loaded.extensionRepoUrl else defaultRepo,
+                themeColor = loaded.themeColor.ifEmpty { "Orange" }
             )
         }
     } catch (e: Exception) {
         e.printStackTrace()
     }
-    return AppSettings(extensionDirPath = defaultPath, extensionRepoUrl = defaultRepo)
+    return AppSettings(extensionDirPath = defaultPath, extensionRepoUrl = defaultRepo, themeColor = "Orange")
 }
 
 
@@ -238,27 +246,56 @@ fun main() {
     // Initialize Injekt container with NetworkHelper singleton
     Injekt.addSingleton(NetworkHelper())
     Injekt.addSingleton(android.app.Application())
+    Injekt.addSingleton(Json { ignoreUnknownKeys = true })
 
     application {
         Window(
             onCloseRequest = ::exitApplication,
             title = "Aniyomi Desktop (KMP Nativo - Multi-pestaña)"
         ) {
+            var appSettings by remember { mutableStateOf(loadSettings()) }
+
+            val primaryColor = when (appSettings.themeColor) {
+                "Purple" -> Color(0xFF9C27B0)
+                "Blue" -> Color(0xFF2196F3)
+                "Green" -> Color(0xFF4CAF50)
+                "Red" -> Color(0xFFE91E63)
+                else -> Color(0xFFFF9800) // Orange
+            }
+
             MaterialTheme(
                 colorScheme = darkColorScheme(
-                    primary = Color(0xFFFF9800), // Orange theme
+                    primary = primaryColor,
                     background = Color(0xFF121212),
-                    surface = Color(0xFF1E1E1E)
+                    surface = Color(0xFF1E1E1E),
+                    onBackground = Color(0xFFE3E3E3),
+                    onSurface = Color(0xFFFFFFFF),
+                    primaryContainer = primaryColor.copy(alpha = 0.3f),
+                    onPrimaryContainer = Color.White
                 )
             ) {
-                MainScreen()
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    MainScreen(
+                        appSettings = appSettings,
+                        onSettingsChange = { newSettings ->
+                            appSettings = newSettings
+                            saveSettings(newSettings)
+                        }
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-fun MainScreen() {
+fun MainScreen(
+    appSettings: AppSettings,
+    onSettingsChange: (AppSettings) -> Unit
+) {
     var currentTab by remember { mutableStateOf("biblioteca") }
     var selectedAnime by remember { mutableStateOf<RealAnime?>(null) }
     var selectedEpisode by remember { mutableStateOf<RealEpisode?>(null) }
@@ -267,7 +304,6 @@ fun MainScreen() {
     // Shared state managers loaded from disk
     val libraryList = remember { mutableStateListOf<RealAnime>().apply { addAll(loadLibrary()) } }
     val historyList = remember { mutableStateListOf<HistoryItem>().apply { addAll(loadHistory()) } }
-    var appSettings by remember { mutableStateOf(loadSettings()) }
 
     // Dynamic sources loaded from extensions
     val dynamicSources = remember { mutableStateListOf<AnimeHttpSource>() }
@@ -282,11 +318,13 @@ fun MainScreen() {
                 val files = eu.kanade.tachiyomi.extension.ExtensionManager.extensionsDir.listFiles { _, name -> name.endsWith(".jar") }
                 val jarNames = files?.map { it.name } ?: emptyList()
                 val local = eu.kanade.tachiyomi.extension.ExtensionManager.loadLocalExtensions()
+                println("[main.kt] Loaded local extensions: ${local.size} sources found. Details: ${local.map { it.name }}")
                 withContext(Dispatchers.Main) {
                     installedJars.addAll(jarNames)
                     dynamicSources.addAll(local.filterIsInstance<AnimeHttpSource>())
                 }
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
+                println("[main.kt] Error during startup extension loading: ${e.message}")
                 e.printStackTrace()
             }
         }
@@ -316,7 +354,9 @@ fun MainScreen() {
         }
     }
 
-    if (activeVideoUrl != null && selectedEpisode != null && selectedAnime != null) {
+    val currentAnime = selectedAnime
+    val currentEpisode = selectedEpisode
+    if (activeVideoUrl != null && currentEpisode != null && currentAnime != null) {
         // Player View
         Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
             val playerState = rememberVideoPlayerState()
@@ -332,30 +372,240 @@ fun MainScreen() {
                 modifier = Modifier.fillMaxSize()
             )
 
-            Row(
-                modifier = Modifier.padding(16.dp).align(Alignment.TopStart),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Button(
-                    onClick = {
-                        playerState.stop()
-                        activeVideoUrl = null
-                    }
-                ) {
-                    Text("Volver")
+            // Controls overlay
+            var showControls by remember { mutableStateOf(true) }
+            
+            // Auto-hide controls after 4 seconds of inactivity
+            LaunchedEffect(showControls) {
+                if (showControls) {
+                    kotlinx.coroutines.delay(4000)
+                    showControls = false
                 }
-                
-                Button(
-                    onClick = {
-                        try {
-                            Desktop.getDesktop().browse(URI(activeVideoUrl!!))
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                        }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) {
+                        showControls = !showControls
+                    }
+            ) {
+                AnimatedVisibility(
+                    visible = showControls,
+                    enter = fadeIn(),
+                    exit = fadeOut()
                 ) {
-                    Text("Abrir en Navegador")
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        // Top Bar (Volver, Title, Browser)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color.Black.copy(alpha = 0.6f))
+                                .padding(16.dp)
+                                .align(Alignment.TopStart),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Button(
+                                    onClick = {
+                                        playerState.stop()
+                                        activeVideoUrl = null
+                                    }
+                                ) {
+                                    Text("Volver")
+                                }
+                                Text(
+                                    text = "${currentAnime.title} - ${currentEpisode.name}",
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                            }
+                            
+                            Button(
+                                onClick = {
+                                    try {
+                                        Desktop.getDesktop().browse(URI(activeVideoUrl!!))
+                                    } catch (e: Exception) {
+                                        e.printStackTrace()
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+                            ) {
+                                Text("Navegador")
+                            }
+                        }
+
+                        // Bottom Controls Bar
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color.Black.copy(alpha = 0.6f))
+                                .padding(16.dp)
+                                .align(Alignment.BottomCenter)
+                        ) {
+                            // Subtitles & Audio Track Row
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                // Subtitle Selector
+                                if (playerState.availableSubtitleTracks.isNotEmpty()) {
+                                    var showSubtitleMenu by remember { mutableStateOf(false) }
+                                    Box {
+                                        Button(
+                                            onClick = { showSubtitleMenu = true },
+                                            colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray)
+                                        ) {
+                                            Icon(Icons.Default.Subtitles, contentDescription = "Subtítulos", tint = Color.White)
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(
+                                                text = playerState.currentSubtitleTrack?.language ?: if (playerState.subtitlesEnabled) "Activos" else "Desactivados",
+                                                color = Color.White
+                                            )
+                                        }
+                                        DropdownMenu(
+                                            expanded = showSubtitleMenu,
+                                            onDismissRequest = { showSubtitleMenu = false }
+                                        ) {
+                                            DropdownMenuItem(
+                                                text = { Text("Desactivar Subtítulos") },
+                                                onClick = {
+                                                    playerState.subtitlesEnabled = false
+                                                    playerState.disableSubtitles()
+                                                    showSubtitleMenu = false
+                                                }
+                                            )
+                                            playerState.availableSubtitleTracks.forEach { track ->
+                                                DropdownMenuItem(
+                                                    text = { Text(track.language.ifEmpty { "Desconocido" }) },
+                                                    onClick = {
+                                                        playerState.subtitlesEnabled = true
+                                                        playerState.selectSubtitleTrack(track)
+                                                        showSubtitleMenu = false
+                                                    }
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            // Progress Slider Row
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = playerState.positionText,
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                                
+                                Slider(
+                                    value = playerState.sliderPos,
+                                    onValueChange = {
+                                        playerState.seekStart(it)
+                                    },
+                                    onValueChangeFinished = {
+                                        playerState.seekFinished()
+                                    },
+                                    valueRange = 0f..1000f,
+                                    modifier = Modifier.weight(1f).padding(horizontal = 16.dp),
+                                    colors = SliderDefaults.colors(
+                                        thumbColor = MaterialTheme.colorScheme.primary,
+                                        activeTrackColor = MaterialTheme.colorScheme.primary
+                                    )
+                                )
+
+                                Text(
+                                    text = playerState.durationText,
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            // Play/Pause & Volume Row
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    // Play/Pause button
+                                    IconButton(
+                                        onClick = {
+                                            if (playerState.isPlaying) {
+                                                playerState.pause()
+                                            } else {
+                                                playerState.play()
+                                            }
+                                        }
+                                    ) {
+                                        Icon(
+                                            imageVector = if (playerState.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                            contentDescription = "Reproducir/Pausar",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(36.dp)
+                                        )
+                                    }
+
+                                    Spacer(modifier = Modifier.width(16.dp))
+
+                                    // Restart button
+                                    IconButton(
+                                        onClick = {
+                                            playerState.restart()
+                                        }
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Replay,
+                                            contentDescription = "Reiniciar",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(28.dp)
+                                        )
+                                    }
+                                }
+
+                                // Volume Slider
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    val isMuted = playerState.volume == 0f
+                                    IconButton(
+                                        onClick = {
+                                            playerState.volume = if (isMuted) 0.5f else 0f
+                                        }
+                                    ) {
+                                        Icon(
+                                            imageVector = if (isMuted) Icons.Default.VolumeOff else if (playerState.volume < 0.5f) Icons.Default.VolumeDown else Icons.Default.VolumeUp,
+                                            contentDescription = "Volumen",
+                                            tint = Color.White
+                                        )
+                                    }
+                                    Slider(
+                                        value = playerState.volume,
+                                        onValueChange = { playerState.volume = it },
+                                        valueRange = 0f..1f,
+                                        modifier = Modifier.width(120.dp),
+                                        colors = SliderDefaults.colors(
+                                            thumbColor = Color.White,
+                                            activeTrackColor = Color.White
+                                        )
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -476,10 +726,7 @@ fun MainScreen() {
                     )
                     "configuracion" -> SettingsTab(
                         appSettings = appSettings,
-                        onSettingsChange = { newSettings ->
-                            appSettings = newSettings
-                            saveSettings(newSettings)
-                        }
+                        onSettingsChange = onSettingsChange
                     )
                 }
             }
@@ -847,8 +1094,10 @@ fun ExtensionsSection(
         try {
             val list = eu.kanade.tachiyomi.extension.ExtensionManager.fetchRepository(repoUrl)
             extensionsList = list
-        } catch (e: Exception) {
-            errorMessage = e.message
+        } catch (e: Throwable) {
+            println("[main.kt] Error fetching repository: ${e.message}")
+            e.printStackTrace()
+            errorMessage = e.message ?: e.toString()
         } finally {
             isLoading = false
         }
@@ -908,7 +1157,8 @@ fun ExtensionsSection(
                                                     val loaded = eu.kanade.tachiyomi.extension.ExtensionManager.installExtension(repoUrl, ext)
                                                     onInstallSuccess(loaded.filterIsInstance<AnimeHttpSource>(), jarName)
                                                 }
-                                            } catch (e: Exception) {
+                                            } catch (e: Throwable) {
+                                                println("[main.kt] Error during extension install/uninstall action: ${e.message}")
                                                 e.printStackTrace()
                                             } finally {
                                                 isActionLoading = false
@@ -1139,6 +1389,71 @@ fun SettingsTab(
 
         Spacer(modifier = Modifier.height(24.dp))
         Text(
+            text = "Tema Visual (Color Principal)",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.primary
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(8.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = "Selecciona el color de acento de la aplicación:",
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                val colors = listOf(
+                    "Orange" to "Naranja",
+                    "Purple" to "Morado",
+                    "Blue" to "Azul",
+                    "Green" to "Verde",
+                    "Red" to "Rojo"
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    colors.forEach { (colorName, displayName) ->
+                        val isSelected = appSettings.themeColor == colorName
+                        val targetColor = when (colorName) {
+                            "Purple" -> Color(0xFF9C27B0)
+                            "Blue" -> Color(0xFF2196F3)
+                            "Green" -> Color(0xFF4CAF50)
+                            "Red" -> Color(0xFFE91E63)
+                            else -> Color(0xFFFF9800) // Orange
+                        }
+                        
+                        Button(
+                            onClick = {
+                                onSettingsChange(appSettings.copy(themeColor = colorName))
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (isSelected) targetColor else Color(0xFF2C2C2C),
+                                contentColor = if (isSelected) Color.Black else Color.White
+                            ),
+                            shape = RoundedCornerShape(20.dp),
+                            border = if (isSelected) null else BorderStroke(1.dp, Color.Gray.copy(alpha = 0.5f))
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(12.dp)
+                                    .background(targetColor, shape = androidx.compose.foundation.shape.CircleShape)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(displayName, style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+        Text(
             text = "Información del Sistema",
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onBackground
@@ -1176,12 +1491,14 @@ fun AnimeDetailsScreen(
     var selectedEpisode by remember { mutableStateOf<RealEpisode?>(null) }
     var videos by remember { mutableStateOf<List<RealVideo>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
+    var errorText by remember { mutableStateOf<String?>(null) }
 
     val isInLibrary = libraryList.any { it.url == anime.url }
 
-    // Load details & episodes when anime is selected
-    LaunchedEffect(anime) {
+    // Load details & episodes when anime or source is selected
+    LaunchedEffect(anime, source) {
         isLoading = true
+        errorText = null
         episodes = emptyList()
         withContext(Dispatchers.IO) {
             try {
@@ -1203,9 +1520,10 @@ fun AnimeDetailsScreen(
                     }
                     isLoading = false
                 }
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 e.printStackTrace()
                 withContext(Dispatchers.Main) {
+                    errorText = e.message ?: e.toString()
                     isLoading = false
                 }
             }
@@ -1304,6 +1622,14 @@ fun AnimeDetailsScreen(
         if (isLoading && episodes.isEmpty()) {
             Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+            }
+        } else if (errorText != null && episodes.isEmpty()) {
+            Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Error al cargar episodios:", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.titleMedium)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(errorText!!, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onBackground)
+                }
             }
         } else {
             Row(modifier = Modifier.fillMaxWidth().weight(1f)) {

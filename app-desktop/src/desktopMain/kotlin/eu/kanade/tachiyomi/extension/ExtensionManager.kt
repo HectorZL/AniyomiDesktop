@@ -20,21 +20,21 @@ import java.util.zip.ZipFile
 
 @Serializable
 data class ExtensionInfo(
-    val name: String,
-    val pkg: String,
-    val apk: String,
-    val lang: String,
-    val version: String,
-    val nsfw: Int,
-    val sources: List<SourceInfo>
+    val name: String = "",
+    val pkg: String = "",
+    val apk: String = "",
+    val lang: String = "",
+    val version: String = "",
+    val nsfw: Int = 0,
+    val sources: List<SourceInfo> = emptyList()
 )
 
 @Serializable
 data class SourceInfo(
-    val name: String,
-    val lang: String,
-    val id: String,
-    val baseUrl: String
+    val name: String = "",
+    val lang: String = "",
+    val id: String = "",
+    val baseUrl: String = ""
 )
 
 object ExtensionManager {
@@ -153,8 +153,11 @@ object ExtensionManager {
         val allSources = mutableListOf<AnimeSource>()
         for (file in files) {
             try {
-                allSources.addAll(loadExtension(file))
-            } catch (e: Exception) {
+                val loaded = loadExtension(file)
+                println("[ExtensionManager] Loaded ${loaded.size} sources from ${file.name}: ${loaded.map { it.name }}")
+                allSources.addAll(loaded)
+            } catch (e: Throwable) {
+                println("[ExtensionManager] Error loading file ${file.name}: ${e.message}")
                 e.printStackTrace()
             }
         }
@@ -164,28 +167,37 @@ object ExtensionManager {
 
 class ASMClassLoader(urls: Array<java.net.URL>, parent: ClassLoader) : URLClassLoader(urls, parent) {
     override fun loadClass(name: String, resolve: Boolean): Class<*> {
-        // Only intercept extension classes
-        if (name.startsWith("eu.kanade.tachiyomi.animeextension") || name.startsWith("eu.kanade.tachiyomi.extension")) {
-            val path = name.replace('.', '/') + ".class"
-            val res = findResource(path)
-            if (res != null) {
-                try {
-                    res.openStream().use { stream ->
-                        val originalBytes = stream.readBytes()
-                        val fixedBytes = fixStackFrames(originalBytes)
-                        val clazz = defineClass(name, fixedBytes, 0, fixedBytes.size)
-                        if (resolve) {
-                            resolveClass(clazz)
+        synchronized(this) {
+            val loadedClass = findLoadedClass(name)
+            if (loadedClass != null) {
+                if (resolve) {
+                    resolveClass(loadedClass)
+                }
+                return loadedClass
+            }
+            // Only intercept extension classes
+            if (name.startsWith("eu.kanade.tachiyomi.animeextension") || name.startsWith("eu.kanade.tachiyomi.extension")) {
+                val path = name.replace('.', '/') + ".class"
+                val res = findResource(path)
+                if (res != null) {
+                    try {
+                        res.openStream().use { stream ->
+                            val originalBytes = stream.readBytes()
+                            val fixedBytes = fixStackFrames(originalBytes)
+                            val clazz = defineClass(name, fixedBytes, 0, fixedBytes.size)
+                            if (resolve) {
+                                resolveClass(clazz)
+                            }
+                            return clazz
                         }
-                        return clazz
+                    } catch (e: Throwable) {
+                        println("[ASMClassLoader] Error fixing frames for $name: ${e.message}")
+                        e.printStackTrace()
                     }
-                } catch (e: Throwable) {
-                    println("[ASMClassLoader] Error fixing frames for $name: ${e.message}")
-                    e.printStackTrace()
                 }
             }
+            return super.loadClass(name, resolve)
         }
-        return super.loadClass(name, resolve)
     }
 
     private fun fixStackFrames(classBytes: ByteArray): ByteArray {

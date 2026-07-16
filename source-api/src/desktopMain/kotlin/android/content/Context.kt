@@ -9,6 +9,12 @@ open class Context {
         return SharedPreferencesImpl(name)
     }
 
+    fun getPackageName(): String = "eu.kanade.tachiyomi"
+    
+    fun getCacheDir(): File = File(System.getProperty("user.home"), "AppData/Local/AniyomiDesktop/cache")
+    
+    fun getFilesDir(): File = File(System.getProperty("user.home"), "AppData/Local/AniyomiDesktop/files")
+
     companion object {
         const val MODE_PRIVATE = 0
     }
