@@ -1,0 +1,1333 @@
+﻿diff --git a/app-desktop/src/desktopMain/kotlin/eu/kanade/tachiyomi/animesource/AnimeFlv.kt b/app-desktop/src/desktopMain/kotlin/eu/kanade/tachiyomi/animesource/AnimeFlv.kt
+index 5082e26..2a69f97 100644
+--- a/app-desktop/src/desktopMain/kotlin/eu/kanade/tachiyomi/animesource/AnimeFlv.kt
++++ b/app-desktop/src/desktopMain/kotlin/eu/kanade/tachiyomi/animesource/AnimeFlv.kt
+@@ -117,16 +117,20 @@ class AnimeFlv : ParsedAnimeHttpSource() {
+ 
+     // --- VIDEO PLAYLIST ---
+     public override fun videoListParse(response: Response): List<Video> {
+-        val document = response.asJsoup()
+-        val html = document.html()
++        val html = try { response.body?.string() ?: "" } catch (e: Exception) { "" }
++        val documentHtml = if (html.isEmpty()) {
++            try { response.asJsoup().html() } catch (e: Exception) { "" }
++        } else {
++            html
++        }
+         
+-        val videosPattern = Pattern.compile("var videos = \\{(.*?)\\};")
+-        val matcher = videosPattern.matcher(html)
++        val videosPattern = Pattern.compile("var videos\\s*=\\s*(.*?);")
++        val matcher = videosPattern.matcher(documentHtml)
+         
+         val list = mutableListOf<Video>()
+         if (matcher.find()) {
+-            val jsonStr = "{" + matcher.group(1) + "}"
+-            val serverPattern = Pattern.compile("\\{\"server\":\"([^\"]+)\".*?\"code\":\"([^\"]+)\"")
++            val jsonStr = matcher.group(1).trim()
++            val serverPattern = Pattern.compile("\"server\"\\s*:\\s*\"([^\"]+)\".*?\"code\"\\s*:\\s*\"([^\"]+)\"")
+             val serverMatcher = serverPattern.matcher(jsonStr)
+             while (serverMatcher.find()) {
+                 val serverName = serverMatcher.group(1)
+@@ -153,4 +157,5 @@ class AnimeFlv : ParsedAnimeHttpSource() {
+     // Public visibility for parsing methods
+     public override fun popularAnimeParse(response: Response): AnimesPage = super.popularAnimeParse(response)
+     public override fun searchAnimeParse(response: Response): AnimesPage = super.searchAnimeParse(response)
++    public override fun latestUpdatesParse(response: Response): AnimesPage = super.latestUpdatesParse(response)
+ }
+diff --git a/app-desktop/src/desktopMain/kotlin/main.kt b/app-desktop/src/desktopMain/kotlin/main.kt
+index 0ba4022..140b74e 100644
+--- a/app-desktop/src/desktopMain/kotlin/main.kt
++++ b/app-desktop/src/desktopMain/kotlin/main.kt
+@@ -9,10 +9,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
+ import androidx.compose.foundation.lazy.grid.items
+ import androidx.compose.foundation.shape.RoundedCornerShape
+ import androidx.compose.material.icons.Icons
+-import androidx.compose.material.icons.filled.Home
+-import androidx.compose.material.icons.filled.Info
+-import androidx.compose.material.icons.filled.PlayArrow
+-import androidx.compose.material.icons.filled.Search
++import androidx.compose.material.icons.filled.*
+ import androidx.compose.material3.*
+ import androidx.compose.runtime.*
+ import androidx.compose.ui.Alignment
+@@ -43,6 +40,8 @@ import uy.kohesive.injekt.api.addSingleton
+ import uy.kohesive.injekt.api.get
+ import java.awt.Desktop
+ import java.net.URI
++import java.time.LocalDateTime
++import java.time.format.DateTimeFormatter
+ import javax.imageio.ImageIO
+ 
+ // Data structures for Real Anime
+@@ -64,6 +63,13 @@ data class RealVideo(
+     val url: String
+ )
+ 
++data class HistoryItem(
++    val anime: RealAnime,
++    val episode: RealEpisode,
++    val videoUrl: String,
++    val timestamp: String
++)
++
+ // AsyncImage loader for Compose Desktop
+ @Composable
+ fun AsyncImage(
+@@ -134,7 +140,7 @@ fun main() {
+     application {
+         Window(
+             onCloseRequest = ::exitApplication,
+-            title = "Aniyomi Desktop (KMP Nativo - AnimeFLV Scraper)"
++            title = "Aniyomi Desktop (KMP Nativo - Multi-pesta├▒a)"
+         ) {
+             MaterialTheme(
+                 colorScheme = darkColorScheme(
+@@ -151,162 +157,16 @@ fun main() {
+ 
+ @Composable
+ fun MainScreen() {
+-    var currentTab by remember { mutableStateOf("catalogo") }
+-
+-    Row(modifier = Modifier.fillMaxSize()) {
+-        NavigationRail(
+-            containerColor = MaterialTheme.colorScheme.surface,
+-            contentColor = MaterialTheme.colorScheme.onSurface
+-        ) {
+-            NavigationRailItem(
+-                icon = { Icon(Icons.Default.Home, contentDescription = "AnimeFLV") },
+-                label = { Text("AnimeFLV") },
+-                selected = currentTab == "catalogo",
+-                onClick = { currentTab = "catalogo" }
+-            )
+-            NavigationRailItem(
+-                icon = { Icon(Icons.Default.Search, contentDescription = "Prueba Red") },
+-                label = { Text("Prueba Red") },
+-                selected = currentTab == "network",
+-                onClick = { currentTab = "network" }
+-            )
+-            NavigationRailItem(
+-                icon = { Icon(Icons.Default.Info, contentDescription = "Acerca de") },
+-                label = { Text("Acerca de") },
+-                selected = currentTab == "info",
+-                onClick = { currentTab = "info" }
+-            )
+-        }
+-
+-        Box(
+-            modifier = Modifier
+-                .fillMaxHeight()
+-                .weight(1f)
+-                .background(MaterialTheme.colorScheme.background)
+-        ) {
+-            when (currentTab) {
+-                "catalogo" -> CatalogTab()
+-                "network" -> NetworkTestTab()
+-                "info" -> InfoTab()
+-            }
+-        }
+-    }
+-}
+-
+-@Composable
+-fun CatalogTab() {
+-    var animeList by remember { mutableStateOf<List<RealAnime>>(emptyList()) }
++    var currentTab by remember { mutableStateOf("biblioteca") }
+     var selectedAnime by remember { mutableStateOf<RealAnime?>(null) }
+-    var episodes by remember { mutableStateOf<List<RealEpisode>>(emptyList()) }
+     var selectedEpisode by remember { mutableStateOf<RealEpisode?>(null) }
+-    var videos by remember { mutableStateOf<List<RealVideo>>(emptyList()) }
+     var activeVideoUrl by remember { mutableStateOf<String?>(null) }
+-    var searchQuery by remember { mutableStateOf("") }
+-    var isLoading by remember { mutableStateOf(false) }
+-    val scope = rememberCoroutineScope()
+-    val source = remember { AnimeFlv() }
+-
+-    // Load initial anime list
+-    LaunchedEffect(searchQuery) {
+-        isLoading = true
+-        scope.launch(Dispatchers.IO) {
+-            try {
+-                val response = if (searchQuery.trim().isEmpty()) {
+-                    source.client.newCall(source.popularAnimeRequest(1)).execute()
+-                } else {
+-                    source.client.newCall(source.searchAnimeRequest(1, searchQuery.trim(), AnimeFilterList())).execute()
+-                }
+-                val page = if (searchQuery.trim().isEmpty()) {
+-                    source.popularAnimeParse(response)
+-                } else {
+-                    source.searchAnimeParse(response)
+-                }
+-                withContext(Dispatchers.Main) {
+-                    animeList = page.animes.map {
+-                        RealAnime(
+-                            title = it.title,
+-                            description = it.description ?: "Cargando descripci├│n...",
+-                            thumbnailUrl = it.thumbnail_url ?: "",
+-                            url = it.url
+-                        )
+-                    }
+-                    isLoading = false
+-                }
+-            } catch (e: Exception) {
+-                e.printStackTrace()
+-                withContext(Dispatchers.Main) {
+-                    isLoading = false
+-                }
+-            }
+-        }
+-    }
+-
+-    // Load details & episodes when anime is selected
+-    LaunchedEffect(selectedAnime) {
+-        if (selectedAnime != null) {
+-            isLoading = true
+-            episodes = emptyList()
+-            scope.launch(Dispatchers.IO) {
+-                try {
+-                    val animeUrl = selectedAnime!!.url
+-                    val detailResponse = source.client.newCall(GET(source.baseUrl + animeUrl, source.headers)).execute()
+-                    val parsedAnime = source.animeDetailsParse(detailResponse.asJsoup())
+-                    
+-                    val epResponse = source.client.newCall(GET(source.baseUrl + animeUrl, source.headers)).execute()
+-                    val parsedEpisodes = source.episodeListParse(epResponse)
+-                    
+-                    withContext(Dispatchers.Main) {
+-                        selectedAnime = selectedAnime!!.copy(description = parsedAnime.description ?: "")
+-                        episodes = parsedEpisodes.map {
+-                            RealEpisode(
+-                                name = it.name,
+-                                url = it.url,
+-                                episodeNumber = it.episode_number
+-                            )
+-                        }
+-                        isLoading = false
+-                    }
+-                } catch (e: Exception) {
+-                    e.printStackTrace()
+-                    withContext(Dispatchers.Main) {
+-                        isLoading = false
+-                    }
+-                }
+-            }
+-        }
+-    }
+-
+-    // Load video servers when episode is selected
+-    LaunchedEffect(selectedEpisode) {
+-        if (selectedEpisode != null) {
+-            isLoading = true
+-            videos = emptyList()
+-            scope.launch(Dispatchers.IO) {
+-                try {
+-                    val epUrl = selectedEpisode!!.url
+-                    val response = source.client.newCall(GET(source.baseUrl + epUrl, source.headers)).execute()
+-                    val parsedVideos = source.videoListParse(response)
+-                    
+-                    withContext(Dispatchers.Main) {
+-                        videos = parsedVideos.map {
+-                            RealVideo(
+-                                name = it.quality,
+-                                url = it.url
+-                            )
+-                        }
+-                        isLoading = false
+-                    }
+-                } catch (e: Exception) {
+-                    e.printStackTrace()
+-                    withContext(Dispatchers.Main) {
+-                        isLoading = false
+-                    }
+-                }
+-            }
+-        }
+-    }
++    
++    // Shared state managers
++    val libraryList = remember { mutableStateListOf<RealAnime>() }
++    val historyList = remember { mutableStateListOf<HistoryItem>() }
+ 
+-    if (activeVideoUrl != null) {
++    if (activeVideoUrl != null && selectedEpisode != null && selectedAnime != null) {
+         // Player View
+         Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+             val playerState = rememberVideoPlayerState()
+@@ -350,211 +210,219 @@ fun CatalogTab() {
+             }
+         }
+     } else if (selectedAnime != null) {
+-        // Anime details screen
+-        val anime = selectedAnime!!
+-        Column(
+-            modifier = Modifier
+-                .fillMaxSize()
+-                .padding(24.dp)
+-        ) {
+-            Row(modifier = Modifier.fillMaxWidth()) {
+-                Button(onClick = { 
+-                    selectedAnime = null
+-                    selectedEpisode = null
+-                    videos = emptyList()
+-                }) {
+-                    Text("Volver al Cat├ílogo")
+-                }
++        // Shared Anime Details Screen
++        AnimeDetailsScreen(
++            anime = selectedAnime!!,
++            libraryList = libraryList,
++            historyList = historyList,
++            onBack = { 
++                selectedAnime = null 
++                selectedEpisode = null
++            },
++            onPlayEpisode = { episode, video ->
++                selectedEpisode = episode
++                activeVideoUrl = video.url
+             }
+-            Spacer(modifier = Modifier.height(16.dp))
+-            Row(modifier = Modifier.fillMaxWidth()) {
+-                AsyncImage(
+-                    url = anime.thumbnailUrl,
+-                    contentDescription = anime.title,
+-                    modifier = Modifier
+-                        .size(150.dp, 220.dp)
+-                        .clip(RoundedCornerShape(8.dp))
++        )
++    } else {
++        // Layout with Navigation Rail and tabs
++        Row(modifier = Modifier.fillMaxSize()) {
++            NavigationRail(
++                containerColor = MaterialTheme.colorScheme.surface,
++                contentColor = MaterialTheme.colorScheme.onSurface
++            ) {
++                NavigationRailItem(
++                    icon = { Icon(Icons.Default.Favorite, contentDescription = "Biblioteca") },
++                    label = { Text("Biblioteca") },
++                    selected = currentTab == "biblioteca",
++                    onClick = { currentTab = "biblioteca" }
++                )
++                NavigationRailItem(
++                    icon = { Icon(Icons.Default.Refresh, contentDescription = "Actualizaciones") },
++                    label = { Text("Recientes") },
++                    selected = currentTab == "actualizaciones",
++                    onClick = { currentTab = "actualizaciones" }
++                )
++                NavigationRailItem(
++                    icon = { Icon(Icons.Default.History, contentDescription = "Historial") },
++                    label = { Text("Historial") },
++                    selected = currentTab == "historial",
++                    onClick = { currentTab = "historial" }
++                )
++                NavigationRailItem(
++                    icon = { Icon(Icons.Default.Explore, contentDescription = "Examinar") },
++                    label = { Text("Examinar") },
++                    selected = currentTab == "examinar",
++                    onClick = { currentTab = "examinar" }
++                )
++                NavigationRailItem(
++                    icon = { Icon(Icons.Default.Settings, contentDescription = "Configuraci├│n") },
++                    label = { Text("Configurar") },
++                    selected = currentTab == "configuracion",
++                    onClick = { currentTab = "configuracion" }
+                 )
+-                Spacer(modifier = Modifier.width(24.dp))
+-                Column(modifier = Modifier.weight(1f)) {
+-                    Text(
+-                        text = anime.title,
+-                        style = MaterialTheme.typography.headlineMedium,
+-                        color = MaterialTheme.colorScheme.onBackground
+-                    )
+-                    Spacer(modifier = Modifier.height(8.dp))
+-                    Text(
+-                        text = anime.description,
+-                        style = MaterialTheme.typography.bodyMedium,
+-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
+-                    )
+-                }
+             }
+ 
+-            Spacer(modifier = Modifier.height(24.dp))
+-            
+-            if (isLoading) {
+-                Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
+-                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
++            Box(
++                modifier = Modifier
++                    .fillMaxHeight()
++                    .weight(1f)
++                    .background(MaterialTheme.colorScheme.background)
++            ) {
++                when (currentTab) {
++                    "biblioteca" -> LibraryTab(libraryList, onAnimeClick = { selectedAnime = it })
++                    "actualizaciones" -> UpdatesTab(onAnimeClick = { selectedAnime = it })
++                    "historial" -> HistoryTab(historyList, onEpisodeClick = { item ->
++                        selectedAnime = item.anime
++                        selectedEpisode = item.episode
++                        activeVideoUrl = item.videoUrl
++                    })
++                    "examinar" -> BrowseTab(onAnimeClick = { selectedAnime = it })
++                    "configuracion" -> SettingsTab()
+                 }
+-            } else {
+-                Row(modifier = Modifier.fillMaxWidth().weight(1f)) {
+-                    // Episodes List
+-                    Column(modifier = Modifier.weight(1.2f)) {
+-                        Text(
+-                            text = "Episodios",
+-                            style = MaterialTheme.typography.titleLarge,
+-                            color = MaterialTheme.colorScheme.onBackground
+-                        )
+-                        Spacer(modifier = Modifier.height(8.dp))
+-                        LazyColumn(modifier = Modifier.fillMaxWidth()) {
+-                            items(episodes) { episode ->
+-                                Card(
+-                                    modifier = Modifier
+-                                        .fillMaxWidth()
+-                                        .padding(vertical = 4.dp)
+-                                        .clickable { selectedEpisode = episode },
+-                                    shape = RoundedCornerShape(8.dp),
+-                                    colors = CardDefaults.cardColors(
+-                                        containerColor = if (selectedEpisode == episode) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
+-                                    )
+-                                ) {
+-                                    Row(
+-                                        modifier = Modifier.fillMaxWidth().padding(12.dp),
+-                                        verticalAlignment = Alignment.CenterVertically
+-                                    ) {
+-                                        Icon(Icons.Default.PlayArrow, contentDescription = "Play")
+-                                        Spacer(modifier = Modifier.width(12.dp))
+-                                        Text(text = episode.name, style = MaterialTheme.typography.bodyLarge)
+-                                    }
+-                                }
+-                            }
+-                        }
+-                    }
++            }
++        }
++    }
++}
+ 
+-                    Spacer(modifier = Modifier.width(24.dp))
++// --- TABS ---
+ 
+-                    // Video Servers List
+-                    Column(modifier = Modifier.weight(0.8f)) {
+-                        Text(
+-                            text = "Servidores",
+-                            style = MaterialTheme.typography.titleLarge,
+-                            color = MaterialTheme.colorScheme.onBackground
+-                        )
+-                        Spacer(modifier = Modifier.height(8.dp))
+-                        if (selectedEpisode == null) {
++@Composable
++fun LibraryTab(libraryList: List<RealAnime>, onAnimeClick: (RealAnime) -> Unit) {
++    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
++        Text(
++            text = "Biblioteca",
++            style = MaterialTheme.typography.headlineMedium,
++            color = MaterialTheme.colorScheme.onBackground
++        )
++        Spacer(modifier = Modifier.height(16.dp))
++        
++        if (libraryList.isEmpty()) {
++            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
++                Text(
++                    text = "Tu biblioteca est├í vac├¡a.\nExplora animes en la pesta├▒a 'Examinar' para a├▒adirlos.",
++                    style = MaterialTheme.typography.bodyLarge,
++                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
++                )
++            }
++        } else {
++            LazyVerticalGrid(
++                columns = GridCells.Adaptive(minSize = 160.dp),
++                horizontalArrangement = Arrangement.spacedBy(16.dp),
++                verticalArrangement = Arrangement.spacedBy(16.dp),
++                modifier = Modifier.fillMaxSize()
++            ) {
++                items(libraryList) { anime ->
++                    Card(
++                        modifier = Modifier
++                            .fillMaxWidth()
++                            .clickable { onAnimeClick(anime) },
++                        shape = RoundedCornerShape(8.dp),
++                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
++                    ) {
++                        Column(modifier = Modifier.fillMaxWidth()) {
++                            AsyncImage(
++                                url = anime.thumbnailUrl,
++                                contentDescription = anime.title,
++                                modifier = Modifier
++                                    .fillMaxWidth()
++                                    .height(220.dp)
++                            )
+                             Text(
+-                                "Selecciona un episodio para cargar servidores",
+-                                style = MaterialTheme.typography.bodyMedium,
+-                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
++                                text = anime.title,
++                                style = MaterialTheme.typography.titleMedium,
++                                maxLines = 2,
++                                modifier = Modifier.padding(8.dp),
++                                color = MaterialTheme.colorScheme.onSurface
+                             )
+-                        } else {
+-                            LazyColumn(modifier = Modifier.fillMaxWidth()) {
+-                                items(videos) { video ->
+-                                    Card(
+-                                        modifier = Modifier
+-                                            .fillMaxWidth()
+-                                            .padding(vertical = 4.dp),
+-                                        shape = RoundedCornerShape(8.dp),
+-                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+-                                    ) {
+-                                        Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
+-                                            Text(
+-                                                text = "Servidor: ${video.name}",
+-                                                style = MaterialTheme.typography.bodyLarge,
+-                                                color = MaterialTheme.colorScheme.onSurface
+-                                            )
+-                                            Spacer(modifier = Modifier.height(8.dp))
+-                                            Row(
+-                                                modifier = Modifier.fillMaxWidth(),
+-                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+-                                            ) {
+-                                                Button(
+-                                                    onClick = { activeVideoUrl = video.url },
+-                                                    modifier = Modifier.weight(1f)
+-                                                ) {
+-                                                    Text("Reproducir")
+-                                                }
+-                                                Button(
+-                                                    onClick = {
+-                                                        try {
+-                                                            Desktop.getDesktop().browse(URI(video.url))
+-                                                        } catch (e: Exception) {
+-                                                            e.printStackTrace()
+-                                                        }
+-                                                    },
+-                                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
+-                                                    modifier = Modifier.weight(1f)
+-                                                ) {
+-                                                    Text("Navegador")
+-                                                }
+-                                            }
+-                                        }
+-                                    }
+-                                }
+-                            }
+                         }
+                     }
+                 }
+             }
+         }
+-    } else {
+-        // Catalog Grid of Anime
+-        Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+-            Row(
+-                modifier = Modifier.fillMaxWidth(),
+-                verticalAlignment = Alignment.CenterVertically
+-            ) {
+-                Text(
+-                    text = "Cat├ílogo AnimeFLV",
+-                    style = MaterialTheme.typography.headlineMedium,
+-                    modifier = Modifier.weight(1f)
+-                )
+-                
+-                TextField(
+-                    value = searchQuery,
+-                    onValueChange = { searchQuery = it },
+-                    placeholder = { Text("Buscar anime...") },
+-                    modifier = Modifier.width(300.dp),
+-                    shape = RoundedCornerShape(8.dp)
+-                )
+-            }
++    }
++}
+ 
+-            Spacer(modifier = Modifier.height(16.dp))
++@Composable
++fun UpdatesTab(onAnimeClick: (RealAnime) -> Unit) {
++    var updatesList by remember { mutableStateOf<List<RealAnime>>(emptyList()) }
++    var isLoading by remember { mutableStateOf(false) }
++    val scope = rememberCoroutineScope()
++    val source = remember { AnimeFlv() }
+ 
+-            if (isLoading) {
+-                Box(modifier = Modifier.fillMaxSize()) {
+-                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
++    LaunchedEffect(Unit) {
++        isLoading = true
++        scope.launch(Dispatchers.IO) {
++            try {
++                val response = source.client.newCall(source.latestUpdatesRequest(1)).execute()
++                val page = source.latestUpdatesParse(response)
++                withContext(Dispatchers.Main) {
++                    updatesList = page.animes.map {
++                        RealAnime(
++                            title = it.title,
++                            description = "├Ültimo episodio agregado recientemente.",
++                            thumbnailUrl = it.thumbnail_url ?: "",
++                            url = it.url
++                        )
++                    }
++                    isLoading = false
+                 }
+-            } else {
+-                LazyVerticalGrid(
+-                    columns = GridCells.Adaptive(minSize = 160.dp),
+-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+-                    verticalArrangement = Arrangement.spacedBy(16.dp),
+-                    modifier = Modifier.fillMaxSize()
+-                ) {
+-                    items(animeList) { anime ->
+-                        Card(
++            } catch (e: Exception) {
++                e.printStackTrace()
++                withContext(Dispatchers.Main) {
++                    isLoading = false
++                }
++            }
++        }
++    }
++
++    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
++        Text(
++            text = "Recientes",
++            style = MaterialTheme.typography.headlineMedium,
++            color = MaterialTheme.colorScheme.onBackground
++        )
++        Spacer(modifier = Modifier.height(16.dp))
++
++        if (isLoading) {
++            Box(modifier = Modifier.fillMaxSize()) {
++                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
++            }
++        } else {
++            LazyColumn(
++                modifier = Modifier.fillMaxSize(),
++                verticalArrangement = Arrangement.spacedBy(12.dp)
++            ) {
++                items(updatesList) { anime ->
++                    Card(
++                        modifier = Modifier
++                            .fillMaxWidth()
++                            .clickable { onAnimeClick(anime) },
++                        shape = RoundedCornerShape(12.dp)
++                    ) {
++                        Row(
+                             modifier = Modifier
+                                 .fillMaxWidth()
+-                                .clickable { selectedAnime = anime },
+-                            shape = RoundedCornerShape(8.dp),
+-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
++                                .padding(16.dp)
+                         ) {
+-                            Column(modifier = Modifier.fillMaxWidth()) {
+-                                AsyncImage(
+-                                    url = anime.thumbnailUrl,
+-                                    contentDescription = anime.title,
+-                                    modifier = Modifier
+-                                        .fillMaxWidth()
+-                                        .height(220.dp)
+-                                )
++                            AsyncImage(
++                                url = anime.thumbnailUrl,
++                                contentDescription = anime.title,
++                                modifier = Modifier
++                                    .size(80.dp, 120.dp)
++                                    .clip(RoundedCornerShape(6.dp))
++                            )
++                            Spacer(modifier = Modifier.width(16.dp))
++                            Column(modifier = Modifier.align(Alignment.CenterVertically)) {
+                                 Text(
+                                     text = anime.title,
+-                                    style = MaterialTheme.typography.titleMedium,
+-                                    maxLines = 2,
+-                                    modifier = Modifier.padding(8.dp),
+-                                    color = MaterialTheme.colorScheme.onSurface
++                                    style = MaterialTheme.typography.titleMedium
++                                )
++                                Spacer(modifier = Modifier.height(4.dp))
++                                Text(
++                                    text = anime.description,
++                                    style = MaterialTheme.typography.bodyMedium,
++                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                                 )
+                             }
+                         }
+@@ -566,94 +434,135 @@ fun CatalogTab() {
+ }
+ 
+ @Composable
+-fun NetworkTestTab() {
+-    var urlInput by remember { mutableStateOf("https://httpbin.org/get") }
+-    var responseOutput by remember { mutableStateOf("Haz clic en 'Enviar Request' para probar el stack HTTP nativo.") }
+-    var isLoading by remember { mutableStateOf(false) }
+-    val scope = rememberCoroutineScope()
+-
+-    Column(
+-        modifier = Modifier
+-            .fillMaxSize()
+-            .padding(24.dp)
+-    ) {
++fun HistoryTab(historyList: List<HistoryItem>, onEpisodeClick: (HistoryItem) -> Unit) {
++    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+         Text(
+-            text = "Prueba de Stack de Red (OkHttp)",
+-            style = MaterialTheme.typography.titleLarge,
++            text = "Historial",
++            style = MaterialTheme.typography.headlineMedium,
+             color = MaterialTheme.colorScheme.onBackground
+         )
+-        Spacer(modifier = Modifier.height(8.dp))
+-        Text(
+-            text = "Esta pesta├▒a realiza una petici├│n HTTP real utilizando la librer├¡a OkHttp empaquetada en el m├│dulo :source-api compilado para JVM.",
+-            style = MaterialTheme.typography.bodyMedium,
+-            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
+-        )
+         Spacer(modifier = Modifier.height(16.dp))
+ 
+-        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+-            TextField(
+-                value = urlInput,
+-                onValueChange = { urlInput = it },
+-                modifier = Modifier.weight(1f),
+-                label = { Text("URL de la petici├│n") }
+-            )
+-            Spacer(modifier = Modifier.width(16.dp))
+-            Button(
+-                onClick = {
+-                    isLoading = true
+-                    responseOutput = "Enviando petici├│n a $urlInput..."
+-                    scope.launch {
+-                        val result = withContext(Dispatchers.IO) {
+-                            try {
+-                                val client = OkHttpClient()
+-                                val request = Request.Builder().url(urlInput).build()
+-                                client.newCall(request).execute().use { response: Response ->
+-                                    val code = response.code
+-                                    val body = response.body?.string() ?: "[Sin Cuerpo]"
+-                                    "HTTP $code\n\n$body"
+-                                }
+-                            } catch (e: Exception) {
+-                                "Error: ${e.message}\n${e.stackTraceToString()}"
++        if (historyList.isEmpty()) {
++            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
++                Text(
++                    text = "No has reproducido ning├║n episodio a├║n.",
++                    style = MaterialTheme.typography.bodyLarge,
++                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
++                )
++            }
++        } else {
++            LazyColumn(
++                modifier = Modifier.fillMaxSize(),
++                verticalArrangement = Arrangement.spacedBy(8.dp)
++            ) {
++                items(historyList) { item ->
++                    Card(
++                        modifier = Modifier
++                            .fillMaxWidth()
++                            .clickable { onEpisodeClick(item) },
++                        shape = RoundedCornerShape(8.dp),
++                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
++                    ) {
++                        Row(
++                            modifier = Modifier
++                                .fillMaxWidth()
++                                .padding(12.dp),
++                            verticalAlignment = Alignment.CenterVertically
++                        ) {
++                            AsyncImage(
++                                url = item.anime.thumbnailUrl,
++                                contentDescription = item.anime.title,
++                                modifier = Modifier
++                                    .size(50.dp, 75.dp)
++                                    .clip(RoundedCornerShape(4.dp))
++                            )
++                            Spacer(modifier = Modifier.width(16.dp))
++                            Column(modifier = Modifier.weight(1f)) {
++                                Text(
++                                    text = item.anime.title,
++                                    style = MaterialTheme.typography.titleMedium
++                                )
++                                Spacer(modifier = Modifier.height(2.dp))
++                                Text(
++                                    text = item.episode.name,
++                                    style = MaterialTheme.typography.bodyMedium,
++                                    color = MaterialTheme.colorScheme.onSurfaceVariant
++                                )
+                             }
++                            Text(
++                                text = item.timestamp,
++                                style = MaterialTheme.typography.labelSmall,
++                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
++                            )
+                         }
+-                        responseOutput = result
+-                        isLoading = false
+                     }
+-                },
+-                enabled = !isLoading
+-            ) {
+-                if (isLoading) {
+-                    CircularProgressIndicator(size = 20.dp, color = MaterialTheme.colorScheme.onPrimary)
+-                } else {
+-                    Text("Enviar Request")
+                 }
+             }
+         }
++    }
++}
+ 
+-        Spacer(modifier = Modifier.height(16.dp))
+-        Text(
+-            text = "Resultado de la petici├│n:",
+-            style = MaterialTheme.typography.titleSmall,
+-            color = MaterialTheme.colorScheme.onBackground
++@Composable
++fun BrowseTab(onAnimeClick: (RealAnime) -> Unit) {
++    var selectedSource by remember { mutableStateOf<String?>(null) }
++
++    if (selectedSource == "animeflv") {
++        SourceCatalogScreen(
++            onBack = { selectedSource = null },
++            onAnimeClick = onAnimeClick
+         )
+-        Spacer(modifier = Modifier.height(8.dp))
+-        Card(
+-            modifier = Modifier
+-                .fillMaxWidth()
+-                .weight(1f),
+-            shape = RoundedCornerShape(8.dp)
+-        ) {
+-            Box(
++    } else {
++        Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
++            Text(
++                text = "Examinar Fuentes",
++                style = MaterialTheme.typography.headlineMedium,
++                color = MaterialTheme.colorScheme.onBackground
++            )
++            Spacer(modifier = Modifier.height(16.dp))
++
++            Text(
++                text = "Fuentes de Anime",
++                style = MaterialTheme.typography.titleMedium,
++                color = MaterialTheme.colorScheme.onBackground
++            )
++            Spacer(modifier = Modifier.height(8.dp))
++
++            Card(
+                 modifier = Modifier
+-                    .fillMaxSize()
+-                    .padding(16.dp)
++                    .fillMaxWidth()
++                    .clickable { selectedSource = "animeflv" },
++                shape = RoundedCornerShape(8.dp),
++                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+             ) {
+-                LazyColumn(modifier = Modifier.fillMaxSize()) {
+-                    item {
++                Row(
++                    modifier = Modifier
++                        .fillMaxWidth()
++                        .padding(16.dp),
++                    verticalAlignment = Alignment.CenterVertically
++                ) {
++                    Box(
++                        modifier = Modifier
++                            .size(40.dp)
++                            .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(4.dp)),
++                        contentAlignment = Alignment.Center
++                    ) {
++                        Text(
++                            text = "FLV",
++                            color = Color.White,
++                            style = MaterialTheme.typography.titleSmall
++                        )
++                    }
++                    Spacer(modifier = Modifier.width(16.dp))
++                    Column {
++                        Text(
++                            text = "AnimeFLV (Nativa)",
++                            style = MaterialTheme.typography.titleMedium
++                        )
+                         Text(
+-                            text = responseOutput,
++                            text = "Idioma: Espa├▒ol | Versi├│n 1.0.0",
+                             style = MaterialTheme.typography.bodySmall,
+-                            color = MaterialTheme.colorScheme.onSurface
++                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                         )
+                     }
+                 }
+@@ -663,43 +572,448 @@ fun NetworkTestTab() {
+ }
+ 
+ @Composable
+-fun CircularProgressIndicator(size: androidx.compose.ui.unit.Dp, color: Color) {
+-    Box(modifier = Modifier.size(size)) {
+-        androidx.compose.material3.CircularProgressIndicator(
+-            color = color,
+-            strokeWidth = 2.dp,
+-            modifier = Modifier.fillMaxSize()
+-        )
++fun SourceCatalogScreen(onBack: () -> Unit, onAnimeClick: (RealAnime) -> Unit) {
++    var animeList by remember { mutableStateOf<List<RealAnime>>(emptyList()) }
++    var searchQuery by remember { mutableStateOf("") }
++    var isLoading by remember { mutableStateOf(false) }
++    val scope = rememberCoroutineScope()
++    val source = remember { AnimeFlv() }
++
++    // Load anime list
++    LaunchedEffect(searchQuery) {
++        isLoading = true
++        scope.launch(Dispatchers.IO) {
++            try {
++                val response = if (searchQuery.trim().isEmpty()) {
++                    source.client.newCall(source.popularAnimeRequest(1)).execute()
++                } else {
++                    source.client.newCall(source.searchAnimeRequest(1, searchQuery.trim(), AnimeFilterList())).execute()
++                }
++                val page = if (searchQuery.trim().isEmpty()) {
++                    source.popularAnimeParse(response)
++                } else {
++                    source.searchAnimeParse(response)
++                }
++                withContext(Dispatchers.Main) {
++                    animeList = page.animes.map {
++                        RealAnime(
++                            title = it.title,
++                            description = it.description ?: "Cargando descripci├│n...",
++                            thumbnailUrl = it.thumbnail_url ?: "",
++                            url = it.url
++                        )
++                    }
++                    isLoading = false
++                }
++            } catch (e: Exception) {
++                e.printStackTrace()
++                withContext(Dispatchers.Main) {
++                    isLoading = false
++                }
++            }
++        }
++    }
++
++    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
++        Row(
++            modifier = Modifier.fillMaxWidth(),
++            verticalAlignment = Alignment.CenterVertically
++        ) {
++            Button(onClick = onBack) {
++                Text("Volver")
++            }
++            Spacer(modifier = Modifier.width(16.dp))
++            Text(
++                text = "Cat├ílogo AnimeFLV",
++                style = MaterialTheme.typography.headlineMedium,
++                modifier = Modifier.weight(1f)
++            )
++            
++            TextField(
++                value = searchQuery,
++                onValueChange = { searchQuery = it },
++                placeholder = { Text("Buscar anime...") },
++                modifier = Modifier.width(250.dp),
++                shape = RoundedCornerShape(8.dp)
++            )
++        }
++
++        Spacer(modifier = Modifier.height(16.dp))
++
++        if (isLoading) {
++            Box(modifier = Modifier.fillMaxSize()) {
++                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
++            }
++        } else {
++            LazyVerticalGrid(
++                columns = GridCells.Adaptive(minSize = 160.dp),
++                horizontalArrangement = Arrangement.spacedBy(16.dp),
++                verticalArrangement = Arrangement.spacedBy(16.dp),
++                modifier = Modifier.fillMaxSize()
++            ) {
++                items(animeList) { anime ->
++                    Card(
++                        modifier = Modifier
++                            .fillMaxWidth()
++                            .clickable { onAnimeClick(anime) },
++                        shape = RoundedCornerShape(8.dp),
++                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
++                    ) {
++                        Column(modifier = Modifier.fillMaxWidth()) {
++                            AsyncImage(
++                                url = anime.thumbnailUrl,
++                                contentDescription = anime.title,
++                                modifier = Modifier
++                                    .fillMaxWidth()
++                                    .height(220.dp)
++                            )
++                            Text(
++                                text = anime.title,
++                                style = MaterialTheme.typography.titleMedium,
++                                maxLines = 2,
++                                modifier = Modifier.padding(8.dp),
++                                color = MaterialTheme.colorScheme.onSurface
++                            )
++                        }
++                    }
++                }
++            }
++        }
+     }
+ }
+ 
+ @Composable
+-fun InfoTab() {
++fun SettingsTab() {
+     Column(
+         modifier = Modifier
+             .fillMaxSize()
+-            .padding(24.dp),
+-        verticalArrangement = Arrangement.Center,
+-        horizontalAlignment = Alignment.CenterHorizontally
++            .padding(24.dp)
+     ) {
+         Text(
+-            text = "Aniyomi Windows Nativo",
++            text = "Configuraci├│n",
+             style = MaterialTheme.typography.headlineMedium,
++            color = MaterialTheme.colorScheme.onBackground
++        )
++        Spacer(modifier = Modifier.height(24.dp))
++
++        Text(
++            text = "Inyecci├│n de Extensiones (APK)",
++            style = MaterialTheme.typography.titleMedium,
+             color = MaterialTheme.colorScheme.primary
+         )
+         Spacer(modifier = Modifier.height(8.dp))
++
++        Card(
++            modifier = Modifier.fillMaxWidth(),
++            shape = RoundedCornerShape(8.dp),
++            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
++        ) {
++            Column(modifier = Modifier.padding(16.dp)) {
++                Text(
++                    text = "Directorio de extensiones APK:",
++                    style = MaterialTheme.typography.bodyLarge
++                )
++                Spacer(modifier = Modifier.height(4.dp))
++                Text(
++                    text = "%USERPROFILE%/AppData/Local/Aniyomi/extensions/",
++                    style = MaterialTheme.typography.bodyMedium,
++                    color = MaterialTheme.colorScheme.onSurfaceVariant
++                )
++                Spacer(modifier = Modifier.height(8.dp))
++                Text(
++                    text = "La carga de APKs traducir├í los archivos DEX a JAR o los interpretar├í mediante la JVM de escritorio para ejecutar los scrapers nativos de Android en PC.",
++                    style = MaterialTheme.typography.bodySmall,
++                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
++                )
++            }
++        }
++
++        Spacer(modifier = Modifier.height(24.dp))
+         Text(
+-            text = "Versi├│n: 1.0.0-KMP-AnimeFLV-Real",
++            text = "Informaci├│n del Sistema",
+             style = MaterialTheme.typography.titleMedium,
+             color = MaterialTheme.colorScheme.onBackground
+         )
++        Spacer(modifier = Modifier.height(8.dp))
++
++        Card(
++            modifier = Modifier.fillMaxWidth(),
++            shape = RoundedCornerShape(8.dp)
++        ) {
++            Column(modifier = Modifier.padding(16.dp)) {
++                Text("Plataforma: Windows Desktop (Nativo)", style = MaterialTheme.typography.bodyMedium)
++                Spacer(modifier = Modifier.height(4.dp))
++                Text("Motor Gr├ífico: Compose Multiplatform JVM (Skia)", style = MaterialTheme.typography.bodyMedium)
++                Spacer(modifier = Modifier.height(4.dp))
++                Text("Reproductor: Compose Media Player JNI (Windows Media Foundation)", style = MaterialTheme.typography.bodyMedium)
++            }
++        }
++    }
++}
++
++// --- SHARED ANIME DETAILS SCREEN ---
++
++@Composable
++fun AnimeDetailsScreen(
++    anime: RealAnime,
++    libraryList: MutableList<RealAnime>,
++    historyList: MutableList<HistoryItem>,
++    onBack: () -> Unit,
++    onPlayEpisode: (RealEpisode, RealVideo) -> Unit
++) {
++    var detailAnime by remember(anime) { mutableStateOf(anime) }
++    var episodes by remember { mutableStateOf<List<RealEpisode>>(emptyList()) }
++    var selectedEpisode by remember { mutableStateOf<RealEpisode?>(null) }
++    var videos by remember { mutableStateOf<List<RealVideo>>(emptyList()) }
++    var isLoading by remember { mutableStateOf(false) }
++    val scope = rememberCoroutineScope()
++    val source = remember { AnimeFlv() }
++
++    val isInLibrary = libraryList.any { it.url == anime.url }
++
++    // Load details & episodes when anime is selected
++    LaunchedEffect(anime) {
++        isLoading = true
++        episodes = emptyList()
++        scope.launch(Dispatchers.IO) {
++            try {
++                val animeUrl = anime.url
++                val detailResponse = source.client.newCall(GET(source.baseUrl + animeUrl, source.headers)).execute()
++                val parsedAnime = source.animeDetailsParse(detailResponse.asJsoup())
++                
++                val epResponse = source.client.newCall(GET(source.baseUrl + animeUrl, source.headers)).execute()
++                val parsedEpisodes = source.episodeListParse(epResponse)
++                
++                withContext(Dispatchers.Main) {
++                    detailAnime = detailAnime.copy(description = parsedAnime.description ?: "")
++                    episodes = parsedEpisodes.map {
++                        RealEpisode(
++                            name = it.name,
++                            url = it.url,
++                            episodeNumber = it.episode_number
++                        )
++                    }
++                    isLoading = false
++                }
++            } catch (e: Exception) {
++                e.printStackTrace()
++                withContext(Dispatchers.Main) {
++                    isLoading = false
++                }
++            }
++        }
++    }
++
++    // Load video servers when episode is selected
++    LaunchedEffect(selectedEpisode) {
++        if (selectedEpisode != null) {
++            isLoading = true
++            videos = emptyList()
++            scope.launch(Dispatchers.IO) {
++                try {
++                    val epUrl = selectedEpisode!!.url
++                    val fullUrl = source.baseUrl + epUrl
++                    println("[DEPURE] Solicitando episodio a: $fullUrl")
++                    val response = source.client.newCall(GET(fullUrl, source.headers)).execute()
++                    val parsedVideos = source.videoListParse(response)
++                    println("[DEPURE] Servidores encontrados en la p├ígina: ${parsedVideos.size}")
++                    
++                    withContext(Dispatchers.Main) {
++                        videos = parsedVideos.map {
++                            RealVideo(
++                                name = it.quality,
++                                url = it.url
++                            )
++                        }
++                        isLoading = false
++                    }
++                } catch (e: Exception) {
++                    println("[DEPURE] Error al obtener servidores: ${e.message}")
++                    e.printStackTrace()
++                    withContext(Dispatchers.Main) {
++                        isLoading = false
++                    }
++                }
++            }
++        }
++    }
++
++    Column(
++        modifier = Modifier
++            .fillMaxSize()
++            .padding(24.dp)
++    ) {
++        Row(
++            modifier = Modifier.fillMaxWidth(),
++            verticalAlignment = Alignment.CenterVertically
++        ) {
++            Button(onClick = onBack) {
++                Text("Volver")
++            }
++            Spacer(modifier = Modifier.width(16.dp))
++            Button(
++                onClick = {
++                    if (isInLibrary) {
++                        libraryList.removeAll { it.url == anime.url }
++                    } else {
++                        libraryList.add(anime)
++                    }
++                },
++                colors = ButtonDefaults.buttonColors(
++                    containerColor = if (isInLibrary) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
++                )
++            ) {
++                Text(if (isInLibrary) "Quitar de Biblioteca" else "A├▒adir a Biblioteca")
++            }
++        }
+         Spacer(modifier = Modifier.height(16.dp))
+-        Text(
+-            text = "Esta aplicaci├│n es una demostraci├│n t├®cnica (Proof of Concept) del port nativo de Aniyomi a Windows utilizando Kotlin Multiplatform (KMP) y Compose Desktop.\n\n" +
+-                    "Los m├│dulos b├ísicos (:i18n, :i18n-aniyomi, :source-api) compilan nativamente para el target JVM de escritorio, permitiendo cargar fuentes de contenido y decodificar flujos de video con el reproductor nativo integrado.",
+-            style = MaterialTheme.typography.bodyMedium,
+-            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+-            modifier = Modifier.width(500.dp)
+-        )
++        Row(modifier = Modifier.fillMaxWidth()) {
++            AsyncImage(
++                url = detailAnime.thumbnailUrl,
++                contentDescription = detailAnime.title,
++                modifier = Modifier
++                    .size(150.dp, 220.dp)
++                    .clip(RoundedCornerShape(8.dp))
++            )
++            Spacer(modifier = Modifier.width(24.dp))
++            Column(modifier = Modifier.weight(1f)) {
++                Text(
++                    text = detailAnime.title,
++                    style = MaterialTheme.typography.headlineMedium,
++                    color = MaterialTheme.colorScheme.onBackground
++                )
++                Spacer(modifier = Modifier.height(8.dp))
++                Text(
++                    text = detailAnime.description,
++                    style = MaterialTheme.typography.bodyMedium,
++                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
++                )
++            }
++        }
++
++        Spacer(modifier = Modifier.height(24.dp))
++        
++        if (isLoading && episodes.isEmpty()) {
++            Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
++                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
++            }
++        } else {
++            Row(modifier = Modifier.fillMaxWidth().weight(1f)) {
++                // Episodes List
++                Column(modifier = Modifier.weight(1.2f)) {
++                    Text(
++                        text = "Episodios",
++                        style = MaterialTheme.typography.titleLarge,
++                        color = MaterialTheme.colorScheme.onBackground
++                    )
++                    Spacer(modifier = Modifier.height(8.dp))
++                    LazyColumn(modifier = Modifier.fillMaxWidth()) {
++                        items(episodes) { episode ->
++                            Card(
++                                modifier = Modifier
++                                    .fillMaxWidth()
++                                    .padding(vertical = 4.dp)
++                                    .clickable { selectedEpisode = episode },
++                                shape = RoundedCornerShape(8.dp),
++                                colors = CardDefaults.cardColors(
++                                    containerColor = if (selectedEpisode == episode) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
++                                )
++                            ) {
++                                Row(
++                                    modifier = Modifier.fillMaxWidth().padding(12.dp),
++                                    verticalAlignment = Alignment.CenterVertically
++                                ) {
++                                    Icon(Icons.Default.PlayArrow, contentDescription = "Play")
++                                    Spacer(modifier = Modifier.width(12.dp))
++                                    Text(text = episode.name, style = MaterialTheme.typography.bodyLarge)
++                                }
++                            }
++                        }
++                    }
++                }
++
++                Spacer(modifier = Modifier.width(24.dp))
++
++                // Video Servers List
++                Column(modifier = Modifier.weight(0.8f)) {
++                    Text(
++                        text = "Servidores",
++                        style = MaterialTheme.typography.titleLarge,
++                        color = MaterialTheme.colorScheme.onBackground
++                    )
++                    Spacer(modifier = Modifier.height(8.dp))
++                    if (selectedEpisode == null) {
++                        Text(
++                            "Selecciona un episodio para cargar servidores",
++                            style = MaterialTheme.typography.bodyMedium,
++                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
++                        )
++                    } else if (isLoading && videos.isEmpty()) {
++                        Box(modifier = Modifier.fillMaxWidth().height(100.dp)) {
++                            CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
++                        }
++                    } else if (videos.isEmpty()) {
++                        Text(
++                            "No se encontraron servidores para este episodio.\n(El episodio puede no tener videos cargados o est├í ca├¡do)",
++                            style = MaterialTheme.typography.bodyMedium,
++                            color = MaterialTheme.colorScheme.error
++                        )
++                    } else {
++                        LazyColumn(modifier = Modifier.fillMaxWidth()) {
++                            items(videos) { video ->
++                                Card(
++                                    modifier = Modifier
++                                        .fillMaxWidth()
++                                        .padding(vertical = 4.dp),
++                                    shape = RoundedCornerShape(8.dp),
++                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
++                                ) {
++                                    Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
++                                        Text(
++                                            text = "Servidor: ${video.name}",
++                                            style = MaterialTheme.typography.bodyLarge,
++                                            color = MaterialTheme.colorScheme.onSurface
++                                        )
++                                        Spacer(modifier = Modifier.height(8.dp))
++                                        Row(
++                                            modifier = Modifier.fillMaxWidth(),
++                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
++                                        ) {
++                                            Button(
++                                                onClick = {
++                                                    // Register to History
++                                                    val nowStr = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm - dd/MM"))
++                                                    // Remove old entries for same ep
++                                                    historyList.removeAll { it.anime.url == anime.url && it.episode.url == selectedEpisode!!.url }
++                                                    historyList.add(0, HistoryItem(anime, selectedEpisode!!, video.url, nowStr))
++                                                    
++                                                    onPlayEpisode(selectedEpisode!!, video)
++                                                },
++                                                modifier = Modifier.weight(1f)
++                                            ) {
++                                                Text("Reproducir")
++                                            }
++                                            Button(
++                                                onClick = {
++                                                    try {
++                                                        Desktop.getDesktop().browse(URI(video.url))
++                                                    } catch (e: Exception) {
++                                                        e.printStackTrace()
++                                                    }
++                                                },
++                                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
++                                                modifier = Modifier.weight(1f)
++                                            ) {
++                                                Text("Navegador")
++                                            }
++                                        }
++                                    }
++                                }
++                            }
++                        }
++                    }
++                }
++            }
++        }
+     }
+ }

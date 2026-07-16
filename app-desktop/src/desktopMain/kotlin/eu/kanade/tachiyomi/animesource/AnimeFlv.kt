@@ -117,16 +117,20 @@ class AnimeFlv : ParsedAnimeHttpSource() {
 
     // --- VIDEO PLAYLIST ---
     public override fun videoListParse(response: Response): List<Video> {
-        val document = response.asJsoup()
-        val html = document.html()
+        val html = try { response.body?.string() ?: "" } catch (e: Exception) { "" }
+        val documentHtml = if (html.isEmpty()) {
+            try { response.asJsoup().html() } catch (e: Exception) { "" }
+        } else {
+            html
+        }
         
-        val videosPattern = Pattern.compile("var videos = \\{(.*?)\\};")
-        val matcher = videosPattern.matcher(html)
+        val videosPattern = Pattern.compile("var videos\\s*=\\s*(.*?);")
+        val matcher = videosPattern.matcher(documentHtml)
         
         val list = mutableListOf<Video>()
         if (matcher.find()) {
-            val jsonStr = "{" + matcher.group(1) + "}"
-            val serverPattern = Pattern.compile("\\{\"server\":\"([^\"]+)\".*?\"code\":\"([^\"]+)\"")
+            val jsonStr = matcher.group(1).trim()
+            val serverPattern = Pattern.compile("\"server\"\\s*:\\s*\"([^\"]+)\".*?\"code\"\\s*:\\s*\"([^\"]+)\"")
             val serverMatcher = serverPattern.matcher(jsonStr)
             while (serverMatcher.find()) {
                 val serverName = serverMatcher.group(1)
@@ -153,4 +157,5 @@ class AnimeFlv : ParsedAnimeHttpSource() {
     // Public visibility for parsing methods
     public override fun popularAnimeParse(response: Response): AnimesPage = super.popularAnimeParse(response)
     public override fun searchAnimeParse(response: Response): AnimesPage = super.searchAnimeParse(response)
+    public override fun latestUpdatesParse(response: Response): AnimesPage = super.latestUpdatesParse(response)
 }
