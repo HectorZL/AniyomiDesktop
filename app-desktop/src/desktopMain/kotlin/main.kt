@@ -237,6 +237,7 @@ fun AsyncImage(
 fun main() {
     // Initialize Injekt container with NetworkHelper singleton
     Injekt.addSingleton(NetworkHelper())
+    Injekt.addSingleton(android.app.Application())
 
     application {
         Window(
@@ -934,10 +935,12 @@ fun SourceCatalogScreen(source: AnimeHttpSource, onBack: () -> Unit, onAnimeClic
     var animeList by remember { mutableStateOf<List<RealAnime>>(emptyList()) }
     var searchQuery by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
+    var errorText by remember { mutableStateOf<String?>(null) }
 
     // Load anime list
     LaunchedEffect(searchQuery) {
         isLoading = true
+        errorText = null
         withContext(Dispatchers.IO) {
             try {
                 val page = if (searchQuery.trim().isEmpty()) {
@@ -960,6 +963,7 @@ fun SourceCatalogScreen(source: AnimeHttpSource, onBack: () -> Unit, onAnimeClic
             } catch (e: Exception) {
                 e.printStackTrace()
                 withContext(Dispatchers.Main) {
+                    errorText = e.message ?: e.toString()
                     isLoading = false
                 }
             }
@@ -995,6 +999,14 @@ fun SourceCatalogScreen(source: AnimeHttpSource, onBack: () -> Unit, onAnimeClic
         if (isLoading) {
             Box(modifier = Modifier.fillMaxSize()) {
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+            }
+        } else if (errorText != null) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Error al cargar la información", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.titleMedium)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(errorText!!, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onBackground)
+                }
             }
         } else {
             LazyVerticalGrid(

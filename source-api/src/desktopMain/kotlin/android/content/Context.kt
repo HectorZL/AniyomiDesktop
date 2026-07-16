@@ -6,7 +6,7 @@ import kotlinx.serialization.encodeToString
 
 open class Context {
     fun getSharedPreferences(name: String, mode: Int): SharedPreferences {
-        return SharedPreferences(name)
+        return SharedPreferencesImpl(name)
     }
 
     companion object {
@@ -14,7 +14,32 @@ open class Context {
     }
 }
 
-class SharedPreferences(private val name: String) {
+interface SharedPreferences {
+    fun getAll(): Map<String, *>
+    fun getString(key: String, defValue: String?): String?
+    fun getStringSet(key: String, defValues: Set<String>?): Set<String>?
+    fun getInt(key: String, defValue: Int): Int
+    fun getLong(key: String, defValue: Long): Long
+    fun getFloat(key: String, defValue: Float): Float
+    fun getBoolean(key: String, defValue: Boolean): Boolean
+    fun contains(key: String): Boolean
+    fun edit(): Editor
+
+    interface Editor {
+        fun putString(key: String, value: String?): Editor
+        fun putStringSet(key: String, values: Set<String>?): Editor
+        fun putInt(key: String, value: Int): Editor
+        fun putLong(key: String, value: Long): Editor
+        fun putFloat(key: String, value: Float): Editor
+        fun putBoolean(key: String, value: Boolean): Editor
+        fun remove(key: String): Editor
+        fun clear(): Editor
+        fun apply()
+        fun commit(): Boolean
+    }
+}
+
+class SharedPreferencesImpl(private val name: String) : SharedPreferences {
     private val file: File
     private var data: MutableMap<String, JsonElement> = mutableMapOf()
     private val json = Json { prettyPrint = true }
@@ -47,29 +72,65 @@ class SharedPreferences(private val name: String) {
         }
     }
 
-    fun getString(key: String, defValue: String?): String? {
+    override fun getAll(): Map<String, *> {
+        return data.mapValues { (_, value) ->
+            when (value) {
+                is JsonPrimitive -> {
+                    if (value.isString) value.content
+                    else value.booleanOrNull ?: value.longOrNull ?: value.doubleOrNull ?: value.content
+                }
+                is JsonArray -> value.map { it.jsonPrimitive.content }.toSet()
+                else -> value.toString()
+            }
+        }
+    }
+
+    override fun getString(key: String, defValue: String?): String? {
         val elem = data[key] ?: return defValue
         return elem.jsonPrimitive.content
     }
 
-    fun getBoolean(key: String, defValue: Boolean): Boolean {
-        val elem = data[key] ?: return defValue
-        return elem.jsonPrimitive.boolean
+    override fun getStringSet(key: String, defValues: Set<String>?): Set<String>? {
+        val elem = data[key] ?: return defValues
+        return try {
+            elem.jsonArray.map { it.jsonPrimitive.content }.toSet()
+        } catch (e: Exception) {
+            defValues
+        }
     }
 
-    fun getInt(key: String, defValue: Int): Int {
+    override fun getInt(key: String, defValue: Int): Int {
         val elem = data[key] ?: return defValue
         return elem.jsonPrimitive.int
     }
 
-    fun edit(): Editor {
-        return Editor()
+    override fun getLong(key: String, defValue: Long): Long {
+        val elem = data[key] ?: return defValue
+        return elem.jsonPrimitive.long
     }
 
-    inner class Editor {
+    override fun getFloat(key: String, defValue: Float): Float {
+        val elem = data[key] ?: return defValue
+        return elem.jsonPrimitive.float
+    }
+
+    override fun getBoolean(key: String, defValue: Boolean): Boolean {
+        val elem = data[key] ?: return defValue
+        return elem.jsonPrimitive.boolean
+    }
+
+    override fun contains(key: String): Boolean {
+        return data.containsKey(key)
+    }
+
+    override fun edit(): SharedPreferences.Editor {
+        return EditorImpl()
+    }
+
+    inner class EditorImpl : SharedPreferences.Editor {
         private val tempMap = data.toMutableMap()
 
-        fun putString(key: String, value: String?): Editor {
+        override fun putString(key: String, value: String?): SharedPreferences.Editor {
             if (value == null) {
                 tempMap.remove(key)
             } else {
@@ -78,32 +139,51 @@ class SharedPreferences(private val name: String) {
             return this
         }
 
-        fun putBoolean(key: String, value: Boolean): Editor {
+        override fun putStringSet(key: String, values: Set<String>?): SharedPreferences.Editor {
+            if (values == null) {
+                tempMap.remove(key)
+            } else {
+                tempMap[key] = JsonArray(values.map { JsonPrimitive(it) })
+            }
+            return this
+        }
+
+        override fun putInt(key: String, value: Int): SharedPreferences.Editor {
             tempMap[key] = JsonPrimitive(value)
             return this
         }
 
-        fun putInt(key: String, value: Int): Editor {
+        override fun putLong(key: String, value: Long): SharedPreferences.Editor {
             tempMap[key] = JsonPrimitive(value)
             return this
         }
 
-        fun remove(key: String): Editor {
+        override fun putFloat(key: String, value: Float): SharedPreferences.Editor {
+            tempMap[key] = JsonPrimitive(value)
+            return this
+        }
+
+        override fun putBoolean(key: String, value: Boolean): SharedPreferences.Editor {
+            tempMap[key] = JsonPrimitive(value)
+            return this
+        }
+
+        override fun remove(key: String): SharedPreferences.Editor {
             tempMap.remove(key)
             return this
         }
 
-        fun clear(): Editor {
+        override fun clear(): SharedPreferences.Editor {
             tempMap.clear()
             return this
         }
 
-        fun apply() {
+        override fun apply() {
             data = tempMap
             save()
         }
 
-        fun commit(): Boolean {
+        override fun commit(): Boolean {
             data = tempMap
             save()
             return true
