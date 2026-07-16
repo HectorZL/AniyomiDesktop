@@ -5,6 +5,8 @@ import com.googlecode.d2j.dex.Dex2jar
 import com.googlecode.d2j.reader.MultiDexFileReader
 import eu.kanade.tachiyomi.animesource.AnimeSource
 import eu.kanade.tachiyomi.animesource.AnimeSourceFactory
+import eu.kanade.tachiyomi.source.MangaSource
+import eu.kanade.tachiyomi.source.SourceFactory
 import eu.kanade.tachiyomi.network.NetworkHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -38,6 +40,11 @@ data class SourceInfo(
 )
 
 object ExtensionManager {
+    sealed interface LoadedSource {
+        data class Anime(val source: AnimeSource) : LoadedSource
+        data class Manga(val source: MangaSource) : LoadedSource
+    }
+
     private val json = Json { ignoreUnknownKeys = true }
     private val client by lazy { Injekt.get<NetworkHelper>().client }
 
@@ -96,11 +103,11 @@ object ExtensionManager {
     }
 
     // Loads the JAR and returns the list of instantiated AnimeSources
-    fun loadExtension(jarFile: File): List<AnimeSource> {
+    fun loadExtension(jarFile: File): List<LoadedSource> {
         val urls = arrayOf(jarFile.toURI().toURL())
         val parentClassLoader = this.javaClass.classLoader
         val classLoader = ASMClassLoader(urls, parentClassLoader)
-        val loadedSources = mutableListOf<AnimeSource>()
+        val loadedSources = mutableListOf<LoadedSource>()
 
         ZipFile(jarFile).use { zip ->
             val entries = zip.entries()
@@ -118,10 +125,16 @@ object ExtensionManager {
                         }
                         if (AnimeSource::class.java.isAssignableFrom(clazz)) {
                             val instance = clazz.getDeclaredConstructor().newInstance() as AnimeSource
-                            loadedSources.add(instance)
+                            loadedSources.add(LoadedSource.Anime(instance))
+                        } else if (MangaSource::class.java.isAssignableFrom(clazz)) {
+                            val instance = clazz.getDeclaredConstructor().newInstance() as MangaSource
+                            loadedSources.add(LoadedSource.Manga(instance))
                         } else if (AnimeSourceFactory::class.java.isAssignableFrom(clazz)) {
                             val factoryInstance = clazz.getDeclaredConstructor().newInstance() as AnimeSourceFactory
-                            loadedSources.addAll(factoryInstance.createSources())
+                            loadedSources.addAll(factoryInstance.createSources().map { LoadedSource.Anime(it) })
+                        } else if (SourceFactory::class.java.isAssignableFrom(clazz)) {
+                            val factoryInstance = clazz.getDeclaredConstructor().newInstance() as SourceFactory
+                            loadedSources.addAll(factoryInstance.createSources().map { LoadedSource.Manga(it) })
                         }
                     } catch (e: Throwable) {
                         println("[LOAD_EXT_ERR] Error al cargar clase $className: ${e.message}")
@@ -134,7 +147,7 @@ object ExtensionManager {
     }
 
     // High level method to install an extension: downloads APK, translates to JAR, loads sources, and returns them
-    suspend fun installExtension(repoUrl: String, extension: ExtensionInfo): List<AnimeSource> {
+    suspend fun installExtension(repoUrl: String, extension: ExtensionInfo): List<LoadedSource> {
         val repoBaseUrl = repoUrl.substringBeforeLast("/") + "/apk/"
         val apkFile = downloadApk(repoBaseUrl, extension.apk)
         val jarFile = File(extensionsDir, extension.pkg + ".jar")
@@ -148,9 +161,9 @@ object ExtensionManager {
     }
 
     // Loads all locally installed extensions from extensions directory
-    fun loadLocalExtensions(blacklist: List<String> = emptyList()): List<AnimeSource> {
+    fun loadLocalExtensions(blacklist: List<String> = emptyList()): List<LoadedSource> {
         val files = extensionsDir.listFiles { _, name -> name.endsWith(".jar") } ?: return emptyList()
-        val allSources = mutableListOf<AnimeSource>()
+        val allSources = mutableListOf<LoadedSource>()
         for (file in files) {
             val pkgName = file.name.substringBeforeLast(".jar")
             if (blacklist.contains(pkgName)) {

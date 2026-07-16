@@ -196,50 +196,57 @@ fun MainScreen(
     val historyList = remember { mutableStateListOf<HistoryItem>().apply { addAll(loadHistory()) } }
 
     // Dynamic sources loaded from extensions
-    val dynamicSources = remember { mutableStateListOf<AnimeHttpSource>() }
+    val dynamicAnimeSources = remember { mutableStateListOf<AnimeHttpSource>() }
+    val dynamicMangaSources = remember { mutableStateListOf<MangaSource>() }
 
     // Track installed JARs to update the UI reactively
     val installedJars = remember { mutableStateListOf<String>() }
 
-    // Load local extensions on startup
-    LaunchedEffect(Unit) {
-        withContext(Dispatchers.IO) {
-            try {
-                if (appSettings.extensionDirPath.isNotEmpty()) {
-                    eu.kanade.tachiyomi.extension.ExtensionManager.extensionsDir = File(appSettings.extensionDirPath)
-                }
-                
-                val extDir = eu.kanade.tachiyomi.extension.ExtensionManager.extensionsDir
-                
-                // Attempt to delete any blacklisted extensions now on startup (before loading so they aren't locked)
-                appSettings.blacklistedExtensions.forEach { pkgName ->
-                    val file = File(extDir, "$pkgName.jar")
-                    if (file.exists()) {
-                        val deleted = file.delete()
-                        println("[main.kt] Deleted blacklisted extension file $pkgName.jar on startup: $deleted")
+    val scope = rememberCoroutineScope()
+
+    fun refreshExtensions() {
+        scope.launch {
+            withContext(Dispatchers.IO) {
+                try {
+                    if (appSettings.extensionDirPath.isNotEmpty()) {
+                        eu.kanade.tachiyomi.extension.ExtensionManager.extensionsDir = File(appSettings.extensionDirPath)
                     }
+
+                    val extDir = eu.kanade.tachiyomi.extension.ExtensionManager.extensionsDir
+
+                    val files = extDir.listFiles { _, name -> name.endsWith(".jar") } ?: emptyArray()
+                    val filteredFiles = files.filter { file ->
+                        val pkgName = file.name.substringBeforeLast(".jar")
+                        !appSettings.blacklistedExtensions.contains(pkgName)
+                    }
+                    val jarNames = filteredFiles.map { it.name }
+
+                    val local = eu.kanade.tachiyomi.extension.ExtensionManager.loadLocalExtensions(appSettings.blacklistedExtensions)
+                    println("[main.kt] Loaded local extensions: ${local.size} sources found.")
+
+                    withContext(Dispatchers.Main) {
+                        installedJars.clear()
+                        installedJars.addAll(jarNames)
+                        dynamicAnimeSources.clear()
+                        dynamicMangaSources.clear()
+                        local.forEach { loadedSource ->
+                            when (loadedSource) {
+                                is eu.kanade.tachiyomi.extension.ExtensionManager.LoadedSource.Anime -> dynamicAnimeSources.add(loadedSource.source)
+                                is eu.kanade.tachiyomi.extension.ExtensionManager.LoadedSource.Manga -> dynamicMangaSources.add(loadedSource.source)
+                            }
+                        }
+                    }
+                } catch (e: Throwable) {
+                    println("[main.kt] Error during startup extension loading: ${e.message}")
+                    e.printStackTrace()
                 }
-                
-                val files = extDir.listFiles { _, name -> name.endsWith(".jar") } ?: emptyArray()
-                val filteredFiles = files.filter { file ->
-                    val pkgName = file.name.substringBeforeLast(".jar")
-                    !appSettings.blacklistedExtensions.contains(pkgName)
-                }
-                val jarNames = filteredFiles.map { it.name }
-                
-                val local = eu.kanade.tachiyomi.extension.ExtensionManager.loadLocalExtensions(appSettings.blacklistedExtensions)
-                println("[main.kt] Loaded local extensions: ${local.size} sources found. Details: ${local.map { it.name }}")
-                withContext(Dispatchers.Main) {
-                    installedJars.clear()
-                    installedJars.addAll(jarNames)
-                    dynamicSources.clear()
-                    dynamicSources.addAll(local.filterIsInstance<AnimeHttpSource>())
-                }
-            } catch (e: Throwable) {
-                println("[main.kt] Error during startup extension loading: ${e.message}")
-                e.printStackTrace()
             }
         }
+    }
+
+    // Load local extensions on startup
+    LaunchedEffect(Unit) {
+        refreshExtensions()
     }
 
     // Auto-save library when list contents change
@@ -623,7 +630,7 @@ fun MainScreen(
         val activeSource = if (selectedAnime!!.sourceName == "AnimeFLV") {
             eu.kanade.tachiyomi.animesource.AnimeFlv()
         } else {
-            dynamicSources.find { it.name == selectedAnime!!.sourceName } ?: eu.kanade.tachiyomi.animesource.AnimeFlv()
+            dynamicAnimeSources.find { it.name == selectedAnime!!.sourceName } ?: eu.kanade.tachiyomi.animesource.AnimeFlv()
         }
         // Shared Anime Details Screen
         AnimeDetailsScreen(
@@ -717,41 +724,14 @@ fun MainScreen(
                         }
                     )
                     "examinar" -> BrowseTab(
-                        dynamicSources = dynamicSources,
+                        animeSources = dynamicAnimeSources,
+                        mangaSources = dynamicMangaSources,
                         animeRepos = appSettings.animeRepos,
                         mangaRepos = appSettings.mangaRepos,
                         installedJars = installedJars,
                         onAnimeClick = { selectedAnime = it },
-                        onInstallSuccess = { loadedSources, jarName ->
-                            dynamicSources.addAll(loadedSources)
-                            if (!installedJars.contains(jarName)) {
-                                installedJars.add(jarName)
-                            }
-                            val pkg = jarName.substringBeforeLast(".jar")
-                            val newBlacklist = appSettings.blacklistedExtensions.filter { it != pkg }
-                            onSettingsChange(appSettings.copy(blacklistedExtensions = newBlacklist))
-                        },
-                        onUninstallSuccess = { pkg, jarName ->
-                            dynamicSources.removeAll { source ->
-                                val sourceJar = source.javaClass.classLoader?.let { loader ->
-                                    if (loader is java.net.URLClassLoader) {
-                                        loader.urLs.firstOrNull()?.let { url ->
-                                            try {
-                                                java.io.File(url.toURI()).name
-                                            } catch (e: Exception) {
-                                                null
-                                            }
-                                        }
-                                    } else null
-                                }
-                                sourceJar == jarName || source.javaClass.name.startsWith(pkg)
-                            }
-                            installedJars.remove(jarName)
-                            if (!appSettings.blacklistedExtensions.contains(pkg)) {
-                                val newBlacklist = appSettings.blacklistedExtensions.toMutableList().apply { add(pkg) }
-                                onSettingsChange(appSettings.copy(blacklistedExtensions = newBlacklist))
-                            }
-                        }
+                        onInstallSuccess = { refreshExtensions() },
+                        onUninstallSuccess = { refreshExtensions() }
                     )
                     "configuracion" -> SettingsTab(
                         appSettings = appSettings,
@@ -1029,15 +1009,38 @@ fun HistoryTab(
     }
 }
 
+private data class BrowserSourceItem(
+    val name: String,
+    val lang: String,
+    val onClick: (() -> Unit)? = null,
+)
+
+private fun languageDisplayName(lang: String): String {
+    return when (lang) {
+        "all" -> "All"
+        "other" -> "Other"
+        "" -> "System"
+        else -> {
+            val locale = when (lang) {
+                "zh-CN" -> Locale.forLanguageTag("zh-Hans")
+                "zh-TW" -> Locale.forLanguageTag("zh-Hant")
+                else -> Locale.forLanguageTag(lang)
+            }
+            locale.getDisplayName(locale).replaceFirstChar { it.uppercase(locale) }
+        }
+    }
+}
+
 @Composable
 fun BrowseTab(
-    dynamicSources: List<AnimeHttpSource>,
+    animeSources: List<AnimeHttpSource>,
+    mangaSources: List<MangaSource>,
     animeRepos: List<String>,
     mangaRepos: List<String>,
     installedJars: List<String>,
     onAnimeClick: (RealAnime) -> Unit,
-    onInstallSuccess: (List<AnimeHttpSource>, String) -> Unit,
-    onUninstallSuccess: (String, String) -> Unit
+    onInstallSuccess: () -> Unit,
+    onUninstallSuccess: () -> Unit,
 ) {
     var selectedSource by remember { mutableStateOf<AnimeHttpSource?>(null) }
 
@@ -1045,112 +1048,156 @@ fun BrowseTab(
         SourceCatalogScreen(
             source = selectedSource!!,
             onBack = { selectedSource = null },
-            onAnimeClick = onAnimeClick
+            onAnimeClick = onAnimeClick,
         )
-    } else {
-        var tabIndex by remember { mutableStateOf(0) } // 0 = Fuentes, 1 = Extensiones
-        
-        val allRepos = (animeRepos.map { "Anime: $it" } + mangaRepos.map { "Manga: $it" })
-        var selectedRepoUrl by remember { 
-            mutableStateOf(
-                allRepos.firstOrNull()?.substringAfter(": ") ?: ""
-            ) 
+        return
+    }
+
+    var tabIndex by remember { mutableStateOf(0) }
+    var sourcesTabIndex by remember { mutableStateOf(0) }
+    var extensionsTabIndex by remember { mutableStateOf(0) }
+    var selectedAnimeRepoUrl by remember { mutableStateOf(animeRepos.firstOrNull().orEmpty()) }
+    var selectedMangaRepoUrl by remember { mutableStateOf(mangaRepos.firstOrNull().orEmpty()) }
+
+    LaunchedEffect(animeRepos) {
+        if (selectedAnimeRepoUrl.isEmpty() && animeRepos.isNotEmpty()) {
+            selectedAnimeRepoUrl = animeRepos.first()
+        }
+    }
+    LaunchedEffect(mangaRepos) {
+        if (selectedMangaRepoUrl.isEmpty() && mangaRepos.isNotEmpty()) {
+            selectedMangaRepoUrl = mangaRepos.first()
+        }
+    }
+
+    val currentRepos = if (extensionsTabIndex == 0) animeRepos else mangaRepos
+    val currentRepoUrl = if (extensionsTabIndex == 0) selectedAnimeRepoUrl else selectedMangaRepoUrl
+    val currentRepoLabel = if (extensionsTabIndex == 0) "Anime" else "Manga"
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        TabRow(
+            selectedTabIndex = tabIndex,
+            containerColor = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.primary,
+        ) {
+            Tab(selected = tabIndex == 0, onClick = { tabIndex = 0 }, text = { Text("Fuentes") })
+            Tab(selected = tabIndex == 1, onClick = { tabIndex = 1 }, text = { Text("Extensiones") })
         }
 
-        LaunchedEffect(allRepos) {
-            if (selectedRepoUrl.isEmpty() && allRepos.isNotEmpty()) {
-                selectedRepoUrl = allRepos.first().substringAfter(": ")
-            }
-        }
-        
-        Column(modifier = Modifier.fillMaxSize()) {
-            TabRow(
-                selectedTabIndex = tabIndex,
-                containerColor = MaterialTheme.colorScheme.surface,
-                contentColor = MaterialTheme.colorScheme.primary
-            ) {
-                Tab(selected = tabIndex == 0, onClick = { tabIndex = 0 }, text = { Text("Fuentes") })
-                Tab(selected = tabIndex == 1, onClick = { tabIndex = 1 }, text = { Text("Extensiones") })
-            }
-            
-            when (tabIndex) {
-                0 -> {
-                    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-                        Text(
-                            text = "Examinar Fuentes",
-                            style = MaterialTheme.typography.headlineMedium,
-                            color = MaterialTheme.colorScheme.onBackground
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        
-                        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            // Dynamic Sources from extensions (native source removed)
-                            items(dynamicSources) { source ->
-                                SourceItemCard(
-                                    name = source.name,
-                                    lang = source.lang,
-                                    version = "1.0.0",
-                                    onClick = { selectedSource = source }
-                                )
-                            }
+        when (tabIndex) {
+            0 -> {
+                Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+                    Text(
+                        text = "Examinar Fuentes",
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = MaterialTheme.colorScheme.onBackground,
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    TabRow(
+                        selectedTabIndex = sourcesTabIndex,
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        contentColor = MaterialTheme.colorScheme.primary,
+                    ) {
+                        Tab(selected = sourcesTabIndex == 0, onClick = { sourcesTabIndex = 0 }, text = { Text("Anime") })
+                        Tab(selected = sourcesTabIndex == 1, onClick = { sourcesTabIndex = 1 }, text = { Text("Manga") })
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    val sourceItems = if (sourcesTabIndex == 0) {
+                        animeSources.map { source ->
+                            BrowserSourceItem(
+                                name = source.name,
+                                lang = source.lang,
+                                onClick = { selectedSource = source },
+                            )
+                        }
+                    } else {
+                        mangaSources.map { source ->
+                            BrowserSourceItem(
+                                name = source.name,
+                                lang = source.lang,
+                            )
                         }
                     }
+
+                    if (sourceItems.isEmpty()) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text(
+                                text = if (sourcesTabIndex == 0) "No hay fuentes de anime cargadas" else "No hay fuentes de manga cargadas",
+                                color = MaterialTheme.colorScheme.onBackground,
+                            )
+                        }
+                    } else {
+                        LanguageGroupedSourceList(items = sourceItems)
+                    }
                 }
-                1 -> {
-                    Column(modifier = Modifier.fillMaxSize()) {
-                        if (allRepos.isNotEmpty()) {
-                            var showRepoMenu by remember { mutableStateOf(false) }
-                            Row(
-                                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Box {
-                                    Button(
-                                        onClick = { showRepoMenu = true },
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                                        ),
-                                        shape = RoundedCornerShape(8.dp)
-                                    ) {
-                                        val displayUrl = selectedRepoUrl.substringBefore("?")
-                                        val repoLabel = allRepos.find { it.endsWith(selectedRepoUrl) }?.substringBefore(": ") ?: "Repositorio"
-                                        Text("Repo [$repoLabel]: ${displayUrl.take(45)}${if (displayUrl.length > 45) "..." else ""}")
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Icon(Icons.Default.ArrowDropDown, contentDescription = null)
-                                    }
-                                    DropdownMenu(
-                                        expanded = showRepoMenu,
-                                        onDismissRequest = { showRepoMenu = false }
-                                    ) {
-                                        allRepos.forEach { repo ->
-                                            val type = repo.substringBefore(": ")
-                                            val url = repo.substringAfter(": ")
-                                            DropdownMenuItem(
-                                                text = { Text("[$type] ${url.substringBefore("?")}") },
-                                                onClick = {
-                                                    selectedRepoUrl = url
-                                                    showRepoMenu = false
+            }
+
+            1 -> {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    TabRow(
+                        selectedTabIndex = extensionsTabIndex,
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        contentColor = MaterialTheme.colorScheme.primary,
+                    ) {
+                        Tab(selected = extensionsTabIndex == 0, onClick = { extensionsTabIndex = 0 }, text = { Text("Anime") })
+                        Tab(selected = extensionsTabIndex == 1, onClick = { extensionsTabIndex = 1 }, text = { Text("Manga") })
+                    }
+
+                    if (currentRepos.isNotEmpty()) {
+                        var showRepoMenu by remember { mutableStateOf(false) }
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Box {
+                                Button(
+                                    onClick = { showRepoMenu = true },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    ),
+                                    shape = RoundedCornerShape(8.dp),
+                                ) {
+                                    val displayUrl = currentRepoUrl.substringBefore("?")
+                                    Text("Repo [$currentRepoLabel]: ${displayUrl.take(45)}${if (displayUrl.length > 45) "..." else ""}")
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+                                }
+                                DropdownMenu(
+                                    expanded = showRepoMenu,
+                                    onDismissRequest = { showRepoMenu = false },
+                                ) {
+                                    currentRepos.forEach { repo ->
+                                        DropdownMenuItem(
+                                            text = { Text(repo.substringBefore("?")) },
+                                            onClick = {
+                                                if (extensionsTabIndex == 0) {
+                                                    selectedAnimeRepoUrl = repo
+                                                } else {
+                                                    selectedMangaRepoUrl = repo
                                                 }
-                                            )
-                                        }
+                                                showRepoMenu = false
+                                            },
+                                        )
                                     }
                                 }
                             }
                         }
+                    }
 
-                        if (selectedRepoUrl.isNotEmpty()) {
-                            ExtensionsSection(
-                                repoUrl = selectedRepoUrl,
-                                dynamicSources = dynamicSources,
-                                installedJars = installedJars,
-                                onInstallSuccess = onInstallSuccess,
-                                onUninstallSuccess = onUninstallSuccess
-                            )
-                        } else {
-                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                Text("Añade algún repositorio en Configuración", color = MaterialTheme.colorScheme.onBackground)
-                            }
+                    if (currentRepoUrl.isNotEmpty()) {
+                        ExtensionsSection(
+                            repoUrl = currentRepoUrl,
+                            installedJars = installedJars,
+                            onInstallSuccess = onInstallSuccess,
+                            onUninstallSuccess = onUninstallSuccess,
+                        )
+                    } else {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text("Añade algún repositorio en Configuración", color = MaterialTheme.colorScheme.onBackground)
                         }
                     }
                 }
@@ -1160,9 +1207,47 @@ fun BrowseTab(
 }
 
 @Composable
-fun SourceItemCard(name: String, lang: String, version: String, onClick: () -> Unit) {
+private fun LanguageGroupedSourceList(
+    items: List<BrowserSourceItem>,
+) {
+    val groupedItems = remember(items) {
+        items.sortedWith(
+            compareBy<BrowserSourceItem> { it.lang != "all" }
+                .thenBy { languageDisplayName(it.lang) }
+                .thenBy(String.CASE_INSENSITIVE_ORDER) { it.name },
+        ).groupBy { it.lang }
+    }
+
+    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        groupedItems.forEach { (lang, sourceItems) ->
+            item(key = "lang-$lang") {
+                Text(
+                    text = languageDisplayName(lang),
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
+                )
+            }
+            items(sourceItems) { sourceItem ->
+                SourceItemCard(
+                    name = sourceItem.name,
+                    lang = sourceItem.lang,
+                    version = "1.0.0",
+                    onClick = sourceItem.onClick,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun SourceItemCard(name: String, lang: String, version: String, onClick: (() -> Unit)? = null) {
     Card(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        modifier = if (onClick != null) {
+            Modifier.fillMaxWidth().clickable(onClick = onClick)
+        } else {
+            Modifier.fillMaxWidth()
+        },
         shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
@@ -1186,7 +1271,7 @@ fun SourceItemCard(name: String, lang: String, version: String, onClick: () -> U
             Column {
                 Text(text = name, style = MaterialTheme.typography.titleMedium)
                 Text(
-                    text = "Idioma: ${lang.uppercase()} | Versión $version",
+                    text = "Idioma: ${languageDisplayName(lang)} | Versión $version",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -1198,10 +1283,9 @@ fun SourceItemCard(name: String, lang: String, version: String, onClick: () -> U
 @Composable
 fun ExtensionsSection(
     repoUrl: String,
-    dynamicSources: List<AnimeHttpSource>,
     installedJars: List<String>,
-    onInstallSuccess: (List<AnimeHttpSource>, String) -> Unit,
-    onUninstallSuccess: (String, String) -> Unit
+    onInstallSuccess: () -> Unit,
+    onUninstallSuccess: () -> Unit,
 ) {
     var extensionsList by remember { mutableStateOf<List<eu.kanade.tachiyomi.extension.ExtensionInfo>>(emptyList()) }
     var searchQuery by remember { mutableStateOf("") }
@@ -1216,6 +1300,14 @@ fun ExtensionsSection(
                 it.pkg.contains(searchQuery, ignoreCase = true)
             }
         }
+    }
+
+    val groupedExtensions = remember(filteredExtensions) {
+        filteredExtensions.sortedWith(
+            compareBy<eu.kanade.tachiyomi.extension.ExtensionInfo> { it.lang != "all" }
+                .thenBy { languageDisplayName(it.lang) }
+                .thenBy(String.CASE_INSENSITIVE_ORDER) { it.name },
+        ).groupBy { it.lang }
     }
 
     LaunchedEffect(repoUrl) {
@@ -1244,7 +1336,7 @@ fun ExtensionsSection(
             }
         } else {
             val listState = rememberLazyListState()
-            
+
             TextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
@@ -1260,69 +1352,77 @@ fun ExtensionsSection(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxSize().padding(end = 16.dp)
                 ) {
-                    items(filteredExtensions) { ext ->
-                        val jarName = ext.pkg + ".jar"
-                        val jarFile = File(eu.kanade.tachiyomi.extension.ExtensionManager.extensionsDir, jarName)
-                        val isInstalled = installedJars.contains(jarName)
-                        
-                        var isActionLoading by remember { mutableStateOf(false) }
+                    groupedExtensions.forEach { (lang, extensions) ->
+                        item(key = "ext-lang-$lang") {
+                            Text(
+                                text = languageDisplayName(lang),
+                                style = MaterialTheme.typography.titleLarge,
+                                color = MaterialTheme.colorScheme.onBackground,
+                                modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
+                            )
+                        }
+                        items(extensions, key = { it.pkg }) { ext ->
+                            val jarName = ext.pkg + ".jar"
+                            val jarFile = File(eu.kanade.tachiyomi.extension.ExtensionManager.extensionsDir, jarName)
+                            val isInstalled = installedJars.contains(jarName)
 
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(8.dp),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth().padding(16.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
+                            var isActionLoading by remember { mutableStateOf(false) }
+
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(8.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
                             ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(text = ext.name, style = MaterialTheme.typography.titleMedium)
-                                    Text(
-                                        text = "Paquete: ${ext.pkg}\nIdioma: ${ext.lang.uppercase()} | v${ext.version}",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                                
-                                if (isActionLoading) {
-                                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                                } else {
-                                    Button(
-                                        onClick = {
-                                            scope.launch {
-                                                isActionLoading = true
-                                                try {
-                                                    if (isInstalled) {
-                                                        // Uninstall
-                                                        if (jarFile.exists()) jarFile.delete()
-                                                        onUninstallSuccess(ext.pkg, jarName)
-                                                    } else {
-                                                        // Install
-                                                        val loaded = eu.kanade.tachiyomi.extension.ExtensionManager.installExtension(repoUrl, ext)
-                                                        onInstallSuccess(loaded.filterIsInstance<AnimeHttpSource>(), jarName)
-                                                    }
-                                                } catch (e: Throwable) {
-                                                    println("[main.kt] Error during extension install/uninstall action: ${e.message}")
-                                                    e.printStackTrace()
-                                                } finally {
-                                                    isActionLoading = false
-                                                }
-                                            }
-                                        },
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = if (isInstalled) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(text = ext.name, style = MaterialTheme.typography.titleMedium)
+                                        Text(
+                                            text = "Paquete: ${ext.pkg}\nIdioma: ${ext.lang.uppercase()} | v${ext.version}",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
-                                    ) {
-                                        Text(if (isInstalled) "Desinstalar" else "Instalar")
+                                    }
+
+                                    if (isActionLoading) {
+                                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                                    } else {
+                                        Button(
+                                            onClick = {
+                                                scope.launch {
+                                                    isActionLoading = true
+                                                    try {
+                                                        if (isInstalled) {
+                                                            if (jarFile.exists()) jarFile.delete()
+                                                            onUninstallSuccess()
+                                                        } else {
+                                                            eu.kanade.tachiyomi.extension.ExtensionManager.installExtension(repoUrl, ext)
+                                                            onInstallSuccess()
+                                                        }
+                                                    } catch (e: Throwable) {
+                                                        println("[main.kt] Error during extension install/uninstall action: ${e.message}")
+                                                        e.printStackTrace()
+                                                    } finally {
+                                                        isActionLoading = false
+                                                    }
+                                                }
+                                            },
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = if (isInstalled) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                                            )
+                                        ) {
+                                            Text(if (isInstalled) "Desinstalar" else "Instalar")
+                                        }
                                     }
                                 }
                             }
                         }
                     }
                 }
-                
+
                 VerticalScrollbar(
                     adapter = rememberScrollbarAdapter(scrollState = listState),
                     modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight()
