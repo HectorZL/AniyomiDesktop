@@ -1,6 +1,5 @@
 package eu.kanade.tachiyomi.extension
 
-import android.content.Context
 import com.googlecode.d2j.dex.Dex2jar
 import com.googlecode.d2j.reader.MultiDexFileReader
 import eu.kanade.tachiyomi.animesource.AnimeSource
@@ -40,6 +39,9 @@ data class SourceInfo(
 )
 
 object ExtensionManager {
+    // Track classloaders by package name so we can close them on uninstall
+    private val classLoaders = mutableMapOf<String, ASMClassLoader>()
+
     sealed interface LoadedSource {
         data class Anime(val source: AnimeSource) : LoadedSource
         data class Manga(val source: MangaSource) : LoadedSource
@@ -59,6 +61,13 @@ object ExtensionManager {
         try {
             val oldFiles = extensionsDir.listFiles { _, name -> name.startsWith("aniyomi-") && name.endsWith(".jar") }
             oldFiles?.forEach { it.delete() }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        // Clean up any stale .deleted files from previous uninstalls (renameTo fallback)
+        try {
+            val staleDeleted = extensionsDir.listFiles { _, name -> name.endsWith(".jar.deleted") }
+            staleDeleted?.forEach { it.delete() }
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -102,11 +111,14 @@ object ExtensionManager {
         }
     }
 
-    // Loads the JAR and returns the list of instantiated AnimeSources
-    fun loadExtension(jarFile: File): List<LoadedSource> {
+    // Loads the JAR and returns the list of instantiated sources.
+    // Optionally accepts a mutable list to collect per-class error messages.
+    fun loadExtension(jarFile: File, errorCollector: MutableList<String>? = null): List<LoadedSource> {
         val urls = arrayOf(jarFile.toURI().toURL())
         val parentClassLoader = this.javaClass.classLoader
         val classLoader = ASMClassLoader(urls, parentClassLoader)
+        // Track by JAR filename so we can close the classloader on uninstall
+        classLoaders[jarFile.name] = classLoader
         val loadedSources = mutableListOf<LoadedSource>()
 
         ZipFile(jarFile).use { zip ->
@@ -124,19 +136,44 @@ object ExtensionManager {
                             continue
                         }
                         if (AnimeSource::class.java.isAssignableFrom(clazz)) {
-                            val instance = clazz.getDeclaredConstructor().newInstance() as AnimeSource
+                            val ctor = clazz.getDeclaredConstructor()
+                            ctor.isAccessible = true
+                            val instance = ctor.newInstance() as AnimeSource
                             loadedSources.add(LoadedSource.Anime(instance))
                         } else if (MangaSource::class.java.isAssignableFrom(clazz)) {
-                            val instance = clazz.getDeclaredConstructor().newInstance() as MangaSource
+                            val ctor = clazz.getDeclaredConstructor()
+                            ctor.isAccessible = true
+                            val instance = ctor.newInstance() as MangaSource
                             loadedSources.add(LoadedSource.Manga(instance))
                         } else if (AnimeSourceFactory::class.java.isAssignableFrom(clazz)) {
-                            val factoryInstance = clazz.getDeclaredConstructor().newInstance() as AnimeSourceFactory
+                            val ctor = clazz.getDeclaredConstructor()
+                            ctor.isAccessible = true
+                            val factoryInstance = ctor.newInstance() as AnimeSourceFactory
                             loadedSources.addAll(factoryInstance.createSources().map { LoadedSource.Anime(it) })
                         } else if (SourceFactory::class.java.isAssignableFrom(clazz)) {
-                            val factoryInstance = clazz.getDeclaredConstructor().newInstance() as SourceFactory
+                            val ctor = clazz.getDeclaredConstructor()
+                            ctor.isAccessible = true
+                            val factoryInstance = ctor.newInstance() as SourceFactory
                             loadedSources.addAll(factoryInstance.createSources().map { LoadedSource.Manga(it) })
                         }
+                    } catch (e: java.lang.reflect.InvocationTargetException) {
+                        val cause = e.cause
+                        val msg = when {
+                            cause is java.lang.NoClassDefFoundError -> "Falta clase Android: ${cause.message}"
+                            cause is java.lang.ExceptionInInitializerError -> "Error en init/structor: ${cause.message}"
+                            else -> "${e.message}"
+                        }
+                        errorCollector?.add("$className → $msg")
+                        println("[LOAD_EXT_ERR] Error al instanciar $className: ${e.message}")
+                        if (cause != null) cause.printStackTrace() else e.printStackTrace()
+                    } catch (e: java.lang.NoClassDefFoundError) {
+                        val msg = "Falta clase: ${e.message}"
+                        errorCollector?.add("$className → $msg")
+                        println("[LOAD_EXT_ERR] Falta clase para $className: ${e.message}")
+                        e.printStackTrace()
                     } catch (e: Throwable) {
+                        val msg = "${e.message}"
+                        errorCollector?.add("$className → $msg")
                         println("[LOAD_EXT_ERR] Error al cargar clase $className: ${e.message}")
                         e.printStackTrace()
                     }
@@ -161,30 +198,104 @@ object ExtensionManager {
     }
 
     // Loads all locally installed extensions from extensions directory
-    fun loadLocalExtensions(blacklist: List<String> = emptyList()): List<LoadedSource> {
-        val files = extensionsDir.listFiles { _, name -> name.endsWith(".jar") } ?: return emptyList()
+    // Returns the loaded sources AND any errors encountered per file
+    fun loadLocalExtensionsWithErrors(blacklist: List<String> = emptyList()): Pair<List<LoadedSource>, Map<String, List<String>>> {
+        val files = extensionsDir.listFiles { _, name -> name.endsWith(".jar") } ?: return Pair(emptyList(), emptyMap())
         val allSources = mutableListOf<LoadedSource>()
+        val allErrors = mutableMapOf<String, MutableList<String>>()
         for (file in files) {
             val pkgName = file.name.substringBeforeLast(".jar")
             if (blacklist.contains(pkgName)) {
                 println("[ExtensionManager] Skipping blacklisted extension: ${file.name}")
                 continue
             }
+            val fileErrors = mutableListOf<String>()
             try {
-                val loaded = loadExtension(file)
-                println(
-                    "[ExtensionManager] Loaded ${loaded.size} sources from ${file.name}: ${loaded.map { source -> when (source) {
-                        is LoadedSource.Anime -> source.source.name
-                        is LoadedSource.Manga -> source.source.name
-                    } }}",
-                )
+                val loaded = loadExtension(file, fileErrors)
+                if (fileErrors.isNotEmpty()) {
+                    allErrors[file.name] = fileErrors
+                    println("[ExtensionManager] Loaded ${loaded.size} sources from ${file.name} WITH ${fileErrors.size} errors: ${fileErrors.joinToString("; ")}")
+                } else {
+                    println(
+                        "[ExtensionManager] Loaded ${loaded.size} sources from ${file.name}: ${loaded.map { source -> when (source) {
+                            is LoadedSource.Anime -> source.source.name
+                            is LoadedSource.Manga -> source.source.name
+                        } }}",
+                    )
+                }
                 allSources.addAll(loaded)
             } catch (e: Throwable) {
+                val msg = "[FATAL] ${e.message}"
+                fileErrors.add(msg)
                 println("[ExtensionManager] Error loading file ${file.name}: ${e.message}")
                 e.printStackTrace()
+                allErrors[file.name] = fileErrors
             }
         }
-        return allSources
+        return Pair(allSources, allErrors)
+    }
+
+    // Overload for backward compatibility
+    fun loadLocalExtensions(blacklist: List<String> = emptyList()): List<LoadedSource> {
+        return loadLocalExtensionsWithErrors(blacklist).first
+    }
+
+    /**
+     * Uninstall an extension: close its classloader, try to delete the JAR file.
+     * Returns (deleted, needsBlacklist, message).
+     * - deleted=true  → the JAR was physically removed
+     * - needsBlacklist=true → the JAR couldn't be deleted (locked by JVM).
+     *   The caller should add the package to blacklistedExtensions so the
+     *   extension disappears from the UI immediately. The JAR will be deleted
+     *   on next app restart (deleteOnExit()).
+     */
+    fun uninstallExtension(packageName: String): Triple<Boolean, Boolean, String> {
+        val jarName = packageName + ".jar"
+        val jarFile = File(extensionsDir, jarName)
+
+        if (!jarFile.exists()) return Triple(true, false, "")
+
+        // 1. Close the classloader to release the JAR file handle
+        val cl = classLoaders.remove(jarName)
+        if (cl != null) {
+            try {
+                cl.close()
+                println("[ExtensionManager] Closed classloader for $jarName")
+            } catch (e: Exception) {
+                println("[ExtensionManager] Error closing classloader for $jarName: ${e.message}")
+            }
+        }
+
+        // 2. Give GC a chance to clean up
+        System.gc()
+        System.runFinalization()
+
+        // 3. Try to delete with retries
+        var deleted = false
+        for (attempt in 1..3) {
+            if (jarFile.exists()) {
+                deleted = jarFile.delete()
+                if (deleted) break
+                try { Thread.sleep(200) } catch (_: InterruptedException) {}
+                System.gc()
+            } else {
+                deleted = true
+                break
+            }
+        }
+
+        if (deleted) {
+            println("[ExtensionManager] Successfully deleted $jarName")
+            val stale = File(extensionsDir, "$jarName.deleted")
+            if (stale.exists()) stale.delete()
+            return Triple(true, false, "")
+        }
+
+        // All delete attempts failed — schedule for next restart
+        jarFile.deleteOnExit()
+        println("[ExtensionManager] Could not delete $jarName (JVM lock). Added to deleteOnExit().")
+        // Return needsBlacklist=true so the caller blacklists it immediately
+        return Triple(false, true, "El JAR está bloqueado por el sistema. Se ocultará ahora y se eliminará al reiniciar la aplicación.")
     }
 }
 
@@ -193,28 +304,29 @@ class ASMClassLoader(urls: Array<java.net.URL>, parent: ClassLoader) : URLClassL
         synchronized(this) {
             val loadedClass = findLoadedClass(name)
             if (loadedClass != null) {
-                if (resolve) {
-                    resolveClass(loadedClass)
-                }
+                if (resolve) resolveClass(loadedClass)
                 return loadedClass
             }
-            // Intercept any class located inside the extension JAR, except system/host packages
+            // Load extension classes directly from the JAR and patch bytecode on the fly.
+            // Classes that must come from the JVM (java.*, javax.*) or Android shim
+            // (android.*) are always delegated to the parent classloader.
             val path = name.replace('.', '/') + ".class"
-            if (!name.startsWith("java.") && !name.startsWith("javax.") && !name.startsWith("kotlin.") && !name.startsWith("android.")) {
+            if (!name.startsWith("java.") && !name.startsWith("javax.") && !name.startsWith("android.")) {
                 val res = findResource(path)
                 if (res != null) {
                     try {
                         res.openStream().use { stream ->
                             val originalBytes = stream.readBytes()
-                            val fixedBytes = fixStackFrames(originalBytes)
-                            val clazz = defineClass(name, fixedBytes, 0, fixedBytes.size)
-                            if (resolve) {
-                                resolveClass(clazz)
-                            }
+                            // Patch away any calls to kotlin.Result.constructor_impl
+                            // (and similar Kotlin value-class synthetic methods) that
+                            // don't exist in the desktop Kotlin stdlib.
+                            val patchedBytes = patchKotlinInlineClassCalls(originalBytes)
+                            val clazz = defineClass(name, patchedBytes, 0, patchedBytes.size)
+                            if (resolve) resolveClass(clazz)
                             return clazz
                         }
                     } catch (e: Throwable) {
-                        println("[ASMClassLoader] Error fixing frames for $name: ${e.message}")
+                        println("[ASMClassLoader] Error loading class $name: ${e.message}")
                         e.printStackTrace()
                     }
                 }
@@ -223,62 +335,135 @@ class ASMClassLoader(urls: Array<java.net.URL>, parent: ClassLoader) : URLClassL
         }
     }
 
-    private fun fixStackFrames(classBytes: ByteArray): ByteArray {
-        val cr = org.objectweb.asm.ClassReader(classBytes)
-        val cw = object : org.objectweb.asm.ClassWriter(org.objectweb.asm.ClassWriter.COMPUTE_FRAMES or org.objectweb.asm.ClassWriter.COMPUTE_MAXS) {
-            override fun getCommonSuperClass(type1: String, type2: String): String {
-                return try {
-                    val class1 = Class.forName(type1.replace('/', '.'), false, this@ASMClassLoader)
-                    val class2 = Class.forName(type2.replace('/', '.'), false, this@ASMClassLoader)
-                    if (class1.isAssignableFrom(class2)) {
-                        return type1
-                    }
-                    if (class2.isAssignableFrom(class1)) {
-                        return type2
-                    }
-                    if (class1.isInterface || class2.isInterface) {
-                        return "java/lang/Object"
-                    }
-                    var c = class1
-                    do {
-                        c = c.superclass ?: return "java/lang/Object"
-                    } while (!c.isAssignableFrom(class2))
-                    c.name.replace('.', '/')
-                } catch (e: Throwable) {
-                    "java/lang/Object"
-                }
-            }
-        }
-        
-        val cv = object : org.objectweb.asm.ClassVisitor(org.objectweb.asm.Opcodes.ASM9, cw) {
-            override fun visitMethod(
-                access: Int,
-                name: String?,
-                descriptor: String?,
-                signature: String?,
-                exceptions: Array<out String>?
-            ): org.objectweb.asm.MethodVisitor {
-                val mv = super.visitMethod(access, name, descriptor, signature, exceptions)
-                return object : org.objectweb.asm.MethodVisitor(org.objectweb.asm.Opcodes.ASM9, mv) {
-                    override fun visitMethodInsn(
-                        opcode: Int,
-                        owner: String?,
-                        methodName: String?,
-                        methodDescriptor: String?,
-                        isInterface: Boolean
-                    ) {
-                        val finalMethodName = if (owner != null && owner.startsWith("kotlin/") && methodName != null && methodName.endsWith("_impl")) {
-                            methodName.replace("_impl", "-impl")
-                        } else {
-                            methodName
+    /**
+     * Uses ASM to rewrite INVOKESTATIC calls to Kotlin value-class synthetic methods
+     * on kotlin/Result that are absent (or have different signatures) in the desktop
+     * Kotlin stdlib. All calls are redirected to KotlinResultCompat which provides
+     * correct implementations for every known synthetic method.
+     *
+     * Known kotlin/Result synthetic methods and their replacements:
+     *   constructor_impl(Object):Object      → identity (KotlinResultCompat.constructorImpl)
+     *   isSuccess_impl(Object):boolean       → KotlinResultCompat.isSuccess
+     *   isFailure_impl(Object):boolean       → KotlinResultCompat.isFailure
+     *   exceptionOrNull_impl(Object):Throwable → KotlinResultCompat.exceptionOrNull
+     *   getOrNull_impl / getValue_impl etc.  → KotlinResultCompat.getOrNull
+     *   throwOnFailure_impl(Object):void     → KotlinResultCompat.throwOnFailure
+     *   toString_impl(Object):String         → KotlinResultCompat.toStringImpl
+     *   hashCode_impl(Object):int            → KotlinResultCompat.hashCodeImpl
+     *   equals_impl(Object,Object):boolean   → KotlinResultCompat.equalsImpl
+     *   box-impl / box_impl(Object):Object   → KotlinResultCompat.box
+     *   unbox-impl / unbox_impl(Object):Object→ KotlinResultCompat.unbox
+     */
+    private fun patchKotlinInlineClassCalls(bytes: ByteArray): ByteArray {
+        val COMPAT = "eu/kanade/tachiyomi/extension/KotlinResultCompat"
+        return try {
+            val reader = org.objectweb.asm.ClassReader(bytes)
+            val writer = org.objectweb.asm.ClassWriter(0)
+            val visitor = object : org.objectweb.asm.ClassVisitor(org.objectweb.asm.Opcodes.ASM9, writer) {
+                override fun visitMethod(
+                    access: Int,
+                    name: String,
+                    descriptor: String,
+                    signature: String?,
+                    exceptions: Array<out String>?,
+                ): org.objectweb.asm.MethodVisitor {
+                    val mv = super.visitMethod(access, name, descriptor, signature, exceptions)
+                    return object : org.objectweb.asm.MethodVisitor(org.objectweb.asm.Opcodes.ASM9, mv) {
+                        override fun visitMethodInsn(
+                            opcode: Int,
+                            owner: String,
+                            name: String,
+                            descriptor: String,
+                            isInterface: Boolean,
+                        ) {
+                            // Only intercept INVOKESTATIC on kotlin/Result synthetic methods
+                            if (opcode == org.objectweb.asm.Opcodes.INVOKESTATIC &&
+                                owner == "kotlin/Result" &&
+                                (name.endsWith("_impl") || name.endsWith("-impl"))
+                            ) {
+                                println("[ASMClassLoader] Patching kotlin/Result.$name$descriptor")
+                                // Normalise: dex2jar sometimes emits '_impl' instead of '-impl'
+                                val base = name.removeSuffix("_impl").removeSuffix("-impl")
+                                when (base) {
+                                    // (Object) → Object  identity — just leave value on stack
+                                    "constructor" -> { /* no-op, value already on stack */ }
+
+                                    // (Object) → boolean
+                                    "isSuccess" -> super.visitMethodInsn(
+                                        org.objectweb.asm.Opcodes.INVOKESTATIC, COMPAT,
+                                        "isSuccess", "(Ljava/lang/Object;)Z", false,
+                                    )
+                                    "isFailure" -> super.visitMethodInsn(
+                                        org.objectweb.asm.Opcodes.INVOKESTATIC, COMPAT,
+                                        "isFailure", "(Ljava/lang/Object;)Z", false,
+                                    )
+
+                                    // (Object) → Throwable
+                                    "exceptionOrNull" -> super.visitMethodInsn(
+                                        org.objectweb.asm.Opcodes.INVOKESTATIC, COMPAT,
+                                        "exceptionOrNull", "(Ljava/lang/Object;)Ljava/lang/Throwable;", false,
+                                    )
+
+                                    // (Object) → Object  (success value or null)
+                                    "getOrNull", "getValue" -> super.visitMethodInsn(
+                                        org.objectweb.asm.Opcodes.INVOKESTATIC, COMPAT,
+                                        "getOrNull", "(Ljava/lang/Object;)Ljava/lang/Object;", false,
+                                    )
+
+                                    // (Object) → void  (throws if failure)
+                                    "throwOnFailure" -> super.visitMethodInsn(
+                                        org.objectweb.asm.Opcodes.INVOKESTATIC, COMPAT,
+                                        "throwOnFailure", "(Ljava/lang/Object;)V", false,
+                                    )
+
+                                    // (Object) → Object  wrap/unwrap
+                                    "box" -> super.visitMethodInsn(
+                                        org.objectweb.asm.Opcodes.INVOKESTATIC, COMPAT,
+                                        "box", "(Ljava/lang/Object;)Ljava/lang/Object;", false,
+                                    )
+                                    "unbox" -> super.visitMethodInsn(
+                                        org.objectweb.asm.Opcodes.INVOKESTATIC, COMPAT,
+                                        "unbox", "(Ljava/lang/Object;)Ljava/lang/Object;", false,
+                                    )
+
+                                    // (Object) → String
+                                    "toString" -> super.visitMethodInsn(
+                                        org.objectweb.asm.Opcodes.INVOKESTATIC, COMPAT,
+                                        "toStringImpl", "(Ljava/lang/Object;)Ljava/lang/String;", false,
+                                    )
+
+                                    // (Object) → int
+                                    "hashCode" -> super.visitMethodInsn(
+                                        org.objectweb.asm.Opcodes.INVOKESTATIC, COMPAT,
+                                        "hashCodeImpl", "(Ljava/lang/Object;)I", false,
+                                    )
+
+                                    // (Object, Object) → boolean
+                                    "equals" -> super.visitMethodInsn(
+                                        org.objectweb.asm.Opcodes.INVOKESTATIC, COMPAT,
+                                        "equalsImpl", "(Ljava/lang/Object;Ljava/lang/Object;)Z", false,
+                                    )
+
+                                    else -> {
+                                        // Unknown *_impl — route through generic compat handler
+                                        // so it fails with a clear error rather than a cryptic
+                                        // NoSuchMethodError pointing into the JVM internals.
+                                        println("[ASMClassLoader] Unknown kotlin/Result synthetic: $name$descriptor — passing through")
+                                        super.visitMethodInsn(opcode, owner, name, descriptor, isInterface)
+                                    }
+                                }
+                            } else {
+                                super.visitMethodInsn(opcode, owner, name, descriptor, isInterface)
+                            }
                         }
-                        super.visitMethodInsn(opcode, owner, finalMethodName, methodDescriptor, isInterface)
                     }
                 }
             }
+            reader.accept(visitor, org.objectweb.asm.ClassReader.EXPAND_FRAMES)
+            writer.toByteArray()
+        } catch (e: Throwable) {
+            println("[ASMClassLoader] Bytecode patching failed, using original bytes: ${e.message}")
+            bytes
         }
-        
-        cr.accept(cv, 0)
-        return cw.toByteArray()
     }
 }

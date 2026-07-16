@@ -66,8 +66,13 @@ fun AnimeDetailsScreen(
                 }
             } catch (e: Throwable) {
                 e.printStackTrace()
+                val friendlyMessage = when (e) {
+                    is NoSuchMethodError -> "Error de compatibilidad con la extensión: ${e.message?.substringAfterLast('/')?.substringBefore('(') ?: e.message}"
+                    is NoClassDefFoundError -> "Falta una clase requerida por la extensión: ${e.message}"
+                    else -> e.message ?: e.toString()
+                }
                 withContext(Dispatchers.Main) {
-                    errorText = e.message ?: e.toString()
+                    errorText = friendlyMessage
                     isLoading = false
                 }
             }
@@ -108,10 +113,16 @@ fun AnimeDetailsScreen(
                         }
                         isLoading = false
                     }
-                } catch (e: Exception) {
+                } catch (e: Throwable) {
                     println("[DEPURE] Error al obtener servidores: ${e.message}")
                     e.printStackTrace()
+                    val friendlyMessage = when (e) {
+                        is NoSuchMethodError -> "Error de compatibilidad con la extensión: ${e.message?.substringAfterLast('/')?.substringBefore('(') ?: e.message}"
+                        is NoClassDefFoundError -> "Falta una clase requerida por la extensión: ${e.message}"
+                        else -> e.message ?: e.toString()
+                    }
                     withContext(Dispatchers.Main) {
+                        errorText = friendlyMessage
                         isLoading = false
                     }
                 }
