@@ -4,6 +4,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.items
@@ -43,10 +45,13 @@ import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
+import okhttp3.Headers
 import eu.kanade.tachiyomi.network.NetworkHelper
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.util.asJsoup
 import eu.kanade.tachiyomi.source.CatalogueSource
+import eu.kanade.tachiyomi.source.online.HttpSource
+import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.animesource.AnimeFlv
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
 import eu.kanade.tachiyomi.source.MangaSource
@@ -61,7 +66,7 @@ import java.net.URI
 import java.util.Locale
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
-import javax.imageio.ImageIO
+import org.jetbrains.skia.Image as SkiaImage
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -75,64 +80,199 @@ import eu.kanade.tachiyomi.animesource.model.SEpisode
 import eu.kanade.tachiyomi.animesource.model.Video
 
 
-// AsyncImage loader for Compose Desktop
+private fun decodeImageBytes(bytes: ByteArray): ImageBitmap? {
+    return try {
+        SkiaImage.makeFromEncoded(bytes).toComposeImageBitmap()
+    } catch (_: Exception) {
+        null
+    }
+}
+
+// AsyncImage loader for Compose Desktop (URLs directas: portadas, thumbnails, etc.)
 @Composable
 fun AsyncImage(
     url: String,
     contentDescription: String?,
     modifier: Modifier = Modifier,
-    contentScale: ContentScale = ContentScale.Crop
+    contentScale: ContentScale = ContentScale.Crop,
+    headers: Headers? = null,
+    imageCache: MutableMap<String, ImageBitmap>? = null
 ) {
-    var imageBitmap by remember(url) { mutableStateOf<ImageBitmap?>(null) }
-    
+    var imageBitmap by remember(url) { mutableStateOf<ImageBitmap?>(imageCache?.get(url)) }
+    var loadFailed by remember(url) { mutableStateOf(false) }
+
     LaunchedEffect(url) {
+        if (imageBitmap != null) return@LaunchedEffect
+        loadFailed = false
         if (url.isNotEmpty()) {
             withContext(Dispatchers.IO) {
                 try {
                     val client = Injekt.get<NetworkHelper>().client
-                    val request = Request.Builder()
-                        .url(url)
-                        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-                        .build()
+                    val requestBuilder = Request.Builder().url(url)
+                    if (headers != null) {
+                        requestBuilder.headers(headers)
+                    }
+                    if (headers?.get("User-Agent") == null) {
+                        requestBuilder.header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                    }
+                    val request = requestBuilder.build()
                     client.newCall(request).execute().use { response: Response ->
                         if (response.isSuccessful) {
                             val bytes = response.body?.bytes()
                             if (bytes != null) {
-                                val bufferedImage = ImageIO.read(bytes.inputStream())
-                                if (bufferedImage != null) {
-                                    val bitmap = bufferedImage.toComposeImageBitmap()
-                                    withContext(Dispatchers.Main) {
+                                val bitmap = decodeImageBytes(bytes)
+                                withContext(Dispatchers.Main) {
+                                    if (bitmap != null) {
                                         imageBitmap = bitmap
+                                        imageCache?.put(url, bitmap)
+                                    } else {
+                                        loadFailed = true
                                     }
                                 }
                             }
+                        } else {
+                            withContext(Dispatchers.Main) { loadFailed = true }
                         }
                     }
-                } catch (e: Exception) {
-                    // Fail silently
+                } catch (_: Exception) {
+                    withContext(Dispatchers.Main) { loadFailed = true }
                 }
             }
         }
     }
 
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
-        if (imageBitmap != null) {
-            Image(
-                bitmap = imageBitmap!!,
-                contentDescription = contentDescription,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = contentScale
-            )
-        } else {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
-            ) {
-                CircularProgressIndicator(
-                    modifier = Modifier.align(Alignment.Center).size(24.dp),
-                    strokeWidth = 2.dp
+        when {
+            imageBitmap != null -> {
+                Image(
+                    bitmap = imageBitmap!!,
+                    contentDescription = contentDescription,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = contentScale
                 )
+            }
+            loadFailed -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.errorContainer),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        Icons.Default.BrokenImage,
+                        contentDescription = "Error al cargar imagen",
+                        tint = MaterialTheme.colorScheme.onErrorContainer,
+                    )
+                }
+            }
+            else -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.align(Alignment.Center).size(24.dp),
+                        strokeWidth = 2.dp
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Carga una página de manga usando el pipeline de HttpSource (getImageUrl + getImage),
+ * igual que el lector de Android. Necesario porque muchas extensiones devuelven URLs
+ * intermedias y requieren headers específicos (Referer, cookies, etc.).
+ */
+@Composable
+fun MangaPageImage(
+    page: Page,
+    httpSource: HttpSource,
+    contentDescription: String?,
+    modifier: Modifier = Modifier,
+    contentScale: ContentScale = ContentScale.FillWidth,
+    imageCache: MutableMap<Int, ImageBitmap>? = null,
+) {
+    var imageBitmap by remember(page.index, page.url) { mutableStateOf<ImageBitmap?>(imageCache?.get(page.index)) }
+    var loadFailed by remember(page.index, page.url) { mutableStateOf(false) }
+
+    LaunchedEffect(page.index, page.url) {
+        if (imageBitmap != null) return@LaunchedEffect
+        loadFailed = false
+        withContext(Dispatchers.IO) {
+            try {
+                if (page.imageUrl.isNullOrBlank()) {
+                    page.imageUrl = httpSource.getImageUrl(page)
+                }
+                httpSource.getImage(page).use { response ->
+                    if (!response.isSuccessful) {
+                        withContext(Dispatchers.Main) { loadFailed = true }
+                        return@withContext
+                    }
+                    val bytes = response.body.bytes()
+                    val bitmap = decodeImageBytes(bytes)
+                    withContext(Dispatchers.Main) {
+                        if (bitmap != null) {
+                            imageBitmap = bitmap
+                            imageCache?.put(page.index, bitmap)
+                        } else {
+                            loadFailed = true
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                withContext(Dispatchers.Main) { loadFailed = true }
+            }
+        }
+    }
+
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+        when {
+            imageBitmap != null -> {
+                Image(
+                    bitmap = imageBitmap!!,
+                    contentDescription = contentDescription,
+                    modifier = Modifier.fillMaxWidth(),
+                    contentScale = contentScale,
+                )
+            }
+            loadFailed -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp)
+                        .background(MaterialTheme.colorScheme.errorContainer),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            Icons.Default.BrokenImage,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onErrorContainer,
+                        )
+                        Text(
+                            "Error al cargar página ${page.number}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                        )
+                    }
+                }
+            }
+            else -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp)
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.align(Alignment.Center).size(24.dp),
+                        strokeWidth = 2.dp,
+                    )
+                }
             }
         }
     }
@@ -932,7 +1072,8 @@ fun UpdatesTab(onAnimeClick: (RealAnime) -> Unit) {
                                 contentDescription = anime.title,
                                 modifier = Modifier
                                     .size(80.dp, 120.dp)
-                                    .clip(RoundedCornerShape(6.dp))
+                                    .clip(RoundedCornerShape(6.dp)),
+                                headers = source.headers
                             )
                             Spacer(modifier = Modifier.width(16.dp))
                             Column(modifier = Modifier.align(Alignment.CenterVertically)) {
@@ -1198,21 +1339,28 @@ fun BrowseTab(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     val sourceItems = if (sourcesTabIndex == 0) {
-                        animeSources.map { source ->
-                            BrowserSourceItem(
-                                name = source.name,
-                                lang = source.lang,
-                                onClick = { selectedSource = source },
-                            )
-                        }
+                        // Deduplicar por id (evita registros dobles de SourceFactory + clase directa)
+                        animeSources
+                            .distinctBy { it.id }
+                            .map { source ->
+                                BrowserSourceItem(
+                                    name = source.name,
+                                    lang = source.lang,
+                                    onClick = { selectedSource = source },
+                                )
+                            }
                     } else {
-                        mangaSources.map { source ->
-                            BrowserSourceItem(
-                                name = source.name,
-                                lang = source.lang,
-                                onClick = { onMangaClick(source) },
-                            )
-                        }
+                        // Deduplicar por id antes de mostrar (una extensión puede registrar la
+                        // misma fuente vía SourceFactory Y como clase directa).
+                        mangaSources
+                            .distinctBy { it.id }
+                            .map { source ->
+                                BrowserSourceItem(
+                                    name = source.name,
+                                    lang = source.lang,
+                                    onClick = { onMangaClick(source) },
+                                )
+                            }
                     }
 
                     if (sourceItems.isEmpty()) {
@@ -1223,7 +1371,10 @@ fun BrowseTab(
                             )
                         }
                     } else {
-                        LanguageGroupedSourceList(items = sourceItems)
+                        LanguageGroupedSourceList(
+                            items = sourceItems,
+                            defaultLang = "es",
+                        )
                     }
                 }
             }
@@ -1303,32 +1454,77 @@ fun BrowseTab(
 @Composable
 private fun LanguageGroupedSourceList(
     items: List<BrowserSourceItem>,
+    defaultLang: String = "es",
 ) {
-    val groupedItems = remember(items) {
-        items.sortedWith(
+    // Collect distinct languages present in the list, always include "all" (All) sentinel.
+    val availableLangs = remember(items) {
+        items.map { it.lang }.distinct()
+            .sortedWith(compareBy({ it != "all" }, { languageDisplayName(it) }))
+    }
+
+    // Selected filter: start with defaultLang if present, otherwise first available.
+    var selectedLang by remember(availableLangs, defaultLang) {
+        val initial = if (availableLangs.contains(defaultLang)) defaultLang
+                      else availableLangs.firstOrNull() ?: defaultLang
+        mutableStateOf<String?>(initial)
+    }
+
+    val filteredItems = remember(items, selectedLang) {
+        val base = items.sortedWith(
             compareBy<BrowserSourceItem> { it.lang != "all" }
                 .thenBy { languageDisplayName(it.lang) }
                 .thenBy(String.CASE_INSENSITIVE_ORDER) { it.name },
-        ).groupBy { it.lang }
+        )
+        if (selectedLang == null) base else base.filter { it.lang == selectedLang }
     }
 
-    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        groupedItems.forEach { (lang, sourceItems) ->
-            item(key = "lang-$lang") {
-                Text(
-                    text = languageDisplayName(lang),
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
-                )
+    val groupedItems = remember(filteredItems) {
+        filteredItems.groupBy { it.lang }
+    }
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        // Language filter chip row
+        if (availableLangs.size > 1) {
+            androidx.compose.foundation.lazy.LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(bottom = 12.dp),
+            ) {
+                // "Todos" chip
+                item {
+                    FilterChip(
+                        selected = selectedLang == null,
+                        onClick = { selectedLang = null },
+                        label = { Text("Todos") },
+                    )
+                }
+                items(availableLangs) { lang ->
+                    FilterChip(
+                        selected = selectedLang == lang,
+                        onClick = { selectedLang = if (selectedLang == lang) null else lang },
+                        label = { Text(languageDisplayName(lang)) },
+                    )
+                }
             }
-            items(sourceItems) { sourceItem ->
-                SourceItemCard(
-                    name = sourceItem.name,
-                    lang = sourceItem.lang,
-                    version = "1.0.0",
-                    onClick = sourceItem.onClick,
-                )
+        }
+
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            groupedItems.forEach { (lang, sourceItems) ->
+                item(key = "lang-$lang") {
+                    Text(
+                        text = languageDisplayName(lang),
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onBackground,
+                        modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
+                    )
+                }
+                items(sourceItems, key = { it.name + it.lang }) { sourceItem ->
+                    SourceItemCard(
+                        name = sourceItem.name,
+                        lang = sourceItem.lang,
+                        version = "1.0.0",
+                        onClick = sourceItem.onClick,
+                    )
+                }
             }
         }
     }
@@ -1526,7 +1722,8 @@ fun MangaSourceCatalogScreen(source: MangaSource, onBack: () -> Unit) {
                                     contentDescription = manga.title,
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(220.dp)
+                                        .height(220.dp),
+                                    headers = (catalogueSource as? HttpSource)?.headers
                                 )
                                 Text(
                                     text = manga.title,
@@ -1630,22 +1827,11 @@ fun MangaDetailScreen(
     }
 
     if (selectedChapter != null) {
-        Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Button(onClick = { selectedChapter = null }) { Text("Volver") }
-                Spacer(modifier = Modifier.width(16.dp))
-                Text(
-                    text = selectedChapter!!.name,
-                    style = MaterialTheme.typography.headlineMedium,
-                    modifier = Modifier.weight(1f),
-                )
-            }
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = "La lectura del capítulo todavía no está conectada en desktop, pero ya puedes navegar al detalle.",
-                color = MaterialTheme.colorScheme.onBackground,
-            )
-        }
+        MangaReaderScreen(
+            chapter = selectedChapter!!,
+            source = source,
+            onBack = { selectedChapter = null },
+        )
         return
     }
 
@@ -1702,7 +1888,8 @@ fun MangaDetailScreen(
                         contentDescription = shownManga.title,
                         modifier = Modifier
                             .width(220.dp)
-                            .height(320.dp)
+                            .height(320.dp),
+                        headers = (source as? HttpSource)?.headers
                     )
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
@@ -1752,6 +1939,167 @@ fun MangaDetailScreen(
                         }
                     }
                         }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Lector de páginas para desktop.
+ * Carga la lista de páginas del capítulo vía la extensión y las muestra
+ * en un scroll vertical, igual que el lector de Aniyomi en móvil.
+ */
+@Composable
+fun MangaReaderScreen(
+    chapter: SChapter,
+    source: CatalogueSource,
+    onBack: () -> Unit,
+) {
+    // Estado de carga de páginas
+    var pages by remember { mutableStateOf<List<Page>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+    var errorText by remember { mutableStateOf<String?>(null) }
+    var retryKey by remember { mutableStateOf(0) }
+
+    LaunchedEffect(chapter.url, retryKey) {
+        isLoading = true
+        errorText = null
+        withContext(Dispatchers.IO) {
+            try {
+                val pageList = source.getPageList(chapter)
+                withContext(Dispatchers.Main) {
+                    pages = pageList
+                    isLoading = false
+                }
+            } catch (e: Throwable) {
+                e.printStackTrace()
+                val msg = when (e) {
+                    is UninitializedPropertyAccessException -> "El capítulo no tiene URL válida."
+                    is NoSuchMethodError -> "Error de compatibilidad con la extensión: ${e.message?.substringAfterLast('/')?.substringBefore('(') ?: e.message}"
+                    is NoClassDefFoundError -> "Falta una clase requerida por la extensión: ${e.message}"
+                    else -> e.message ?: e.toString()
+                }
+                withContext(Dispatchers.Main) {
+                    errorText = msg
+                    isLoading = false
+                }
+            }
+        }
+    }
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        // Barra superior
+        Surface(
+            tonalElevation = 4.dp,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = chapter.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f),
+                    maxLines = 1,
+                )
+                if (!isLoading && errorText == null) {
+                    Text(
+                        text = "${pages.size} páginas",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+
+        when {
+            isLoading -> {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        CircularProgressIndicator()
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text("Cargando páginas…", color = MaterialTheme.colorScheme.onBackground)
+                    }
+                }
+            }
+
+            errorText != null -> {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) {
+                        Text("Error al cargar el capítulo", color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.titleMedium)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(errorText!!, style = MaterialTheme.typography.bodyMedium)
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(onClick = { retryKey++ }) { Text("Reintentar") }
+                    }
+                }
+            }
+
+            pages.isEmpty() -> {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("No se encontraron páginas para este capítulo.",
+                        color = MaterialTheme.colorScheme.onBackground)
+                }
+            }
+
+            else -> {
+                // Lector vertical con scroll — cada página se carga de forma lazy
+                val listState = rememberLazyListState()
+                val pageImageCache = remember(chapter.url) { mutableStateMapOf<Int, ImageBitmap>() }
+                val asyncImageCache = remember(chapter.url) { mutableStateMapOf<String, ImageBitmap>() }
+                Box(modifier = Modifier.fillMaxSize()) {
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        itemsIndexed(pages) { index, page ->
+                            Box(modifier = Modifier.fillMaxWidth()) {
+                                if (source is HttpSource) {
+                                    MangaPageImage(
+                                        page = page,
+                                        httpSource = source,
+                                        contentDescription = "Página ${index + 1}",
+                                        modifier = Modifier.fillMaxWidth(),
+                                        contentScale = ContentScale.FillWidth,
+                                        imageCache = pageImageCache,
+                                    )
+                                } else {
+                                    AsyncImage(
+                                        url = page.imageUrl?.takeIf { it.isNotBlank() } ?: page.url,
+                                        contentDescription = "Página ${index + 1}",
+                                        modifier = Modifier.fillMaxWidth(),
+                                        contentScale = ContentScale.FillWidth,
+                                        headers = (source as? HttpSource)?.headers,
+                                        imageCache = asyncImageCache,
+                                    )
+                                }
+                                // Número de página en overlay
+                                Text(
+                                    text = "${index + 1}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = Color.White,
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .padding(6.dp)
+                                        .background(Color.Black.copy(alpha = 0.45f), RoundedCornerShape(4.dp))
+                                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                                )
+                            }
+                        }
+                    }
+                    // Scrollbar
+                    VerticalScrollbar(
+                        adapter = rememberScrollbarAdapter(listState),
+                        modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight(),
+                    )
                 }
             }
         }
@@ -2056,7 +2404,8 @@ fun SourceCatalogScreen(source: AnimeHttpSource, onBack: () -> Unit, onAnimeClic
                                 contentDescription = anime.title,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(220.dp)
+                                    .height(220.dp),
+                                headers = (source as? AnimeHttpSource)?.headers
                             )
                             Text(
                                 text = anime.title,

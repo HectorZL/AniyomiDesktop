@@ -13,6 +13,7 @@ import eu.kanade.domain.source.service.SourcePreferences.DataSaver
 import eu.kanade.presentation.browse.manga.MangaSourceUiModel
 import eu.kanade.tachiyomi.util.system.LAST_USED_KEY
 import eu.kanade.tachiyomi.util.system.PINNED_KEY
+import eu.kanade.tachiyomi.util.system.LocaleHelper
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
@@ -70,6 +71,10 @@ class MangaSourcesScreenModel(
 
     private fun collectLatestSources(sources: List<Source>) {
         mutableState.update { state ->
+            val filteredSources = state.selectedLanguage
+                ?.let { language -> sources.filter { it.lang == language } }
+                ?: sources
+
             val map = TreeMap<String, MutableList<Source>> { d1, d2 ->
                 // Sources without a lang defined will be placed at the end
                 when {
@@ -82,7 +87,7 @@ class MangaSourcesScreenModel(
                     else -> d1.compareTo(d2)
                 }
             }
-            val byLang = sources.groupByTo(map) {
+            val byLang = filteredSources.groupByTo(map) {
                 when {
                     it.isUsedLast -> LAST_USED_KEY
                     Pin.Actual in it.pin -> PINNED_KEY
@@ -92,6 +97,11 @@ class MangaSourcesScreenModel(
 
             state.copy(
                 isLoading = false,
+                availableLanguages = sources
+                    .map { it.lang }
+                    .distinct()
+                    .sortedWith(LocaleHelper.comparator)
+                    .toImmutableList(),
                 items = byLang
                     .flatMap {
                         listOf(
@@ -112,6 +122,12 @@ class MangaSourcesScreenModel(
 
     fun togglePin(source: Source) {
         toggleSourcePin.await(source)
+    }
+
+    fun setLanguageFilter(language: String?) {
+        mutableState.update {
+            it.copy(selectedLanguage = language)
+        }
     }
 
     // SY -->
@@ -139,6 +155,8 @@ class MangaSourcesScreenModel(
         val dialog: Dialog? = null,
         val isLoading: Boolean = true,
         val items: ImmutableList<MangaSourceUiModel> = persistentListOf(),
+        val availableLanguages: ImmutableList<String> = persistentListOf(),
+        val selectedLanguage: String? = null,
         // SY -->
         val dataSaverEnabled: Boolean = false,
         // SY <--

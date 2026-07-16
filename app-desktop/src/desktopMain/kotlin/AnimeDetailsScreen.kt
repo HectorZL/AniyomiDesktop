@@ -20,6 +20,7 @@ import kotlinx.coroutines.withContext
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.animesource.model.SEpisode
+import okhttp3.Headers
 
 @Composable
 fun AnimeDetailsScreen(
@@ -165,7 +166,8 @@ fun AnimeDetailsScreen(
                 contentDescription = detailAnime.title,
                 modifier = Modifier
                     .size(150.dp, 220.dp)
-                    .clip(RoundedCornerShape(8.dp))
+                    .clip(RoundedCornerShape(8.dp)),
+                headers = source.headers
             )
             Spacer(modifier = Modifier.width(24.dp))
             Column(modifier = Modifier.weight(1f)) {

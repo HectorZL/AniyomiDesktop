@@ -1,15 +1,23 @@
 package eu.kanade.presentation.browse.manga
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalTextStyle
@@ -46,49 +54,102 @@ fun MangaSourcesScreen(
     onClickItem: (Source, Listing) -> Unit,
     onClickPin: (Source) -> Unit,
     onLongClickItem: (Source) -> Unit,
+    onClickLanguageFilter: (String?) -> Unit,
 ) {
     when {
         state.isLoading -> LoadingScreen(Modifier.padding(contentPadding))
-        state.isEmpty -> EmptyScreen(
-            stringRes = MR.strings.source_empty_screen,
-            modifier = Modifier.padding(contentPadding),
-        )
         else -> {
             ScrollbarLazyColumn(
                 contentPadding = contentPadding + topSmallPaddingValues,
             ) {
-                items(
-                    items = state.items,
-                    contentType = {
-                        when (it) {
-                            is MangaSourceUiModel.Header -> "header"
-                            is MangaSourceUiModel.Item -> "item"
-                        }
-                    },
-                    key = {
-                        when (it) {
-                            is MangaSourceUiModel.Header -> it.hashCode()
-                            is MangaSourceUiModel.Item -> "source-${it.source.key()}"
-                        }
-                    },
-                ) { model ->
-                    when (model) {
-                        is MangaSourceUiModel.Header -> {
-                            SourceHeader(
+                item(key = "language-filter", contentType = "language-filter") {
+                    LanguageFilterRow(
+                        selectedLanguage = state.selectedLanguage,
+                        languages = state.availableLanguages,
+                        onClickLanguage = onClickLanguageFilter,
+                    )
+                }
+
+                if (state.items.isEmpty()) {
+                    item(key = "empty-sources", contentType = "empty-sources") {
+                        EmptyScreen(
+                            stringRes = MR.strings.source_empty_screen,
+                            modifier = Modifier.padding(contentPadding),
+                        )
+                    }
+                } else {
+                    items(
+                        items = state.items,
+                        contentType = {
+                            when (it) {
+                                is MangaSourceUiModel.Header -> "header"
+                                is MangaSourceUiModel.Item -> "item"
+                            }
+                        },
+                        key = {
+                            when (it) {
+                                is MangaSourceUiModel.Header -> it.hashCode()
+                                is MangaSourceUiModel.Item -> "source-${it.source.key()}"
+                            }
+                        },
+                    ) { model ->
+                        when (model) {
+                            is MangaSourceUiModel.Header -> {
+                                SourceHeader(
+                                    modifier = Modifier.animateItem(),
+                                    language = model.language,
+                                )
+                            }
+                            is MangaSourceUiModel.Item -> SourceItem(
                                 modifier = Modifier.animateItem(),
-                                language = model.language,
+                                source = model.source,
+                                onClickItem = onClickItem,
+                                onLongClickItem = onLongClickItem,
+                                onClickPin = onClickPin,
                             )
                         }
-                        is MangaSourceUiModel.Item -> SourceItem(
-                            modifier = Modifier.animateItem(),
-                            source = model.source,
-                            onClickItem = onClickItem,
-                            onLongClickItem = onLongClickItem,
-                            onClickPin = onClickPin,
-                        )
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun LanguageFilterRow(
+    selectedLanguage: String?,
+    languages: List<String>,
+    onClickLanguage: (String?) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = MaterialTheme.padding.medium, vertical = MaterialTheme.padding.small),
+        horizontalArrangement = Arrangement.spacedBy(MaterialTheme.padding.small),
+    ) {
+        FilterChip(
+            selected = selectedLanguage == null,
+            onClick = { onClickLanguage(null) },
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Outlined.Language,
+                    contentDescription = null,
+                    modifier = Modifier.size(FilterChipDefaults.IconSize),
+                )
+            },
+            label = {
+                Text(text = stringResource(AYMR.strings.label_all))
+            },
+        )
+
+        languages.forEach { language ->
+            FilterChip(
+                selected = selectedLanguage == language,
+                onClick = { onClickLanguage(language) },
+                label = {
+                    Text(text = LocaleHelper.getSourceDisplayName(language, LocalContext.current))
+                },
+            )
         }
     }
 }

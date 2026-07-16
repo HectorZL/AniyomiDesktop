@@ -53,6 +53,7 @@ fun Screen.mangaSourcesTab(): TabContent {
                 },
                 onClickPin = screenModel::togglePin,
                 onLongClickItem = screenModel::showSourceDialog,
+                onClickLanguageFilter = screenModel::setLanguageFilter,
             )
 
             state.dialog?.let { dialog ->
