@@ -820,7 +820,18 @@ fun MainScreen(
                         },
                         onUninstallSuccess = { pkg, jarName ->
                             dynamicSources.removeAll { source ->
-                                source.javaClass.name.startsWith(pkg)
+                                val sourceJar = source.javaClass.classLoader?.let { loader ->
+                                    if (loader is java.net.URLClassLoader) {
+                                        loader.urLs.firstOrNull()?.let { url ->
+                                            try {
+                                                java.io.File(url.toURI()).name
+                                            } catch (e: Exception) {
+                                                null
+                                            }
+                                        }
+                                    } else null
+                                }
+                                sourceJar == jarName || source.javaClass.name.startsWith(pkg)
                             }
                             installedJars.remove(jarName)
                         }
