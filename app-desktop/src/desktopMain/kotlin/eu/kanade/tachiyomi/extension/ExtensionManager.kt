@@ -47,6 +47,14 @@ object ExtensionManager {
     init {
         if (!extensionsDir.exists()) extensionsDir.mkdirs()
         if (!cacheDir.exists()) cacheDir.mkdirs()
+        
+        // Clean up old versioned JAR files (e.g. aniyomi-all.animeonsen-v14.10.jar)
+        try {
+            val oldFiles = extensionsDir.listFiles { _, name -> name.startsWith("aniyomi-") && name.endsWith(".jar") }
+            oldFiles?.forEach { it.delete() }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     // Fetches the repository index JSON
@@ -91,7 +99,7 @@ object ExtensionManager {
     fun loadExtension(jarFile: File): List<AnimeSource> {
         val urls = arrayOf(jarFile.toURI().toURL())
         val parentClassLoader = this.javaClass.classLoader
-        val classLoader = URLClassLoader(urls, parentClassLoader)
+        val classLoader = ASMClassLoader(urls, parentClassLoader)
         val loadedSources = mutableListOf<AnimeSource>()
 
         ZipFile(jarFile).use { zip ->
@@ -129,7 +137,7 @@ object ExtensionManager {
     suspend fun installExtension(repoUrl: String, extension: ExtensionInfo): List<AnimeSource> {
         val repoBaseUrl = repoUrl.substringBeforeLast("/") + "/apk/"
         val apkFile = downloadApk(repoBaseUrl, extension.apk)
-        val jarFile = File(extensionsDir, extension.apk.removeSuffix(".apk") + ".jar")
+        val jarFile = File(extensionsDir, extension.pkg + ".jar")
         
         withContext(Dispatchers.IO) {
             translateApkToJar(apkFile, jarFile)
@@ -151,5 +159,62 @@ object ExtensionManager {
             }
         }
         return allSources
+    }
+}
+
+class ASMClassLoader(urls: Array<java.net.URL>, parent: ClassLoader) : URLClassLoader(urls, parent) {
+    override fun loadClass(name: String, resolve: Boolean): Class<*> {
+        // Only intercept extension classes
+        if (name.startsWith("eu.kanade.tachiyomi.animeextension") || name.startsWith("eu.kanade.tachiyomi.extension")) {
+            val path = name.replace('.', '/') + ".class"
+            val res = findResource(path)
+            if (res != null) {
+                try {
+                    res.openStream().use { stream ->
+                        val originalBytes = stream.readBytes()
+                        val fixedBytes = fixStackFrames(originalBytes)
+                        val clazz = defineClass(name, fixedBytes, 0, fixedBytes.size)
+                        if (resolve) {
+                            resolveClass(clazz)
+                        }
+                        return clazz
+                    }
+                } catch (e: Throwable) {
+                    println("[ASMClassLoader] Error fixing frames for $name: ${e.message}")
+                    e.printStackTrace()
+                }
+            }
+        }
+        return super.loadClass(name, resolve)
+    }
+
+    private fun fixStackFrames(classBytes: ByteArray): ByteArray {
+        val cr = org.objectweb.asm.ClassReader(classBytes)
+        val cw = object : org.objectweb.asm.ClassWriter(org.objectweb.asm.ClassWriter.COMPUTE_FRAMES or org.objectweb.asm.ClassWriter.COMPUTE_MAXS) {
+            override fun getCommonSuperClass(type1: String, type2: String): String {
+                return try {
+                    val class1 = Class.forName(type1.replace('/', '.'), false, this@ASMClassLoader)
+                    val class2 = Class.forName(type2.replace('/', '.'), false, this@ASMClassLoader)
+                    if (class1.isAssignableFrom(class2)) {
+                        return type1
+                    }
+                    if (class2.isAssignableFrom(class1)) {
+                        return type2
+                    }
+                    if (class1.isInterface || class2.isInterface) {
+                        return "java/lang/Object"
+                    }
+                    var c = class1
+                    do {
+                        c = c.superclass ?: return "java/lang/Object"
+                    } while (!c.isAssignableFrom(class2))
+                    c.name.replace('.', '/')
+                } catch (e: Throwable) {
+                    "java/lang/Object"
+                }
+            }
+        }
+        cr.accept(cw, 0)
+        return cw.toByteArray()
     }
 }

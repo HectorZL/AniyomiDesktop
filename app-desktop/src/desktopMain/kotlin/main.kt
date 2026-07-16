@@ -865,7 +865,7 @@ fun ExtensionsSection(
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(extensionsList) { ext ->
-                    val jarName = ext.apk.removeSuffix(".apk") + ".jar"
+                    val jarName = ext.pkg + ".jar"
                     val jarFile = File(eu.kanade.tachiyomi.extension.ExtensionManager.extensionsDir, jarName)
                     val isInstalled = installedJars.contains(jarName)
                     
