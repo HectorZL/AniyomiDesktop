@@ -2,6 +2,7 @@ package eu.kanade.tachiyomi.extension
 
 import android.content.Context
 import com.googlecode.d2j.dex.Dex2jar
+import com.googlecode.d2j.reader.MultiDexFileReader
 import eu.kanade.tachiyomi.animesource.AnimeSource
 import eu.kanade.tachiyomi.animesource.AnimeSourceFactory
 import eu.kanade.tachiyomi.network.NetworkHelper
@@ -74,11 +75,13 @@ object ExtensionManager {
         tempApk
     }
 
-    // Translates the APK to a JAR file
     fun translateApkToJar(apkFile: File, jarFile: File) {
         try {
             if (jarFile.exists()) jarFile.delete()
-            Dex2jar.from(apkFile).to(jarFile)
+            apkFile.inputStream().use { stream ->
+                val reader = MultiDexFileReader.open(stream)
+                Dex2jar.from(reader).to(jarFile.toPath())
+            }
         } catch (e: Exception) {
             throw RuntimeException("Error al traducir DEX a JAR: ${e.message}", e)
         }
