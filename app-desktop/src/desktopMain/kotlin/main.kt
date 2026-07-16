@@ -34,6 +34,9 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.VerticalScrollbar
+import androidx.compose.foundation.rememberScrollbarAdapter
+import androidx.compose.foundation.lazy.rememberLazyListState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -148,6 +151,8 @@ fun loadHistory(): List<HistoryItem> {
 data class AppSettings(
     val extensionDirPath: String = "",
     val extensionRepoUrl: String = "",
+    val animeRepos: List<String> = emptyList(),
+    val mangaRepos: List<String> = emptyList(),
     val themeColor: String = "Orange"
 )
 
@@ -170,16 +175,27 @@ fun loadSettings(): AppSettings {
         val file = File(appDir, "settings.json")
         if (file.exists()) {
             val loaded = Json.decodeFromString<AppSettings>(file.readText())
+            val aRepos = if (loaded.animeRepos.isNotEmpty()) loaded.animeRepos else {
+                if (loaded.extensionRepoUrl.isNotEmpty()) listOf(loaded.extensionRepoUrl) else listOf(defaultRepo)
+            }
             return AppSettings(
                 extensionDirPath = if (loaded.extensionDirPath.isNotEmpty()) loaded.extensionDirPath else defaultPath,
-                extensionRepoUrl = if (loaded.extensionRepoUrl.isNotEmpty()) loaded.extensionRepoUrl else defaultRepo,
+                extensionRepoUrl = loaded.extensionRepoUrl.ifEmpty { defaultRepo },
+                animeRepos = aRepos,
+                mangaRepos = loaded.mangaRepos,
                 themeColor = loaded.themeColor.ifEmpty { "Orange" }
             )
         }
     } catch (e: Exception) {
         e.printStackTrace()
     }
-    return AppSettings(extensionDirPath = defaultPath, extensionRepoUrl = defaultRepo, themeColor = "Orange")
+    return AppSettings(
+        extensionDirPath = defaultPath,
+        extensionRepoUrl = defaultRepo,
+        animeRepos = listOf(defaultRepo),
+        mangaRepos = emptyList(),
+        themeColor = "Orange"
+    )
 }
 
 
@@ -792,7 +808,8 @@ fun MainScreen(
                     )
                     "examinar" -> BrowseTab(
                         dynamicSources = dynamicSources,
-                        repoUrl = appSettings.extensionRepoUrl,
+                        animeRepos = appSettings.animeRepos,
+                        mangaRepos = appSettings.mangaRepos,
                         installedJars = installedJars,
                         onAnimeClick = { selectedAnime = it },
                         onInstallSuccess = { loadedSources, jarName ->
@@ -1058,7 +1075,8 @@ fun HistoryTab(
 @Composable
 fun BrowseTab(
     dynamicSources: List<AnimeHttpSource>,
-    repoUrl: String,
+    animeRepos: List<String>,
+    mangaRepos: List<String>,
     installedJars: List<String>,
     onAnimeClick: (RealAnime) -> Unit,
     onInstallSuccess: (List<AnimeHttpSource>, String) -> Unit,
@@ -1074,6 +1092,19 @@ fun BrowseTab(
         )
     } else {
         var tabIndex by remember { mutableStateOf(0) } // 0 = Fuentes, 1 = Extensiones
+        
+        val allRepos = (animeRepos.map { "Anime: $it" } + mangaRepos.map { "Manga: $it" })
+        var selectedRepoUrl by remember { 
+            mutableStateOf(
+                allRepos.firstOrNull()?.substringAfter(": ") ?: ""
+            ) 
+        }
+
+        LaunchedEffect(allRepos) {
+            if (selectedRepoUrl.isEmpty() && allRepos.isNotEmpty()) {
+                selectedRepoUrl = allRepos.first().substringAfter(": ")
+            }
+        }
         
         Column(modifier = Modifier.fillMaxSize()) {
             TabRow(
@@ -1096,16 +1127,7 @@ fun BrowseTab(
                         Spacer(modifier = Modifier.height(16.dp))
                         
                         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            // Built-in Native Source
-                            item {
-                                SourceItemCard(
-                                    name = "AnimeFLV (Nativa)",
-                                    lang = "es",
-                                    version = "1.0.0",
-                                    onClick = { selectedSource = eu.kanade.tachiyomi.animesource.AnimeFlv() }
-                                )
-                            }
-                            // Dynamic Sources from extensions
+                            // Dynamic Sources from extensions (native source removed)
                             items(dynamicSources) { source ->
                                 SourceItemCard(
                                     name = source.name,
@@ -1117,7 +1139,64 @@ fun BrowseTab(
                         }
                     }
                 }
-                1 -> ExtensionsSection(repoUrl, dynamicSources, installedJars, onInstallSuccess, onUninstallSuccess)
+                1 -> {
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        if (allRepos.isNotEmpty()) {
+                            var showRepoMenu by remember { mutableStateOf(false) }
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box {
+                                    Button(
+                                        onClick = { showRepoMenu = true },
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                        ),
+                                        shape = RoundedCornerShape(8.dp)
+                                    ) {
+                                        val displayUrl = selectedRepoUrl.substringBefore("?")
+                                        val repoLabel = allRepos.find { it.endsWith(selectedRepoUrl) }?.substringBefore(": ") ?: "Repositorio"
+                                        Text("Repo [$repoLabel]: ${displayUrl.take(45)}${if (displayUrl.length > 45) "..." else ""}")
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+                                    }
+                                    DropdownMenu(
+                                        expanded = showRepoMenu,
+                                        onDismissRequest = { showRepoMenu = false }
+                                    ) {
+                                        allRepos.forEach { repo ->
+                                            val type = repo.substringBefore(": ")
+                                            val url = repo.substringAfter(": ")
+                                            DropdownMenuItem(
+                                                text = { Text("[$type] ${url.substringBefore("?")}") },
+                                                onClick = {
+                                                    selectedRepoUrl = url
+                                                    showRepoMenu = false
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        if (selectedRepoUrl.isNotEmpty()) {
+                            ExtensionsSection(
+                                repoUrl = selectedRepoUrl,
+                                dynamicSources = dynamicSources,
+                                installedJars = installedJars,
+                                onInstallSuccess = onInstallSuccess,
+                                onUninstallSuccess = onUninstallSuccess
+                            )
+                        } else {
+                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                Text("Añade algún repositorio en Configuración", color = MaterialTheme.colorScheme.onBackground)
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -1197,68 +1276,80 @@ fun ExtensionsSection(
                 Text("Error al cargar repositorio:\n$errorMessage", color = MaterialTheme.colorScheme.error)
             }
         } else {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(extensionsList) { ext ->
-                    val jarName = ext.pkg + ".jar"
-                    val jarFile = File(eu.kanade.tachiyomi.extension.ExtensionManager.extensionsDir, jarName)
-                    val isInstalled = installedJars.contains(jarName)
-                    
-                    var isActionLoading by remember { mutableStateOf(false) }
+            val listState = rememberLazyListState()
+            Box(modifier = Modifier.fillMaxSize()) {
+                LazyColumn(
+                    state = listState,
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxSize().padding(end = 16.dp)
+                ) {
+                    items(extensionsList) { ext ->
+                        val jarName = ext.pkg + ".jar"
+                        val jarFile = File(eu.kanade.tachiyomi.extension.ExtensionManager.extensionsDir, jarName)
+                        val isInstalled = installedJars.contains(jarName)
+                        
+                        var isActionLoading by remember { mutableStateOf(false) }
 
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(8.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(8.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
                         ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(text = ext.name, style = MaterialTheme.typography.titleMedium)
-                                Text(
-                                    text = "Paquete: ${ext.pkg}\nIdioma: ${ext.lang.uppercase()} | v${ext.version}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            
-                            if (isActionLoading) {
-                                CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                            } else {
-                                Button(
-                                    onClick = {
-                                        scope.launch {
-                                            isActionLoading = true
-                                            try {
-                                                if (isInstalled) {
-                                                    // Uninstall
-                                                    if (jarFile.exists()) jarFile.delete()
-                                                    onUninstallSuccess(ext.pkg, jarName)
-                                                } else {
-                                                    // Install
-                                                    val loaded = eu.kanade.tachiyomi.extension.ExtensionManager.installExtension(repoUrl, ext)
-                                                    onInstallSuccess(loaded.filterIsInstance<AnimeHttpSource>(), jarName)
-                                                }
-                                            } catch (e: Throwable) {
-                                                println("[main.kt] Error during extension install/uninstall action: ${e.message}")
-                                                e.printStackTrace()
-                                            } finally {
-                                                isActionLoading = false
-                                            }
-                                        }
-                                    },
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = if (isInstalled) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(text = ext.name, style = MaterialTheme.typography.titleMedium)
+                                    Text(
+                                        text = "Paquete: ${ext.pkg}\nIdioma: ${ext.lang.uppercase()} | v${ext.version}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
-                                ) {
-                                    Text(if (isInstalled) "Desinstalar" else "Instalar")
+                                }
+                                
+                                if (isActionLoading) {
+                                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                                } else {
+                                    Button(
+                                        onClick = {
+                                            scope.launch {
+                                                isActionLoading = true
+                                                try {
+                                                    if (isInstalled) {
+                                                        // Uninstall
+                                                        if (jarFile.exists()) jarFile.delete()
+                                                        onUninstallSuccess(ext.pkg, jarName)
+                                                    } else {
+                                                        // Install
+                                                        val loaded = eu.kanade.tachiyomi.extension.ExtensionManager.installExtension(repoUrl, ext)
+                                                        onInstallSuccess(loaded.filterIsInstance<AnimeHttpSource>(), jarName)
+                                                    }
+                                                } catch (e: Throwable) {
+                                                    println("[main.kt] Error during extension install/uninstall action: ${e.message}")
+                                                    e.printStackTrace()
+                                                } finally {
+                                                    isActionLoading = false
+                                                }
+                                            }
+                                        },
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = if (isInstalled) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                                        )
+                                    ) {
+                                        Text(if (isInstalled) "Desinstalar" else "Instalar")
+                                    }
                                 }
                             }
                         }
                     }
                 }
+                
+                VerticalScrollbar(
+                    adapter = rememberScrollbarAdapter(scrollState = listState),
+                    modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight()
+                )
             }
         }
     }
@@ -1385,6 +1476,9 @@ fun SettingsTab(
     appSettings: AppSettings,
     onSettingsChange: (AppSettings) -> Unit
 ) {
+    var newAnimeRepoUrl by remember { mutableStateOf("") }
+    var newMangaRepoUrl by remember { mutableStateOf("") }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -1449,19 +1543,123 @@ fun SettingsTab(
                         Text("Examinar...")
                     }
                 }
-                Spacer(modifier = Modifier.height(16.dp))
+                
+                Spacer(modifier = Modifier.height(24.dp))
+                
+                // Repositorios de Anime
                 Text(
-                    text = "URL del repositorio de extensiones:",
-                    style = MaterialTheme.typography.bodyLarge
+                    text = "Repositorios de Anime:",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                TextField(
-                    value = appSettings.extensionRepoUrl,
-                    onValueChange = { onSettingsChange(appSettings.copy(extensionRepoUrl = it)) },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    shape = RoundedCornerShape(8.dp)
+                appSettings.animeRepos.forEach { url ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = url,
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.weight(1f).padding(end = 8.dp)
+                        )
+                        IconButton(
+                            onClick = {
+                                val newList = appSettings.animeRepos.toMutableList().apply { remove(url) }
+                                onSettingsChange(appSettings.copy(animeRepos = newList))
+                            }
+                        ) {
+                            Icon(Icons.Default.Delete, contentDescription = "Eliminar", tint = MaterialTheme.colorScheme.error)
+                        }
+                    }
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    TextField(
+                        value = newAnimeRepoUrl,
+                        onValueChange = { newAnimeRepoUrl = it },
+                        placeholder = { Text("https://url-del-repo/index.min.json") },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                        shape = RoundedCornerShape(8.dp)
+                    )
+                    Button(
+                        onClick = {
+                            if (newAnimeRepoUrl.isNotBlank() && !appSettings.animeRepos.contains(newAnimeRepoUrl.trim())) {
+                                val newList = appSettings.animeRepos.toMutableList().apply { add(newAnimeRepoUrl.trim()) }
+                                onSettingsChange(appSettings.copy(animeRepos = newList))
+                                newAnimeRepoUrl = ""
+                            }
+                        }
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = null)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Añadir")
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Repositorios de Manga
+                Text(
+                    text = "Repositorios de Manga:",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary
                 )
+                Spacer(modifier = Modifier.height(8.dp))
+                appSettings.mangaRepos.forEach { url ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = url,
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.weight(1f).padding(end = 8.dp)
+                        )
+                        IconButton(
+                            onClick = {
+                                val newList = appSettings.mangaRepos.toMutableList().apply { remove(url) }
+                                onSettingsChange(appSettings.copy(mangaRepos = newList))
+                            }
+                        ) {
+                            Icon(Icons.Default.Delete, contentDescription = "Eliminar", tint = MaterialTheme.colorScheme.error)
+                        }
+                    }
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    TextField(
+                        value = newMangaRepoUrl,
+                        onValueChange = { newMangaRepoUrl = it },
+                        placeholder = { Text("https://url-del-repo/index.min.json") },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                        shape = RoundedCornerShape(8.dp)
+                    )
+                    Button(
+                        onClick = {
+                            if (newMangaRepoUrl.isNotBlank() && !appSettings.mangaRepos.contains(newMangaRepoUrl.trim())) {
+                                val newList = appSettings.mangaRepos.toMutableList().apply { add(newMangaRepoUrl.trim()) }
+                                onSettingsChange(appSettings.copy(mangaRepos = newList))
+                                newMangaRepoUrl = ""
+                            }
+                        }
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = null)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Añadir")
+                    }
+                }
+
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
                     text = "La carga de APKs traducirá los archivos DEX a JAR o los interpretará mediante la JVM de escritorio para ejecutar los scrapers nativos de Android en PC.",
