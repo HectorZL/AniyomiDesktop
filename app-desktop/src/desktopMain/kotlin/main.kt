@@ -26,6 +26,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
+import androidx.compose.ui.window.rememberWindowState
+import androidx.compose.ui.window.WindowPlacement
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -341,6 +343,8 @@ fun MangaPageImage(
     }
 }
 
+val isAppFullscreen = mutableStateOf(false)
+
 fun main() {
     // Initialize Injekt container with NetworkHelper singleton
     Injekt.addSingleton(NetworkHelper())
@@ -348,8 +352,19 @@ fun main() {
     Injekt.addSingleton(Json { ignoreUnknownKeys = true })
 
     application {
+        val windowState = rememberWindowState(width = 1280.dp, height = 720.dp)
+
+        LaunchedEffect(isAppFullscreen.value) {
+            windowState.placement = if (isAppFullscreen.value) {
+                WindowPlacement.Fullscreen
+            } else {
+                WindowPlacement.Floating
+            }
+        }
+
         Window(
             onCloseRequest = ::exitApplication,
+            state = windowState,
             title = "Aniyomi Desktop (KMP Nativo - Multi-pestaña)"
         ) {
             var appSettings by remember { mutableStateOf(loadSettings()) }
@@ -2035,6 +2050,7 @@ fun MangaReaderScreen(
     var rotationAngle by remember { mutableStateOf(0f) }
     var zoomFactor by remember { mutableStateOf(1.0f) }
     var currentPageIndex by remember { mutableStateOf(0) }
+    var isSpacePressed by remember { mutableStateOf(false) }
 
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
@@ -2151,17 +2167,60 @@ fun MangaReaderScreen(
             .focusRequester(focusRequester)
             .focusable()
             .onKeyEvent { keyEvent ->
-                if (keyEvent.type == KeyEventType.KeyDown) {
-                    when (keyEvent.key) {
-                        Key.DirectionDown, Key.DirectionRight -> {
-                            onNextPage()
-                            true
+                if (keyEvent.key == Key.F11 && keyEvent.type == KeyEventType.KeyDown) {
+                    isAppFullscreen.value = !isAppFullscreen.value
+                    true
+                } else if (keyEvent.key == Key.Spacebar) {
+                    if (keyEvent.type == KeyEventType.KeyDown) {
+                        isSpacePressed = true
+                    } else if (keyEvent.type == KeyEventType.KeyUp) {
+                        isSpacePressed = false
+                    }
+                    true
+                } else if (keyEvent.type == KeyEventType.KeyDown) {
+                    if (isSpacePressed) {
+                        val amount = 100f
+                        scope.launch {
+                            when (keyEvent.key) {
+                                Key.DirectionDown -> {
+                                    if (readingMode == ReadingMode.VERTICAL_SCROLL) {
+                                        listState.scrollBy(amount)
+                                    } else {
+                                        verticalScrollState.scrollBy(amount)
+                                    }
+                                }
+                                Key.DirectionUp -> {
+                                    if (readingMode == ReadingMode.VERTICAL_SCROLL) {
+                                        listState.scrollBy(-amount)
+                                    } else {
+                                        verticalScrollState.scrollBy(-amount)
+                                    }
+                                }
+                                Key.DirectionRight -> {
+                                    if (readingMode != ReadingMode.VERTICAL_SCROLL) {
+                                        horizontalScrollState.scrollBy(amount)
+                                    }
+                                }
+                                Key.DirectionLeft -> {
+                                    if (readingMode != ReadingMode.VERTICAL_SCROLL) {
+                                        horizontalScrollState.scrollBy(-amount)
+                                    }
+                                }
+                            }
                         }
-                        Key.DirectionUp, Key.DirectionLeft -> {
-                            onPrevPage()
-                            true
+                        true
+                    } else {
+                        when (keyEvent.key) {
+                            Key.DirectionDown, Key.DirectionRight -> {
+                                onNextPage()
+                                true
+                            }
+                            Key.DirectionUp, Key.DirectionLeft -> {
+                                onPrevPage()
+                                true
+                            }
+                            else -> false
                         }
-                        else -> false
                     }
                 } else {
                     false
@@ -2192,6 +2251,13 @@ fun MangaReaderScreen(
                         text = "${pages.size} páginas",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                }
+                IconButton(onClick = { isAppFullscreen.value = !isAppFullscreen.value }) {
+                    Icon(
+                        imageVector = if (isAppFullscreen.value) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,
+                        contentDescription = "Pantalla completa"
                     )
                 }
             }
