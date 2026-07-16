@@ -548,12 +548,11 @@ fun LibraryTab(libraryList: List<RealAnime>, onAnimeClick: (RealAnime) -> Unit) 
 fun UpdatesTab(onAnimeClick: (RealAnime) -> Unit) {
     var updatesList by remember { mutableStateOf<List<RealAnime>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
     val source = remember { AnimeFlv() }
 
     LaunchedEffect(Unit) {
         isLoading = true
-        scope.launch(Dispatchers.IO) {
+        withContext(Dispatchers.IO) {
             try {
                 val response = source.client.newCall(source.latestUpdatesRequest(1)).execute()
                 val page = source.latestUpdatesParse(response)
@@ -935,12 +934,11 @@ fun SourceCatalogScreen(source: AnimeHttpSource, onBack: () -> Unit, onAnimeClic
     var animeList by remember { mutableStateOf<List<RealAnime>>(emptyList()) }
     var searchQuery by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
 
     // Load anime list
     LaunchedEffect(searchQuery) {
         isLoading = true
-        scope.launch(Dispatchers.IO) {
+        withContext(Dispatchers.IO) {
             try {
                 val page = if (searchQuery.trim().isEmpty()) {
                     source.getPopularAnime(1)
@@ -1166,7 +1164,6 @@ fun AnimeDetailsScreen(
     var selectedEpisode by remember { mutableStateOf<RealEpisode?>(null) }
     var videos by remember { mutableStateOf<List<RealVideo>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
 
     val isInLibrary = libraryList.any { it.url == anime.url }
 
@@ -1174,7 +1171,7 @@ fun AnimeDetailsScreen(
     LaunchedEffect(anime) {
         isLoading = true
         episodes = emptyList()
-        scope.launch(Dispatchers.IO) {
+        withContext(Dispatchers.IO) {
             try {
                 val sAnime = SAnime.create().apply {
                     url = anime.url
@@ -1208,7 +1205,7 @@ fun AnimeDetailsScreen(
         if (selectedEpisode != null) {
             isLoading = true
             videos = emptyList()
-            scope.launch(Dispatchers.IO) {
+            withContext(Dispatchers.IO) {
                 try {
                     val sEpisode = SEpisode.create().apply {
                         url = selectedEpisode!!.url
