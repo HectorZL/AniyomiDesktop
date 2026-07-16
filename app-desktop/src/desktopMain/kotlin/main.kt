@@ -17,6 +17,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.toComposeImageBitmap
@@ -26,6 +28,9 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import io.github.kdroidfilter.composemediaplayer.VideoPlayerSurface
 import io.github.kdroidfilter.composemediaplayer.rememberVideoPlayerState
 import io.github.kdroidfilter.composemediaplayer.SubtitleTrack
@@ -88,6 +93,19 @@ private fun decodeImageBytes(bytes: ByteArray): ImageBitmap? {
     }
 }
 
+enum class ReadingMode {
+    VERTICAL_SCROLL,
+    SINGLE_PAGE,
+    DOUBLE_PAGE
+}
+
+enum class ScaleMode {
+    FIT_WIDTH,
+    FIT_HEIGHT,
+    FIT_PAGE,
+    ORIGINAL
+}
+
 // AsyncImage loader for Compose Desktop (URLs directas: portadas, thumbnails, etc.)
 @Composable
 fun AsyncImage(
@@ -96,7 +114,9 @@ fun AsyncImage(
     modifier: Modifier = Modifier,
     contentScale: ContentScale = ContentScale.Crop,
     headers: Headers? = null,
-    imageCache: MutableMap<String, ImageBitmap>? = null
+    imageCache: MutableMap<String, ImageBitmap>? = null,
+    rotationAngle: Float = 0f,
+    zoomFactor: Float = 1f
 ) {
     var imageBitmap by remember(url) { mutableStateOf<ImageBitmap?>(imageCache?.get(url)) }
     var loadFailed by remember(url) { mutableStateOf(false) }
@@ -147,7 +167,12 @@ fun AsyncImage(
                 Image(
                     bitmap = imageBitmap!!,
                     contentDescription = contentDescription,
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.then(
+                        if (contentScale == ContentScale.FillWidth) Modifier.fillMaxWidth()
+                        else if (contentScale == ContentScale.FillHeight) Modifier.fillMaxHeight()
+                        else if (contentScale == ContentScale.Fit) Modifier.fillMaxSize()
+                        else Modifier.fillMaxSize()
+                    ).rotate(rotationAngle).graphicsLayer(scaleX = zoomFactor, scaleY = zoomFactor),
                     contentScale = contentScale
                 )
             }
@@ -194,6 +219,8 @@ fun MangaPageImage(
     modifier: Modifier = Modifier,
     contentScale: ContentScale = ContentScale.FillWidth,
     imageCache: MutableMap<Int, ImageBitmap>? = null,
+    rotationAngle: Float = 0f,
+    zoomFactor: Float = 1f,
 ) {
     var imageBitmap by remember(page.index, page.url) { mutableStateOf<ImageBitmap?>(imageCache?.get(page.index)) }
     var loadFailed by remember(page.index, page.url) { mutableStateOf(false) }
@@ -235,7 +262,12 @@ fun MangaPageImage(
                 Image(
                     bitmap = imageBitmap!!,
                     contentDescription = contentDescription,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.then(
+                        if (contentScale == ContentScale.FillWidth) Modifier.fillMaxWidth()
+                        else if (contentScale == ContentScale.FillHeight) Modifier.fillMaxHeight()
+                        else if (contentScale == ContentScale.Fit) Modifier.fillMaxSize()
+                        else Modifier.wrapContentSize()
+                    ).rotate(rotationAngle).graphicsLayer(scaleX = zoomFactor, scaleY = zoomFactor),
                     contentScale = contentScale,
                 )
             }
@@ -1830,6 +1862,8 @@ fun MangaDetailScreen(
         MangaReaderScreen(
             chapter = selectedChapter!!,
             source = source,
+            chapterList = chapters,
+            onChapterChange = { selectedChapter = it },
             onBack = { selectedChapter = null },
         )
         return
@@ -1954,6 +1988,8 @@ fun MangaDetailScreen(
 fun MangaReaderScreen(
     chapter: SChapter,
     source: CatalogueSource,
+    chapterList: List<SChapter> = emptyList(),
+    onChapterChange: ((SChapter) -> Unit)? = null,
     onBack: () -> Unit,
 ) {
     // Estado de carga de páginas
@@ -1962,9 +1998,24 @@ fun MangaReaderScreen(
     var errorText by remember { mutableStateOf<String?>(null) }
     var retryKey by remember { mutableStateOf(0) }
 
+    // Estados de configuración de visualización
+    var readingMode by remember { mutableStateOf(ReadingMode.VERTICAL_SCROLL) }
+    var scaleMode by remember { mutableStateOf(ScaleMode.FIT_WIDTH) }
+    var rotationAngle by remember { mutableStateOf(0f) }
+    var zoomFactor by remember { mutableStateOf(1.0f) }
+    var currentPageIndex by remember { mutableStateOf(0) }
+
+    val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+    val pageImageCache = remember(chapter.url) { mutableStateMapOf<Int, ImageBitmap>() }
+    val asyncImageCache = remember(chapter.url) { mutableStateMapOf<String, ImageBitmap>() }
+
+    val verticalPageIndex = remember { derivedStateOf { listState.firstVisibleItemIndex } }
+
     LaunchedEffect(chapter.url, retryKey) {
         isLoading = true
         errorText = null
+        currentPageIndex = 0
         withContext(Dispatchers.IO) {
             try {
                 val pageList = source.getPageList(chapter)
@@ -1986,6 +2037,58 @@ fun MangaReaderScreen(
                 }
             }
         }
+    }
+
+    // Navegación de capítulos
+    val currentChapterIndex = remember(chapter.url, chapterList) {
+        chapterList.indexOfFirst { it.url == chapter.url }
+    }
+    val hasNextChapter = currentChapterIndex > 0
+    val hasPrevChapter = currentChapterIndex >= 0 && currentChapterIndex < chapterList.size - 1
+
+    val onPrevChapter: () -> Unit = {
+        if (hasPrevChapter) {
+            onChapterChange?.invoke(chapterList[currentChapterIndex + 1])
+        }
+    }
+    val onNextChapter: () -> Unit = {
+        if (hasNextChapter) {
+            onChapterChange?.invoke(chapterList[currentChapterIndex - 1])
+        }
+    }
+
+    // Navegación de páginas
+    val onPrevPage: () -> Unit = {
+        if (readingMode == ReadingMode.VERTICAL_SCROLL) {
+            scope.launch {
+                val targetIndex = (listState.firstVisibleItemIndex - 1).coerceAtLeast(0)
+                listState.animateScrollToItem(targetIndex)
+            }
+        } else if (readingMode == ReadingMode.DOUBLE_PAGE) {
+            currentPageIndex = (currentPageIndex - 2).coerceAtLeast(0)
+        } else {
+            currentPageIndex = (currentPageIndex - 1).coerceAtLeast(0)
+        }
+    }
+
+    val onNextPage: () -> Unit = {
+        if (readingMode == ReadingMode.VERTICAL_SCROLL) {
+            scope.launch {
+                val targetIndex = (listState.firstVisibleItemIndex + 1).coerceAtMost(pages.size - 1)
+                listState.animateScrollToItem(targetIndex)
+            }
+        } else if (readingMode == ReadingMode.DOUBLE_PAGE) {
+            currentPageIndex = (currentPageIndex + 2).coerceAtMost(pages.size - 1)
+        } else {
+            currentPageIndex = (currentPageIndex + 1).coerceAtMost(pages.size - 1)
+        }
+    }
+
+    // Scroll adaptativo según zoom
+    val scrollModifier = if (zoomFactor > 1f || scaleMode == ScaleMode.ORIGINAL) {
+        Modifier.verticalScroll(rememberScrollState()).horizontalScroll(rememberScrollState())
+    } else {
+        Modifier
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -2018,88 +2121,455 @@ fun MangaReaderScreen(
             }
         }
 
-        when {
-            isLoading -> {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        // Área de Lectura
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .background(Color(0xFF1A1A1A)),
+            contentAlignment = Alignment.Center
+        ) {
+            when {
+                isLoading -> {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         CircularProgressIndicator()
                         Spacer(modifier = Modifier.height(12.dp))
-                        Text("Cargando páginas…", color = MaterialTheme.colorScheme.onBackground)
+                        Text("Cargando páginas…", color = Color.White)
                     }
                 }
-            }
 
-            errorText != null -> {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                errorText != null -> {
                     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(24.dp)) {
-                        Text("Error al cargar el capítulo", color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            text = "Error al cargar el capítulo",
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.titleMedium
+                        )
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text(errorText!!, style = MaterialTheme.typography.bodyMedium)
+                        Text(errorText!!, style = MaterialTheme.typography.bodyMedium, color = Color.White)
                         Spacer(modifier = Modifier.height(16.dp))
                         Button(onClick = { retryKey++ }) { Text("Reintentar") }
                     }
                 }
-            }
 
-            pages.isEmpty() -> {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("No se encontraron páginas para este capítulo.",
-                        color = MaterialTheme.colorScheme.onBackground)
+                pages.isEmpty() -> {
+                    Text("No se encontraron páginas para este capítulo.", color = Color.White)
                 }
-            }
 
-            else -> {
-                // Lector vertical con scroll — cada página se carga de forma lazy
-                val listState = rememberLazyListState()
-                val pageImageCache = remember(chapter.url) { mutableStateMapOf<Int, ImageBitmap>() }
-                val asyncImageCache = remember(chapter.url) { mutableStateMapOf<String, ImageBitmap>() }
-                Box(modifier = Modifier.fillMaxSize()) {
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        itemsIndexed(pages) { index, page ->
-                            Box(modifier = Modifier.fillMaxWidth()) {
-                                if (source is HttpSource) {
-                                    MangaPageImage(
-                                        page = page,
-                                        httpSource = source,
-                                        contentDescription = "Página ${index + 1}",
-                                        modifier = Modifier.fillMaxWidth(),
-                                        contentScale = ContentScale.FillWidth,
-                                        imageCache = pageImageCache,
-                                    )
-                                } else {
-                                    AsyncImage(
-                                        url = page.imageUrl?.takeIf { it.isNotBlank() } ?: page.url,
-                                        contentDescription = "Página ${index + 1}",
-                                        modifier = Modifier.fillMaxWidth(),
-                                        contentScale = ContentScale.FillWidth,
-                                        headers = (source as? HttpSource)?.headers,
-                                        imageCache = asyncImageCache,
+                readingMode == ReadingMode.VERTICAL_SCROLL -> {
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        LazyColumn(
+                            state = listState,
+                            modifier = Modifier.fillMaxSize().then(scrollModifier),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            itemsIndexed(pages) { index, page ->
+                                Box(
+                                    modifier = when (scaleMode) {
+                                        ScaleMode.FIT_WIDTH -> Modifier.fillMaxWidth()
+                                        ScaleMode.FIT_HEIGHT -> Modifier.fillParentMaxHeight()
+                                        ScaleMode.FIT_PAGE -> Modifier.fillParentMaxSize()
+                                        ScaleMode.ORIGINAL -> Modifier.wrapContentSize()
+                                    },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (source is HttpSource) {
+                                        MangaPageImage(
+                                            page = page,
+                                            httpSource = source,
+                                            contentDescription = "Página ${index + 1}",
+                                            modifier = Modifier.fillMaxWidth(),
+                                            contentScale = when (scaleMode) {
+                                                ScaleMode.FIT_WIDTH -> ContentScale.FillWidth
+                                                ScaleMode.FIT_HEIGHT -> ContentScale.FillHeight
+                                                ScaleMode.FIT_PAGE -> ContentScale.Fit
+                                                ScaleMode.ORIGINAL -> ContentScale.None
+                                            },
+                                            imageCache = pageImageCache,
+                                            rotationAngle = rotationAngle,
+                                            zoomFactor = zoomFactor
+                                        )
+                                    } else {
+                                        AsyncImage(
+                                            url = page.imageUrl?.takeIf { it.isNotBlank() } ?: page.url,
+                                            contentDescription = "Página ${index + 1}",
+                                            modifier = Modifier.fillMaxWidth(),
+                                            contentScale = when (scaleMode) {
+                                                ScaleMode.FIT_WIDTH -> ContentScale.FillWidth
+                                                ScaleMode.FIT_HEIGHT -> ContentScale.FillHeight
+                                                ScaleMode.FIT_PAGE -> ContentScale.Fit
+                                                ScaleMode.ORIGINAL -> ContentScale.None
+                                            },
+                                            headers = (source as? HttpSource)?.headers,
+                                            imageCache = asyncImageCache,
+                                            rotationAngle = rotationAngle,
+                                            zoomFactor = zoomFactor
+                                        )
+                                    }
+                                    // Número de página en overlay
+                                    Text(
+                                        text = "${index + 1}",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = Color.White,
+                                        modifier = Modifier
+                                            .align(Alignment.TopEnd)
+                                            .padding(6.dp)
+                                            .background(Color.Black.copy(alpha = 0.45f), RoundedCornerShape(4.dp))
+                                            .padding(horizontal = 6.dp, vertical = 2.dp),
                                     )
                                 }
-                                // Número de página en overlay
-                                Text(
-                                    text = "${index + 1}",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = Color.White,
-                                    modifier = Modifier
-                                        .align(Alignment.TopEnd)
-                                        .padding(6.dp)
-                                        .background(Color.Black.copy(alpha = 0.45f), RoundedCornerShape(4.dp))
-                                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                            }
+                        }
+                        // Scrollbar
+                        VerticalScrollbar(
+                            adapter = rememberScrollbarAdapter(listState),
+                            modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight(),
+                        )
+                    }
+                }
+
+                readingMode == ReadingMode.SINGLE_PAGE -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize().then(scrollModifier),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        val page = pages[currentPageIndex]
+                        if (source is HttpSource) {
+                            MangaPageImage(
+                                page = page,
+                                httpSource = source,
+                                contentDescription = "Página ${currentPageIndex + 1}",
+                                modifier = when (scaleMode) {
+                                    ScaleMode.FIT_WIDTH -> Modifier.fillMaxWidth()
+                                    ScaleMode.FIT_HEIGHT -> Modifier.fillMaxHeight()
+                                    ScaleMode.FIT_PAGE -> Modifier.fillMaxSize()
+                                    ScaleMode.ORIGINAL -> Modifier.wrapContentSize()
+                                },
+                                contentScale = when (scaleMode) {
+                                    ScaleMode.FIT_WIDTH -> ContentScale.FillWidth
+                                    ScaleMode.FIT_HEIGHT -> ContentScale.FillHeight
+                                    ScaleMode.FIT_PAGE -> ContentScale.Fit
+                                    ScaleMode.ORIGINAL -> ContentScale.None
+                                },
+                                imageCache = pageImageCache,
+                                rotationAngle = rotationAngle,
+                                zoomFactor = zoomFactor
+                            )
+                        } else {
+                            AsyncImage(
+                                url = page.imageUrl?.takeIf { it.isNotBlank() } ?: page.url,
+                                contentDescription = "Página ${currentPageIndex + 1}",
+                                modifier = when (scaleMode) {
+                                    ScaleMode.FIT_WIDTH -> Modifier.fillMaxWidth()
+                                    ScaleMode.FIT_HEIGHT -> Modifier.fillMaxHeight()
+                                    ScaleMode.FIT_PAGE -> Modifier.fillMaxSize()
+                                    ScaleMode.ORIGINAL -> Modifier.wrapContentSize()
+                                },
+                                contentScale = when (scaleMode) {
+                                    ScaleMode.FIT_WIDTH -> ContentScale.FillWidth
+                                    ScaleMode.FIT_HEIGHT -> ContentScale.FillHeight
+                                    ScaleMode.FIT_PAGE -> ContentScale.Fit
+                                    ScaleMode.ORIGINAL -> ContentScale.None
+                                },
+                                headers = (source as? HttpSource)?.headers,
+                                imageCache = asyncImageCache,
+                                rotationAngle = rotationAngle,
+                                zoomFactor = zoomFactor
+                            )
+                        }
+                    }
+                }
+
+                readingMode == ReadingMode.DOUBLE_PAGE -> {
+                    Row(
+                        modifier = Modifier.fillMaxSize().then(scrollModifier),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        val firstPage = pages[currentPageIndex]
+                        val secondPage = if (currentPageIndex + 1 < pages.size) pages[currentPageIndex + 1] else null
+
+                        val pageModifier = if (zoomFactor > 1f || scaleMode == ScaleMode.ORIGINAL) {
+                            Modifier.wrapContentHeight()
+                        } else {
+                            Modifier.fillMaxHeight().weight(1f)
+                        }
+
+                        Box(modifier = pageModifier, contentAlignment = Alignment.Center) {
+                            if (source is HttpSource) {
+                                MangaPageImage(
+                                    page = firstPage,
+                                    httpSource = source,
+                                    contentDescription = "Página ${currentPageIndex + 1}",
+                                    modifier = when (scaleMode) {
+                                        ScaleMode.FIT_WIDTH -> Modifier.fillMaxWidth()
+                                        ScaleMode.FIT_HEIGHT -> Modifier.fillMaxHeight()
+                                        ScaleMode.FIT_PAGE -> Modifier.fillMaxSize()
+                                        ScaleMode.ORIGINAL -> Modifier.wrapContentSize()
+                                    },
+                                    contentScale = when (scaleMode) {
+                                        ScaleMode.FIT_WIDTH -> ContentScale.FillWidth
+                                        ScaleMode.FIT_HEIGHT -> ContentScale.FillHeight
+                                        ScaleMode.FIT_PAGE -> ContentScale.Fit
+                                        ScaleMode.ORIGINAL -> ContentScale.None
+                                    },
+                                    imageCache = pageImageCache,
+                                    rotationAngle = rotationAngle,
+                                    zoomFactor = zoomFactor
+                                )
+                            } else {
+                                AsyncImage(
+                                    url = firstPage.imageUrl?.takeIf { it.isNotBlank() } ?: firstPage.url,
+                                    contentDescription = "Página ${currentPageIndex + 1}",
+                                    modifier = when (scaleMode) {
+                                        ScaleMode.FIT_WIDTH -> Modifier.fillMaxWidth()
+                                        ScaleMode.FIT_HEIGHT -> Modifier.fillMaxHeight()
+                                        ScaleMode.FIT_PAGE -> Modifier.fillMaxSize()
+                                        ScaleMode.ORIGINAL -> Modifier.wrapContentSize()
+                                    },
+                                    contentScale = when (scaleMode) {
+                                        ScaleMode.FIT_WIDTH -> ContentScale.FillWidth
+                                        ScaleMode.FIT_HEIGHT -> ContentScale.FillHeight
+                                        ScaleMode.FIT_PAGE -> ContentScale.Fit
+                                        ScaleMode.ORIGINAL -> ContentScale.None
+                                    },
+                                    headers = (source as? HttpSource)?.headers,
+                                    imageCache = asyncImageCache,
+                                    rotationAngle = rotationAngle,
+                                    zoomFactor = zoomFactor
                                 )
                             }
                         }
+
+                        if (secondPage != null) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Box(modifier = pageModifier, contentAlignment = Alignment.Center) {
+                                if (source is HttpSource) {
+                                    MangaPageImage(
+                                        page = secondPage,
+                                        httpSource = source,
+                                        contentDescription = "Página ${currentPageIndex + 2}",
+                                        modifier = when (scaleMode) {
+                                            ScaleMode.FIT_WIDTH -> Modifier.fillMaxWidth()
+                                            ScaleMode.FIT_HEIGHT -> Modifier.fillMaxHeight()
+                                            ScaleMode.FIT_PAGE -> Modifier.fillMaxSize()
+                                            ScaleMode.ORIGINAL -> Modifier.wrapContentSize()
+                                        },
+                                        contentScale = when (scaleMode) {
+                                            ScaleMode.FIT_WIDTH -> ContentScale.FillWidth
+                                            ScaleMode.FIT_HEIGHT -> ContentScale.FillHeight
+                                            ScaleMode.FIT_PAGE -> ContentScale.Fit
+                                            ScaleMode.ORIGINAL -> ContentScale.None
+                                        },
+                                        imageCache = pageImageCache,
+                                        rotationAngle = rotationAngle,
+                                        zoomFactor = zoomFactor
+                                    )
+                                } else {
+                                    AsyncImage(
+                                        url = secondPage.imageUrl?.takeIf { it.isNotBlank() } ?: secondPage.url,
+                                        contentDescription = "Página ${currentPageIndex + 2}",
+                                        modifier = when (scaleMode) {
+                                            ScaleMode.FIT_WIDTH -> Modifier.fillMaxWidth()
+                                            ScaleMode.FIT_HEIGHT -> Modifier.fillMaxHeight()
+                                            ScaleMode.FIT_PAGE -> Modifier.fillMaxSize()
+                                            ScaleMode.ORIGINAL -> Modifier.wrapContentSize()
+                                        },
+                                        contentScale = when (scaleMode) {
+                                            ScaleMode.FIT_WIDTH -> ContentScale.FillWidth
+                                            ScaleMode.FIT_HEIGHT -> ContentScale.FillHeight
+                                            ScaleMode.FIT_PAGE -> ContentScale.Fit
+                                            ScaleMode.ORIGINAL -> ContentScale.None
+                                        },
+                                        headers = (source as? HttpSource)?.headers,
+                                        imageCache = asyncImageCache,
+                                        rotationAngle = rotationAngle,
+                                        zoomFactor = zoomFactor
+                                    )
+                                }
+                            }
+                        }
                     }
-                    // Scrollbar
-                    VerticalScrollbar(
-                        adapter = rememberScrollbarAdapter(listState),
-                        modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight(),
-                    )
+                }
+            }
+        }
+
+        // Barra inferior de controles (Estilo YACReader)
+        if (!isLoading && errorText == null && pages.isNotEmpty()) {
+            Surface(
+                tonalElevation = 8.dp,
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.95f)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    // Sección de Navegación de Capítulos y Páginas
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        IconButton(
+                            onClick = onPrevChapter,
+                            enabled = hasPrevChapter
+                        ) {
+                            Icon(Icons.Default.SkipPrevious, contentDescription = "Capítulo anterior")
+                        }
+                        IconButton(
+                            onClick = onPrevPage,
+                            enabled = if (readingMode == ReadingMode.VERTICAL_SCROLL) verticalPageIndex.value > 0 else currentPageIndex > 0
+                        ) {
+                            Icon(Icons.Default.KeyboardArrowLeft, contentDescription = "Página anterior")
+                        }
+
+                        val pageText = if (readingMode == ReadingMode.VERTICAL_SCROLL) {
+                            "Pág. ${verticalPageIndex.value + 1} / ${pages.size}"
+                        } else if (readingMode == ReadingMode.DOUBLE_PAGE) {
+                            "Pág. ${currentPageIndex + 1}-${(currentPageIndex + 2).coerceAtMost(pages.size)} / ${pages.size}"
+                        } else {
+                            "Pág. ${currentPageIndex + 1} / ${pages.size}"
+                        }
+
+                        Text(
+                            text = pageText,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 8.dp)
+                        )
+
+                        IconButton(
+                            onClick = onNextPage,
+                            enabled = if (readingMode == ReadingMode.VERTICAL_SCROLL) verticalPageIndex.value < pages.size - 1 else currentPageIndex < pages.size - 1
+                        ) {
+                            Icon(Icons.Default.KeyboardArrowRight, contentDescription = "Página siguiente")
+                        }
+                        IconButton(
+                            onClick = onNextChapter,
+                            enabled = hasNextChapter
+                        ) {
+                            Icon(Icons.Default.SkipNext, contentDescription = "Siguiente capítulo")
+                        }
+                    }
+
+                    // Sección de Modos de Lectura
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        IconButton(
+                            onClick = { readingMode = ReadingMode.VERTICAL_SCROLL },
+                            colors = IconButtonDefaults.iconButtonColors(
+                                containerColor = if (readingMode == ReadingMode.VERTICAL_SCROLL) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
+                            )
+                        ) {
+                            Icon(Icons.Default.ViewStream, contentDescription = "Desplazamiento vertical")
+                        }
+                        IconButton(
+                            onClick = {
+                                if (readingMode == ReadingMode.VERTICAL_SCROLL) {
+                                    currentPageIndex = verticalPageIndex.value
+                                }
+                                readingMode = ReadingMode.SINGLE_PAGE
+                            },
+                            colors = IconButtonDefaults.iconButtonColors(
+                                containerColor = if (readingMode == ReadingMode.SINGLE_PAGE) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
+                            )
+                        ) {
+                            Icon(Icons.Default.Description, contentDescription = "Página única")
+                        }
+                        IconButton(
+                            onClick = {
+                                if (readingMode == ReadingMode.VERTICAL_SCROLL) {
+                                    currentPageIndex = verticalPageIndex.value
+                                }
+                                if (currentPageIndex % 2 != 0) {
+                                    currentPageIndex = (currentPageIndex - 1).coerceAtLeast(0)
+                                }
+                                readingMode = ReadingMode.DOUBLE_PAGE
+                            },
+                            colors = IconButtonDefaults.iconButtonColors(
+                                containerColor = if (readingMode == ReadingMode.DOUBLE_PAGE) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
+                            )
+                        ) {
+                            Icon(Icons.Default.ChromeReaderMode, contentDescription = "Doble página")
+                        }
+                    }
+
+                    // Sección de Modos de Ajuste de Escala
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        IconButton(
+                            onClick = { scaleMode = ScaleMode.FIT_WIDTH },
+                            colors = IconButtonDefaults.iconButtonColors(
+                                containerColor = if (scaleMode == ScaleMode.FIT_WIDTH) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
+                            )
+                        ) {
+                            Icon(Icons.Default.SwapHoriz, contentDescription = "Ajustar al ancho")
+                        }
+                        IconButton(
+                            onClick = { scaleMode = ScaleMode.FIT_HEIGHT },
+                            colors = IconButtonDefaults.iconButtonColors(
+                                containerColor = if (scaleMode == ScaleMode.FIT_HEIGHT) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
+                            )
+                        ) {
+                            Icon(Icons.Default.SwapVert, contentDescription = "Ajustar al alto")
+                        }
+                        IconButton(
+                            onClick = { scaleMode = ScaleMode.FIT_PAGE },
+                            colors = IconButtonDefaults.iconButtonColors(
+                                containerColor = if (scaleMode == ScaleMode.FIT_PAGE) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
+                            )
+                        ) {
+                            Icon(Icons.Default.AspectRatio, contentDescription = "Ajustar a ventana")
+                        }
+                        IconButton(
+                            onClick = { scaleMode = ScaleMode.ORIGINAL },
+                            colors = IconButtonDefaults.iconButtonColors(
+                                containerColor = if (scaleMode == ScaleMode.ORIGINAL) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
+                            )
+                        ) {
+                            Icon(Icons.Default.CenterFocusStrong, contentDescription = "Tamaño original")
+                        }
+                    }
+
+                    // Rotación y Zoom
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        IconButton(onClick = { rotationAngle = (rotationAngle - 90f + 360f) % 360f }) {
+                            Icon(Icons.Default.RotateLeft, contentDescription = "Rotar a la izquierda")
+                        }
+                        IconButton(onClick = { rotationAngle = (rotationAngle + 90f) % 360f }) {
+                            Icon(Icons.Default.RotateRight, contentDescription = "Rotar a la derecha")
+                        }
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        IconButton(onClick = { zoomFactor = (zoomFactor - 0.2f).coerceAtLeast(0.4f) }) {
+                            Icon(Icons.Default.ZoomOut, contentDescription = "Zoom alejar")
+                        }
+
+                        Text(
+                            text = "${(zoomFactor * 100).toInt()}%",
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier
+                                .clickable { zoomFactor = 1.0f }
+                                .padding(horizontal = 4.dp),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        IconButton(onClick = { zoomFactor = (zoomFactor + 0.2f).coerceAtMost(3.0f) }) {
+                            Icon(Icons.Default.ZoomIn, contentDescription = "Zoom acercar")
+                        }
+                    }
                 }
             }
         }
