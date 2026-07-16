@@ -180,9 +180,9 @@ class ASMClassLoader(urls: Array<java.net.URL>, parent: ClassLoader) : URLClassL
                 }
                 return loadedClass
             }
-            // Only intercept extension classes
-            if (name.startsWith("eu.kanade.tachiyomi.animeextension") || name.startsWith("eu.kanade.tachiyomi.extension")) {
-                val path = name.replace('.', '/') + ".class"
+            // Intercept any class located inside the extension JAR, except system/host packages
+            val path = name.replace('.', '/') + ".class"
+            if (!name.startsWith("java.") && !name.startsWith("javax.") && !name.startsWith("kotlin.") && !name.startsWith("android.")) {
                 val res = findResource(path)
                 if (res != null) {
                     try {
@@ -231,7 +231,36 @@ class ASMClassLoader(urls: Array<java.net.URL>, parent: ClassLoader) : URLClassL
                 }
             }
         }
-        cr.accept(cw, 0)
+        
+        val cv = object : org.objectweb.asm.ClassVisitor(org.objectweb.asm.Opcodes.ASM9, cw) {
+            override fun visitMethod(
+                access: Int,
+                name: String?,
+                descriptor: String?,
+                signature: String?,
+                exceptions: Array<out String>?
+            ): org.objectweb.asm.MethodVisitor {
+                val mv = super.visitMethod(access, name, descriptor, signature, exceptions)
+                return object : org.objectweb.asm.MethodVisitor(org.objectweb.asm.Opcodes.ASM9, mv) {
+                    override fun visitMethodInsn(
+                        opcode: Int,
+                        owner: String?,
+                        methodName: String?,
+                        methodDescriptor: String?,
+                        isInterface: Boolean
+                    ) {
+                        val finalMethodName = if (owner != null && owner.startsWith("kotlin/") && methodName != null && methodName.endsWith("_impl")) {
+                            methodName.replace("_impl", "-impl")
+                        } else {
+                            methodName
+                        }
+                        super.visitMethodInsn(opcode, owner, finalMethodName, methodDescriptor, isInterface)
+                    }
+                }
+            }
+        }
+        
+        cr.accept(cv, 0)
         return cw.toByteArray()
     }
 }

@@ -9,7 +9,14 @@ class NetworkHelper {
     val client: OkHttpClient = OkHttpClient.Builder()
         .cookieJar(cookieJar)
         .addInterceptor { chain ->
-            val request = chain.request()
+            var request = chain.request()
+            if (request.url.host.contains("xnxx.com")) {
+                val newUrl = request.url.newBuilder()
+                    .host("www.xnxx.es")
+                    .build()
+                request = request.newBuilder().url(newUrl).build()
+                println("[OkHttp Interceptor] Rewriting xnxx.com request to www.xnxx.es: $newUrl")
+            }
             println("[HTTP REQUEST] ${request.method} ${request.url}")
             try {
                 val response = chain.proceed(request)

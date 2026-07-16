@@ -21,9 +21,17 @@ data class RealEpisode(
 )
 
 @Serializable
+data class RealTrack(
+    val url: String,
+    val lang: String
+)
+
+@Serializable
 data class RealVideo(
     val name: String,
-    val url: String
+    val url: String,
+    val subtitleTracks: List<RealTrack> = emptyList(),
+    val headers: Map<String, String> = emptyMap()
 )
 
 @Serializable

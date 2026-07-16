@@ -90,9 +90,20 @@ fun AnimeDetailsScreen(
                     
                     withContext(Dispatchers.Main) {
                         videos = parsedVideos.map {
+                            val headersMap = mutableMapOf<String, String>()
+                            it.headers?.let { h ->
+                                for (i in 0 until h.size) {
+                                    headersMap[h.name(i)] = h.value(i)
+                                }
+                            }
                             RealVideo(
                                 name = it.quality,
-                                url = it.url
+                                url = it.url,
+                                subtitleTracks = it.subtitleTracks.map { track ->
+                                    val proxiedSubUrl = eu.kanade.tachiyomi.network.VideoProxyServer.registerVideo(track.url, headersMap)
+                                    RealTrack(url = proxiedSubUrl, lang = track.lang)
+                                },
+                                headers = headersMap
                             )
                         }
                         isLoading = false

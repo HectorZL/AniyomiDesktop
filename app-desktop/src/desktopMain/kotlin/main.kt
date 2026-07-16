@@ -189,7 +189,7 @@ fun MainScreen(
     var currentTab by remember { mutableStateOf("biblioteca") }
     var selectedAnime by remember { mutableStateOf<RealAnime?>(null) }
     var selectedEpisode by remember { mutableStateOf<RealEpisode?>(null) }
-    var activeVideoUrl by remember { mutableStateOf<String?>(null) }
+    var activeVideo by remember { mutableStateOf<RealVideo?>(null) }
     
     // Shared state managers loaded from disk
     val libraryList = remember { mutableStateListOf<RealAnime>().apply { addAll(loadLibrary()) } }
@@ -268,14 +268,15 @@ fun MainScreen(
 
     val currentAnime = selectedAnime
     val currentEpisode = selectedEpisode
-    if (activeVideoUrl != null && currentEpisode != null && currentAnime != null) {
+    if (activeVideo != null && currentEpisode != null && currentAnime != null) {
         // Player View
         Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
             val playerState = rememberVideoPlayerState()
 
-            LaunchedEffect(activeVideoUrl) {
-                activeVideoUrl?.let { url ->
-                    playerState.openUri(url)
+            LaunchedEffect(activeVideo) {
+                activeVideo?.let { video ->
+                    val proxiedUrl = eu.kanade.tachiyomi.network.VideoProxyServer.registerVideo(video.url, video.headers)
+                    playerState.openUri(proxiedUrl)
                 }
             }
 
@@ -332,7 +333,7 @@ fun MainScreen(
                                 IconButton(
                                     onClick = {
                                         playerState.stop()
-                                        activeVideoUrl = null
+                                        activeVideo = null
                                     },
                                     modifier = Modifier.background(Color.White.copy(alpha = 0.15f), shape = CircleShape)
                                 ) {
@@ -360,7 +361,7 @@ fun MainScreen(
                             IconButton(
                                 onClick = {
                                     try {
-                                        Desktop.getDesktop().browse(URI(activeVideoUrl!!))
+                                        Desktop.getDesktop().browse(URI(activeVideo!!.url))
                                     } catch (e: Exception) {
                                         e.printStackTrace()
                                     }
@@ -417,7 +418,7 @@ fun MainScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 // Subtitle Selector
-                                if (playerState.availableSubtitleTracks.isNotEmpty()) {
+                                if (playerState.availableSubtitleTracks.isNotEmpty() || (activeVideo != null && activeVideo!!.subtitleTracks.isNotEmpty())) {
                                     var showSubtitleMenu by remember { mutableStateOf(false) }
                                     Box {
                                         Button(
@@ -447,12 +448,29 @@ fun MainScreen(
                                                     showSubtitleMenu = false
                                                 }
                                             )
+                                            // Embedded tracks
                                             playerState.availableSubtitleTracks.forEach { track ->
                                                 DropdownMenuItem(
                                                     text = { Text(track.language.ifEmpty { "Desconocido" }, color = Color.White) },
                                                     onClick = {
                                                         playerState.subtitlesEnabled = true
                                                         playerState.selectSubtitleTrack(track)
+                                                        showSubtitleMenu = false
+                                                    }
+                                                )
+                                            }
+                                            // External tracks from extension Video model
+                                            activeVideo?.subtitleTracks?.forEach { track ->
+                                                DropdownMenuItem(
+                                                    text = { Text("[Ext] ${track.lang}", color = Color.White) },
+                                                    onClick = {
+                                                        playerState.subtitlesEnabled = true
+                                                        val extTrack = SubtitleTrack(
+                                                            label = track.lang,
+                                                            language = track.lang,
+                                                            src = track.url
+                                                        )
+                                                        playerState.selectSubtitleTrack(extTrack)
                                                         showSubtitleMenu = false
                                                     }
                                                 )
@@ -619,7 +637,7 @@ fun MainScreen(
             },
             onPlayEpisode = { episode, video ->
                 selectedEpisode = episode
-                activeVideoUrl = video.url
+                activeVideo = video
             }
         )
     } else {
@@ -695,7 +713,7 @@ fun MainScreen(
                         onEpisodeClick = { item ->
                             selectedAnime = item.anime
                             selectedEpisode = item.episode
-                            activeVideoUrl = item.videoUrl
+                            activeVideo = RealVideo(name = "Historial", url = item.videoUrl)
                         }
                     )
                     "examinar" -> BrowseTab(
@@ -749,18 +767,47 @@ fun MainScreen(
 
 @Composable
 fun LibraryTab(libraryList: List<RealAnime>, onAnimeClick: (RealAnime) -> Unit) {
+    var searchQuery by remember { mutableStateOf("") }
+    val filteredList = remember(libraryList, searchQuery) {
+        if (searchQuery.isBlank()) libraryList else {
+            libraryList.filter { it.title.contains(searchQuery, ignoreCase = true) }
+        }
+    }
+
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        Text(
-            text = "Biblioteca",
-            style = MaterialTheme.typography.headlineMedium,
-            color = MaterialTheme.colorScheme.onBackground
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = "Biblioteca",
+                style = MaterialTheme.typography.headlineMedium,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            TextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                placeholder = { Text("Buscar en biblioteca...") },
+                modifier = Modifier.width(250.dp),
+                singleLine = true,
+                shape = RoundedCornerShape(8.dp)
+            )
+        }
         Spacer(modifier = Modifier.height(16.dp))
         
         if (libraryList.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
                     text = "Tu biblioteca está vacía.\nExplora animes en la pestaña 'Examinar' para añadirlos.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
+                )
+            }
+        } else if (filteredList.isEmpty()) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text(
+                    text = "No se encontraron animes con ese nombre.",
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
                 )
@@ -772,7 +819,7 @@ fun LibraryTab(libraryList: List<RealAnime>, onAnimeClick: (RealAnime) -> Unit) 
                 verticalArrangement = Arrangement.spacedBy(16.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
-                items(libraryList) { anime ->
+                items(filteredList) { anime ->
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1157,9 +1204,19 @@ fun ExtensionsSection(
     onUninstallSuccess: (String, String) -> Unit
 ) {
     var extensionsList by remember { mutableStateOf<List<eu.kanade.tachiyomi.extension.ExtensionInfo>>(emptyList()) }
+    var searchQuery by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
+
+    val filteredExtensions = remember(extensionsList, searchQuery) {
+        if (searchQuery.isBlank()) extensionsList else {
+            extensionsList.filter {
+                it.name.contains(searchQuery, ignoreCase = true) ||
+                it.pkg.contains(searchQuery, ignoreCase = true)
+            }
+        }
+    }
 
     LaunchedEffect(repoUrl) {
         isLoading = true
@@ -1187,13 +1244,23 @@ fun ExtensionsSection(
             }
         } else {
             val listState = rememberLazyListState()
+            
+            TextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                placeholder = { Text("Buscar extensión...") },
+                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                singleLine = true,
+                shape = RoundedCornerShape(8.dp)
+            )
+
             Box(modifier = Modifier.fillMaxSize()) {
                 LazyColumn(
                     state = listState,
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxSize().padding(end = 16.dp)
                 ) {
-                    items(extensionsList) { ext ->
+                    items(filteredExtensions) { ext ->
                         val jarName = ext.pkg + ".jar"
                         val jarFile = File(eu.kanade.tachiyomi.extension.ExtensionManager.extensionsDir, jarName)
                         val isInstalled = installedJars.contains(jarName)
@@ -1281,7 +1348,7 @@ fun SourceCatalogScreen(source: AnimeHttpSource, onBack: () -> Unit, onAnimeClic
                 val page = if (searchQuery.trim().isEmpty()) {
                     source.getPopularAnime(1)
                 } else {
-                    source.getSearchAnime(1, searchQuery.trim(), AnimeFilterList())
+                    source.getSearchAnime(1, searchQuery.trim(), source.getFilterList())
                 }
                 withContext(Dispatchers.Main) {
                     animeList = page.animes.map {
