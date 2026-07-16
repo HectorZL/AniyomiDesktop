@@ -41,7 +41,7 @@ object ExtensionManager {
     private val json = Json { ignoreUnknownKeys = true }
     private val client by lazy { Injekt.get<NetworkHelper>().client }
 
-    val extensionsDir = File(System.getProperty("user.home"), "AppData/Local/AniyomiDesktop/extensions")
+    var extensionsDir = File(System.getProperty("user.home"), "AppData/Local/AniyomiDesktop/extensions")
     val cacheDir = File(System.getProperty("user.home"), "AppData/Local/AniyomiDesktop/cache")
 
     init {
@@ -148,10 +148,15 @@ object ExtensionManager {
     }
 
     // Loads all locally installed extensions from extensions directory
-    fun loadLocalExtensions(): List<AnimeSource> {
+    fun loadLocalExtensions(blacklist: List<String> = emptyList()): List<AnimeSource> {
         val files = extensionsDir.listFiles { _, name -> name.endsWith(".jar") } ?: return emptyList()
         val allSources = mutableListOf<AnimeSource>()
         for (file in files) {
+            val pkgName = file.name.substringBeforeLast(".jar")
+            if (blacklist.contains(pkgName)) {
+                println("[ExtensionManager] Skipping blacklisted extension: ${file.name}")
+                continue
+            }
             try {
                 val loaded = loadExtension(file)
                 println("[ExtensionManager] Loaded ${loaded.size} sources from ${file.name}: ${loaded.map { it.name }}")

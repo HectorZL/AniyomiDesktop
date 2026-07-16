@@ -40,7 +40,8 @@ data class AppSettings(
     val extensionRepoUrl: String = "",
     val animeRepos: List<String> = emptyList(),
     val mangaRepos: List<String> = emptyList(),
-    val themeColor: String = "Orange"
+    val themeColor: String = "Orange",
+    val blacklistedExtensions: List<String> = emptyList()
 )
 
 fun saveLibrary(library: List<RealAnime>) {
@@ -118,7 +119,8 @@ fun loadSettings(): AppSettings {
                 extensionRepoUrl = loaded.extensionRepoUrl.ifEmpty { defaultRepo },
                 animeRepos = aRepos,
                 mangaRepos = loaded.mangaRepos,
-                themeColor = loaded.themeColor.ifEmpty { "Orange" }
+                themeColor = loaded.themeColor.ifEmpty { "Orange" },
+                blacklistedExtensions = loaded.blacklistedExtensions
             )
         }
     } catch (e: Exception) {
@@ -129,6 +131,7 @@ fun loadSettings(): AppSettings {
         extensionRepoUrl = defaultRepo,
         animeRepos = listOf(defaultRepo),
         mangaRepos = emptyList(),
-        themeColor = "Orange"
+        themeColor = "Orange",
+        blacklistedExtensions = emptyList()
     )
 }

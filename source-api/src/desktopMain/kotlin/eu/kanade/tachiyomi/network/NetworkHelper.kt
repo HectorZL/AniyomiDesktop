@@ -8,6 +8,22 @@ class NetworkHelper {
 
     val client: OkHttpClient = OkHttpClient.Builder()
         .cookieJar(cookieJar)
+        .addInterceptor { chain ->
+            val request = chain.request()
+            println("[HTTP REQUEST] ${request.method} ${request.url}")
+            try {
+                val response = chain.proceed(request)
+                val bodyString = response.peekBody(1024 * 1024).string()
+                println("[HTTP RESPONSE] ${response.code} ${request.url} (Body Length: ${bodyString.length})")
+                if (response.code >= 400 || bodyString.contains("Cloudflare") || bodyString.contains("Just a moment")) {
+                    println("[HTTP DETECTED] Potential challenge or block page. Sneak peek: ${bodyString.take(400)}")
+                }
+                response
+            } catch (e: Exception) {
+                println("[HTTP ERROR] ${request.url}: ${e.message}")
+                throw e
+            }
+        }
         .build()
 
     val nonCloudflareClient: OkHttpClient = client

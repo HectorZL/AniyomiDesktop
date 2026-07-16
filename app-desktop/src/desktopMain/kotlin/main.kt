@@ -205,12 +205,34 @@ fun MainScreen(
     LaunchedEffect(Unit) {
         withContext(Dispatchers.IO) {
             try {
-                val files = eu.kanade.tachiyomi.extension.ExtensionManager.extensionsDir.listFiles { _, name -> name.endsWith(".jar") }
-                val jarNames = files?.map { it.name } ?: emptyList()
-                val local = eu.kanade.tachiyomi.extension.ExtensionManager.loadLocalExtensions()
+                if (appSettings.extensionDirPath.isNotEmpty()) {
+                    eu.kanade.tachiyomi.extension.ExtensionManager.extensionsDir = File(appSettings.extensionDirPath)
+                }
+                
+                val extDir = eu.kanade.tachiyomi.extension.ExtensionManager.extensionsDir
+                
+                // Attempt to delete any blacklisted extensions now on startup (before loading so they aren't locked)
+                appSettings.blacklistedExtensions.forEach { pkgName ->
+                    val file = File(extDir, "$pkgName.jar")
+                    if (file.exists()) {
+                        val deleted = file.delete()
+                        println("[main.kt] Deleted blacklisted extension file $pkgName.jar on startup: $deleted")
+                    }
+                }
+                
+                val files = extDir.listFiles { _, name -> name.endsWith(".jar") } ?: emptyArray()
+                val filteredFiles = files.filter { file ->
+                    val pkgName = file.name.substringBeforeLast(".jar")
+                    !appSettings.blacklistedExtensions.contains(pkgName)
+                }
+                val jarNames = filteredFiles.map { it.name }
+                
+                val local = eu.kanade.tachiyomi.extension.ExtensionManager.loadLocalExtensions(appSettings.blacklistedExtensions)
                 println("[main.kt] Loaded local extensions: ${local.size} sources found. Details: ${local.map { it.name }}")
                 withContext(Dispatchers.Main) {
+                    installedJars.clear()
                     installedJars.addAll(jarNames)
+                    dynamicSources.clear()
                     dynamicSources.addAll(local.filterIsInstance<AnimeHttpSource>())
                 }
             } catch (e: Throwable) {
@@ -687,6 +709,9 @@ fun MainScreen(
                             if (!installedJars.contains(jarName)) {
                                 installedJars.add(jarName)
                             }
+                            val pkg = jarName.substringBeforeLast(".jar")
+                            val newBlacklist = appSettings.blacklistedExtensions.filter { it != pkg }
+                            onSettingsChange(appSettings.copy(blacklistedExtensions = newBlacklist))
                         },
                         onUninstallSuccess = { pkg, jarName ->
                             dynamicSources.removeAll { source ->
@@ -704,6 +729,10 @@ fun MainScreen(
                                 sourceJar == jarName || source.javaClass.name.startsWith(pkg)
                             }
                             installedJars.remove(jarName)
+                            if (!appSettings.blacklistedExtensions.contains(pkg)) {
+                                val newBlacklist = appSettings.blacklistedExtensions.toMutableList().apply { add(pkg) }
+                                onSettingsChange(appSettings.copy(blacklistedExtensions = newBlacklist))
+                            }
                         }
                     )
                     "configuracion" -> SettingsTab(
@@ -1315,13 +1344,37 @@ fun SourceCatalogScreen(source: AnimeHttpSource, onBack: () -> Unit, onAnimeClic
                 }
             }
         } else {
-            LazyVerticalGrid(
-                columns = GridCells.Adaptive(minSize = 160.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                modifier = Modifier.fillMaxSize()
-            ) {
-                items(animeList) { anime ->
+            if (animeList.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = null,
+                            modifier = Modifier.size(48.dp),
+                            tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f)
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "No se encontraron resultados en la portada.",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Usa el buscador arriba a la derecha para buscar contenido.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
+                        )
+                    }
+                }
+            } else {
+                LazyVerticalGrid(
+                    columns = GridCells.Adaptive(minSize = 160.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    items(animeList) { anime ->
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1350,6 +1403,7 @@ fun SourceCatalogScreen(source: AnimeHttpSource, onBack: () -> Unit, onAnimeClic
             }
         }
     }
+}
 }
 
 
