@@ -46,14 +46,19 @@ import okhttp3.Response
 import eu.kanade.tachiyomi.network.NetworkHelper
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.util.asJsoup
+import eu.kanade.tachiyomi.source.CatalogueSource
 import eu.kanade.tachiyomi.animesource.AnimeFlv
 import eu.kanade.tachiyomi.animesource.model.AnimeFilterList
+import eu.kanade.tachiyomi.source.MangaSource
+import eu.kanade.tachiyomi.source.model.FilterList
+import eu.kanade.tachiyomi.source.model.SManga
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.addSingleton
 import uy.kohesive.injekt.api.get
 import java.awt.Desktop
 import java.io.File
 import java.net.URI
+import java.util.Locale
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import javax.imageio.ImageIO
@@ -64,6 +69,7 @@ import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.animesource.AnimeSource
 import eu.kanade.tachiyomi.extension.ExtensionManager
 import eu.kanade.tachiyomi.extension.ExtensionInfo
+import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.animesource.model.SAnime
 import eu.kanade.tachiyomi.animesource.model.SEpisode
 import eu.kanade.tachiyomi.animesource.model.Video
@@ -188,6 +194,7 @@ fun MainScreen(
 ) {
     var currentTab by remember { mutableStateOf("biblioteca") }
     var selectedAnime by remember { mutableStateOf<RealAnime?>(null) }
+    var selectedMangaSource by remember { mutableStateOf<MangaSource?>(null) }
     var selectedEpisode by remember { mutableStateOf<RealEpisode?>(null) }
     var activeVideo by remember { mutableStateOf<RealVideo?>(null) }
     
@@ -231,7 +238,11 @@ fun MainScreen(
                         dynamicMangaSources.clear()
                         local.forEach { loadedSource ->
                             when (loadedSource) {
-                                is eu.kanade.tachiyomi.extension.ExtensionManager.LoadedSource.Anime -> dynamicAnimeSources.add(loadedSource.source)
+                                is eu.kanade.tachiyomi.extension.ExtensionManager.LoadedSource.Anime -> {
+                                    if (loadedSource.source is AnimeHttpSource) {
+                                        dynamicAnimeSources.add(loadedSource.source)
+                                    }
+                                }
                                 is eu.kanade.tachiyomi.extension.ExtensionManager.LoadedSource.Manga -> dynamicMangaSources.add(loadedSource.source)
                             }
                         }
@@ -626,6 +637,11 @@ fun MainScreen(
                 }
             }
         }
+    } else if (selectedMangaSource != null) {
+        MangaSourceCatalogScreen(
+            source = selectedMangaSource!!,
+            onBack = { selectedMangaSource = null },
+        )
     } else if (selectedAnime != null) {
         val activeSource = if (selectedAnime!!.sourceName == "AnimeFLV") {
             eu.kanade.tachiyomi.animesource.AnimeFlv()
@@ -730,6 +746,7 @@ fun MainScreen(
                         mangaRepos = appSettings.mangaRepos,
                         installedJars = installedJars,
                         onAnimeClick = { selectedAnime = it },
+                        onMangaClick = { selectedMangaSource = it },
                         onInstallSuccess = { refreshExtensions() },
                         onUninstallSuccess = { refreshExtensions() }
                     )
@@ -845,7 +862,7 @@ fun UpdatesTab(onAnimeClick: (RealAnime) -> Unit) {
                 withContext(Dispatchers.Main) {
                     updatesList = page.animes.map {
                         RealAnime(
-                            title = it.title,
+                            title = safeAnimeTitle(it, source.name),
                             description = "Último episodio agregado recientemente.",
                             thumbnailUrl = it.thumbnail_url ?: "",
                             url = it.url
@@ -1031,6 +1048,10 @@ private fun languageDisplayName(lang: String): String {
     }
 }
 
+private fun safeAnimeTitle(anime: SAnime, fallback: String): String {
+    return runCatching { anime.title }.getOrElse { fallback }.ifBlank { fallback }
+}
+
 @Composable
 fun BrowseTab(
     animeSources: List<AnimeHttpSource>,
@@ -1039,6 +1060,7 @@ fun BrowseTab(
     mangaRepos: List<String>,
     installedJars: List<String>,
     onAnimeClick: (RealAnime) -> Unit,
+    onMangaClick: (MangaSource) -> Unit,
     onInstallSuccess: () -> Unit,
     onUninstallSuccess: () -> Unit,
 ) {
@@ -1118,6 +1140,7 @@ fun BrowseTab(
                             BrowserSourceItem(
                                 name = source.name,
                                 lang = source.lang,
+                                onClick = { onMangaClick(source) },
                             )
                         }
                     }
@@ -1275,6 +1298,319 @@ fun SourceItemCard(name: String, lang: String, version: String, onClick: (() -> 
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+            }
+        }
+    }
+}
+
+@Composable
+fun MangaSourceCatalogScreen(source: MangaSource, onBack: () -> Unit) {
+    val catalogueSource = source as? CatalogueSource
+
+    if (catalogueSource == null) {
+        Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Button(onClick = onBack) { Text("Volver") }
+                Spacer(modifier = Modifier.width(16.dp))
+                Text(
+                    text = source.name,
+                    style = MaterialTheme.typography.headlineMedium,
+                )
+            }
+            Spacer(modifier = Modifier.height(24.dp))
+            Text(
+                text = "Esta fuente no expone catálogo navegable en escritorio.",
+                color = MaterialTheme.colorScheme.onBackground,
+            )
+        }
+        return
+    }
+
+    var mangaList by remember { mutableStateOf<List<SManga>>(emptyList()) }
+    var selectedManga by remember { mutableStateOf<SManga?>(null) }
+    var searchQuery by remember { mutableStateOf("") }
+    var isLoading by remember { mutableStateOf(false) }
+    var errorText by remember { mutableStateOf<String?>(null) }
+
+    if (selectedManga != null) {
+        MangaDetailScreen(
+            source = catalogueSource,
+            manga = selectedManga!!,
+            onBack = { selectedManga = null },
+        )
+        return
+    }
+
+    LaunchedEffect(searchQuery) {
+        isLoading = true
+        errorText = null
+        withContext(Dispatchers.IO) {
+            try {
+                val page = if (searchQuery.trim().isEmpty()) {
+                    catalogueSource.getPopularManga(1)
+                } else {
+                    catalogueSource.getSearchManga(1, searchQuery.trim(), catalogueSource.getFilterList())
+                }
+                withContext(Dispatchers.Main) {
+                    mangaList = page.mangas
+                    isLoading = false
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                withContext(Dispatchers.Main) {
+                    errorText = e.message ?: e.toString()
+                    isLoading = false
+                }
+            }
+        }
+    }
+
+    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Button(onClick = onBack) {
+                Text("Volver")
+            }
+            Spacer(modifier = Modifier.width(16.dp))
+            Text(
+                text = "Catálogo ${source.name}",
+                style = MaterialTheme.typography.headlineMedium,
+                modifier = Modifier.weight(1f),
+            )
+
+            TextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                placeholder = { Text("Buscar manga...") },
+                modifier = Modifier.width(250.dp),
+                shape = RoundedCornerShape(8.dp),
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        when {
+            isLoading -> {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                }
+            }
+
+            errorText != null -> {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            "Error al cargar el catálogo",
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(errorText!!, style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+            }
+
+            mangaList.isEmpty() -> {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(
+                        text = "No se encontraron resultados.",
+                        color = MaterialTheme.colorScheme.onBackground,
+                    )
+                }
+            }
+
+            else -> {
+                LazyVerticalGrid(
+                    columns = GridCells.Adaptive(minSize = 160.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.fillMaxSize(),
+                ) {
+                    items(mangaList) { manga ->
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { selectedManga = manga },
+                            shape = RoundedCornerShape(8.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                        ) {
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                AsyncImage(
+                                    url = manga.thumbnail_url.orEmpty(),
+                                    contentDescription = manga.title,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(220.dp)
+                                )
+                                Text(
+                                    text = manga.title,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    maxLines = 2,
+                                    modifier = Modifier.padding(8.dp),
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun MangaDetailScreen(
+    source: CatalogueSource,
+    manga: SManga,
+    onBack: () -> Unit,
+) {
+    var mangaDetails by remember { mutableStateOf<SManga?>(null) }
+    var chapters by remember { mutableStateOf<List<SChapter>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+    var errorText by remember { mutableStateOf<String?>(null) }
+    var selectedChapter by remember { mutableStateOf<SChapter?>(null) }
+
+    LaunchedEffect(manga.url) {
+        isLoading = true
+        errorText = null
+        selectedChapter = null
+        withContext(Dispatchers.IO) {
+            try {
+                val detailedManga = source.getMangaDetails(manga.copy())
+                val chapterList = source.getChapterList(detailedManga)
+                withContext(Dispatchers.Main) {
+                    mangaDetails = detailedManga
+                    chapters = chapterList
+                    isLoading = false
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                withContext(Dispatchers.Main) {
+                    errorText = e.message ?: e.toString()
+                    isLoading = false
+                }
+            }
+        }
+    }
+
+    if (selectedChapter != null) {
+        Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Button(onClick = { selectedChapter = null }) { Text("Volver") }
+                Spacer(modifier = Modifier.width(16.dp))
+                Text(
+                    text = selectedChapter!!.name,
+                    style = MaterialTheme.typography.headlineMedium,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "La lectura del capítulo todavía no está conectada en desktop, pero ya puedes navegar al detalle.",
+                color = MaterialTheme.colorScheme.onBackground,
+            )
+        }
+        return
+    }
+
+    when {
+        isLoading -> {
+            Box(modifier = Modifier.fillMaxSize()) {
+                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+            }
+        }
+
+        errorText != null -> {
+            Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Button(onClick = onBack) { Text("Volver") }
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Text(text = manga.title, style = MaterialTheme.typography.headlineMedium)
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("Error al cargar el manga", color = MaterialTheme.colorScheme.error)
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(errorText!!)
+            }
+        }
+
+        else -> {
+            val shownManga = mangaDetails ?: manga
+            Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Button(onClick = onBack) { Text("Volver") }
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Text(
+                        text = shownManga.title,
+                        style = MaterialTheme.typography.headlineMedium,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    AsyncImage(
+                        url = shownManga.thumbnail_url.orEmpty(),
+                        contentDescription = shownManga.title,
+                        modifier = Modifier
+                            .width(220.dp)
+                            .height(320.dp)
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = shownManga.author?.takeIf { it.isNotBlank() } ?: shownManga.artist?.takeIf { it.isNotBlank() } ?: "Autor desconocido",
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = shownManga.description?.takeIf { it.isNotBlank() } ?: "Sin descripción.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onBackground,
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+                Text(
+                    text = "Capítulos",
+                    style = MaterialTheme.typography.titleLarge,
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxSize()) {
+                    chapters.forEach { chapter ->
+                        item(key = chapter.url) {
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { selectedChapter = chapter },
+                            shape = RoundedCornerShape(8.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(chapter.name, style = MaterialTheme.typography.titleMedium)
+                                    Text(
+                                        text = "Capítulo ${chapter.chapter_number}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                                Icon(Icons.Default.ArrowForward, contentDescription = null)
+                            }
+                        }
+                    }
+                        }
+                }
             }
         }
     }
@@ -1451,12 +1787,12 @@ fun SourceCatalogScreen(source: AnimeHttpSource, onBack: () -> Unit, onAnimeClic
                     source.getSearchAnime(1, searchQuery.trim(), source.getFilterList())
                 }
                 withContext(Dispatchers.Main) {
-                    animeList = page.animes.map {
+                    animeList = page.animes.map { anime ->
                         RealAnime(
-                            title = it.title,
-                            description = it.description ?: "Cargando descripción...",
-                            thumbnailUrl = it.thumbnail_url ?: "",
-                            url = it.url,
+                            title = safeAnimeTitle(anime, source.name),
+                            description = anime.description ?: "Cargando descripción...",
+                            thumbnailUrl = anime.thumbnail_url ?: "",
+                            url = anime.url,
                             sourceName = source.name
                         )
                     }

@@ -172,7 +172,12 @@ object ExtensionManager {
             }
             try {
                 val loaded = loadExtension(file)
-                println("[ExtensionManager] Loaded ${loaded.size} sources from ${file.name}: ${loaded.map { it.name }}")
+                println(
+                    "[ExtensionManager] Loaded ${loaded.size} sources from ${file.name}: ${loaded.map { source -> when (source) {
+                        is LoadedSource.Anime -> source.source.name
+                        is LoadedSource.Manga -> source.source.name
+                    } }}",
+                )
                 allSources.addAll(loaded)
             } catch (e: Throwable) {
                 println("[ExtensionManager] Error loading file ${file.name}: ${e.message}")

@@ -122,11 +122,14 @@ fun loadSettings(): AppSettings {
             val aRepos = if (loaded.animeRepos.isNotEmpty()) loaded.animeRepos else {
                 if (loaded.extensionRepoUrl.isNotEmpty()) listOf(loaded.extensionRepoUrl) else listOf(defaultRepo)
             }
+            val mRepos = if (loaded.mangaRepos.isNotEmpty()) loaded.mangaRepos else {
+                if (loaded.extensionRepoUrl.isNotEmpty()) listOf(loaded.extensionRepoUrl) else listOf(defaultRepo)
+            }
             return AppSettings(
                 extensionDirPath = if (loaded.extensionDirPath.isNotEmpty()) loaded.extensionDirPath else defaultPath,
                 extensionRepoUrl = loaded.extensionRepoUrl.ifEmpty { defaultRepo },
                 animeRepos = aRepos,
-                mangaRepos = loaded.mangaRepos,
+                mangaRepos = mRepos,
                 themeColor = loaded.themeColor.ifEmpty { "Orange" },
                 blacklistedExtensions = loaded.blacklistedExtensions
             )
@@ -138,7 +141,7 @@ fun loadSettings(): AppSettings {
         extensionDirPath = defaultPath,
         extensionRepoUrl = defaultRepo,
         animeRepos = listOf(defaultRepo),
-        mangaRepos = emptyList(),
+        mangaRepos = listOf(defaultRepo),
         themeColor = "Orange",
         blacklistedExtensions = emptyList()
     )
