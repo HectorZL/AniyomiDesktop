@@ -649,6 +649,28 @@ class PlayerViewModel @JvmOverloads constructor(
         }
     }
 
+    /**
+     * Called from onPause() to pause playback while the Activity goes to the background.
+     * Remembers whether the video was playing so it can be restored by [restorePlaybackState].
+     */
+    fun pauseForBackground() {
+        _wasPlayingBeforeBackground = !paused.value
+        pause()
+    }
+
+    /**
+     * Called from onResume() to restore the playback state that was active before the Activity
+     * went to the background via [pauseForBackground].
+     */
+    fun restorePlaybackState() {
+        if (_wasPlayingBeforeBackground) {
+            unpause()
+        }
+        _wasPlayingBeforeBackground = false
+    }
+
+    private var _wasPlayingBeforeBackground = false
+
     fun pause() {
         activity.player.paused = true
         _paused.update { true }

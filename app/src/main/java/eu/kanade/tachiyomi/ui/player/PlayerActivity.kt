@@ -330,7 +330,7 @@ class PlayerActivity : BaseActivity() {
             viewModel.deletePendingEpisodes()
             MPVLib.command(arrayOf("stop"))
         } else {
-            viewModel.pause()
+            viewModel.pauseForBackground()
         }
 
         super.onPause()
@@ -640,6 +640,10 @@ class PlayerActivity : BaseActivity() {
                 if (it < viewModel.maxVolume) viewModel.changeMPVVolumeTo(100)
             }
         }
+
+        // onPause() always pauses playback and sets isExiting=true. When returning to
+        // the activity we need to restore the paused state the user had before leaving.
+        viewModel.restorePlaybackState()
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
@@ -1307,7 +1311,6 @@ class PlayerActivity : BaseActivity() {
 
     private fun setupTracks() {
         if (player.isExiting) return
-        viewModel.isLoadingTracks.update { _ -> true }
 
         val audioTracks = viewModel.currentVideo.value?.audioTracks?.takeIf { it.isNotEmpty() }
         val subtitleTracks = viewModel.currentVideo.value?.subtitleTracks?.takeIf { it.isNotEmpty() }
@@ -1315,9 +1318,15 @@ class PlayerActivity : BaseActivity() {
         // If no external audio or subtitle tracks are present, loadTracks() won't be
         // called and we need to call onFinishLoadingTracks() manually
         if (audioTracks == null && subtitleTracks == null) {
+            viewModel.isLoadingTracks.update { _ -> true }
             viewModel.onFinishLoadingTracks()
             return
         }
+
+        // Mark as ready before adding tracks so that when MPV fires the "track-list" event
+        // (which can happen synchronously before executeMPVCommand returns), loadTracks()
+        // already sees isLoadingTracks == false and calls onFinishLoadingTracks() correctly.
+        viewModel.isLoadingTracks.update { _ -> false }
 
         audioTracks?.forEach { audio ->
             executeMPVCommand(arrayOf("audio-add", audio.url, "auto", audio.lang))
@@ -1325,8 +1334,6 @@ class PlayerActivity : BaseActivity() {
         subtitleTracks?.forEach { sub ->
             executeMPVCommand(arrayOf("sub-add", sub.url, "auto", sub.lang))
         }
-
-        viewModel.isLoadingTracks.update { _ -> false }
     }
 
     private fun setupChapters() {
