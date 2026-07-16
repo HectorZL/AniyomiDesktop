@@ -209,6 +209,9 @@ fun MainScreen(
     // Track installed JARs to update the UI reactively
     val installedJars = remember { mutableStateListOf<String>() }
 
+    // Track extension loading errors
+    val extensionLoadErrors = remember { mutableStateListOf<String>() }
+
     val scope = rememberCoroutineScope()
 
     fun refreshExtensions() {
@@ -228,12 +231,21 @@ fun MainScreen(
                     }
                     val jarNames = filteredFiles.map { it.name }
 
-                    val local = eu.kanade.tachiyomi.extension.ExtensionManager.loadLocalExtensions(appSettings.blacklistedExtensions)
+                    val (local, errors) = eu.kanade.tachiyomi.extension.ExtensionManager.loadLocalExtensionsWithErrors(appSettings.blacklistedExtensions)
                     println("[main.kt] Loaded local extensions: ${local.size} sources found.")
+                    if (errors.isNotEmpty()) {
+                        println("[main.kt] Extension loading errors: ${errors.entries.joinToString("; ") { (file, errs) -> "$file: ${errs.joinToString(", ")}" }}")
+                    }
 
                     withContext(Dispatchers.Main) {
                         installedJars.clear()
                         installedJars.addAll(jarNames)
+                        extensionLoadErrors.clear()
+                        errors.forEach { (fileName, errList) ->
+                            errList.forEach { err ->
+                                extensionLoadErrors.add("[$fileName] $err")
+                            }
+                        }
                         dynamicAnimeSources.clear()
                         dynamicMangaSources.clear()
                         local.forEach { loadedSource ->
@@ -747,8 +759,15 @@ fun MainScreen(
                         installedJars = installedJars,
                         onAnimeClick = { selectedAnime = it },
                         onMangaClick = { selectedMangaSource = it },
+                        extensionLoadErrors = extensionLoadErrors,
                         onInstallSuccess = { refreshExtensions() },
-                        onUninstallSuccess = { refreshExtensions() }
+                        onUninstallSuccess = { refreshExtensions() },
+                        onBlacklistExtension = { pkg ->
+                            val newBlacklist = appSettings.blacklistedExtensions.toMutableList()
+                            if (pkg !in newBlacklist) newBlacklist.add(pkg)
+                            onSettingsChange(appSettings.copy(blacklistedExtensions = newBlacklist))
+                            refreshExtensions()
+                        }
                     )
                     "configuracion" -> SettingsTab(
                         appSettings = appSettings,
@@ -1059,10 +1078,12 @@ fun BrowseTab(
     animeRepos: List<String>,
     mangaRepos: List<String>,
     installedJars: List<String>,
+    extensionLoadErrors: List<String> = emptyList(),
     onAnimeClick: (RealAnime) -> Unit,
     onMangaClick: (MangaSource) -> Unit,
     onInstallSuccess: () -> Unit,
     onUninstallSuccess: () -> Unit,
+    onBlacklistExtension: (String) -> Unit = {},  // packageName -> blacklist it
 ) {
     var selectedSource by remember { mutableStateOf<AnimeHttpSource?>(null) }
 
@@ -1097,6 +1118,55 @@ fun BrowseTab(
     val currentRepoLabel = if (extensionsTabIndex == 0) "Anime" else "Manga"
 
     Column(modifier = Modifier.fillMaxSize()) {
+        // Show extension loading errors at the top if any
+        if (extensionLoadErrors.isNotEmpty()) {
+            var showErrors by remember { mutableStateOf(false) }
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .clickable { showErrors = !showErrors },
+                shape = RoundedCornerShape(8.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer
+                )
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Default.Warning,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "${extensionLoadErrors.size} error(es) al cargar extensiones",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.weight(1f))
+                        Icon(
+                            if (showErrors) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                            contentDescription = null
+                        )
+                    }
+                    if (showErrors) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        extensionLoadErrors.forEach { err ->
+                            Text(
+                                text = err,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.85f)
+                            )
+                        }
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+        }
+
         TabRow(
             selectedTabIndex = tabIndex,
             containerColor = MaterialTheme.colorScheme.surface,
@@ -1217,6 +1287,7 @@ fun BrowseTab(
                             installedJars = installedJars,
                             onInstallSuccess = onInstallSuccess,
                             onUninstallSuccess = onUninstallSuccess,
+                            onBlacklistExtension = onBlacklistExtension,
                         )
                     } else {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -1352,7 +1423,20 @@ fun MangaSourceCatalogScreen(source: MangaSource, onBack: () -> Unit) {
                     catalogueSource.getSearchManga(1, searchQuery.trim(), catalogueSource.getFilterList())
                 }
                 withContext(Dispatchers.Main) {
-                    mangaList = page.mangas
+                    // Filter out any SManga objects whose url was never initialized by the
+                    // extension — accessing an uninitialized lateinit property crashes the app.
+                    val filtered = page.mangas.filter { smanga ->
+                        try {
+                            val u = smanga.url
+                            if (u.isBlank()) println("[MangaCatalog] Skipping manga '${smanga.title}' — url is blank")
+                            u.isNotBlank()
+                        } catch (e: UninitializedPropertyAccessException) {
+                            println("[MangaCatalog] Skipping manga '${smanga.title}' — url is uninitialized")
+                            false
+                        }
+                    }
+                    println("[MangaCatalog] page.mangas=${page.mangas.size}, after filter=${filtered.size}")
+                    mangaList = filtered
                     isLoading = false
                 }
             } catch (e: Exception) {
@@ -1471,24 +1555,74 @@ fun MangaDetailScreen(
     var isLoading by remember { mutableStateOf(true) }
     var errorText by remember { mutableStateOf<String?>(null) }
     var selectedChapter by remember { mutableStateOf<SChapter?>(null) }
+    // Incrementar para forzar un reintento sin cambiar la URL.
+    var retryKey by remember { mutableStateOf(0) }
 
-    LaunchedEffect(manga.url) {
+    // Safely read url — it's lateinit and may not be initialized if the extension
+    // returned a malformed SManga object.
+    val mangaUrl = remember(manga) {
+        try { manga.url } catch (_: UninitializedPropertyAccessException) { null }
+    }
+
+    LaunchedEffect(mangaUrl, retryKey) {
+        if (mangaUrl == null) {
+            errorText = "El manga no tiene URL válida (la extensión devolvió datos incompletos)."
+            isLoading = false
+            return@LaunchedEffect
+        }
         isLoading = true
         errorText = null
         selectedChapter = null
         withContext(Dispatchers.IO) {
             try {
-                val detailedManga = source.getMangaDetails(manga.copy())
-                val chapterList = source.getChapterList(detailedManga)
+                // Construimos el input manualmente para garantizar que la URL original
+                // siempre esté presente, incluso si manga.copy() falla porque la
+                // extensión no inicializó algún campo lateinit.
+                val input = SManga.create().also { copy ->
+                    copy.url = mangaUrl
+                    copy.title = manga.title
+                    copy.thumbnail_url = manga.thumbnail_url
+                    copy.initialized = manga.initialized
+                }
+
+                val rawDetails = source.getMangaDetails(input)
+
+                // Si la extensión no setea la URL en el resultado devuelto por
+                // getMangaDetails, la rescatamos del manga original para no perderla.
+                val detailedManga = rawDetails.also { detail ->
+                    try {
+                        detail.url
+                    } catch (_: UninitializedPropertyAccessException) {
+                        detail.url = mangaUrl
+                    }
+                }
+
+                // Filtramos capítulos cuya URL no fue inicializada o está vacía,
+                // para evitar crashes al intentar abrirlos.
+                val chapterList = source.getChapterList(detailedManga).filter { chapter ->
+                    try {
+                        chapter.url.isNotBlank()
+                    } catch (_: UninitializedPropertyAccessException) {
+                        println("[MangaDetail] Capítulo '${chapter.name}' descartado — url sin inicializar")
+                        false
+                    }
+                }
+
                 withContext(Dispatchers.Main) {
                     mangaDetails = detailedManga
                     chapters = chapterList
                     isLoading = false
                 }
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 e.printStackTrace()
+                val friendlyMessage = when (e) {
+                    is UninitializedPropertyAccessException -> "El manga no tiene URL válida (la extensión devolvió datos incompletos)."
+                    is NoSuchMethodError -> "Error de compatibilidad con la extensión: ${e.message?.substringAfterLast('/')?.substringBefore('(') ?: e.message}"
+                    is NoClassDefFoundError -> "Falta una clase requerida por la extensión: ${e.message}"
+                    else -> e.message ?: e.toString()
+                }
                 withContext(Dispatchers.Main) {
-                    errorText = e.message ?: e.toString()
+                    errorText = friendlyMessage
                     isLoading = false
                 }
             }
@@ -1533,6 +1667,14 @@ fun MangaDetailScreen(
                 Text("Error al cargar el manga", color = MaterialTheme.colorScheme.error)
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(errorText!!)
+                // Solo mostramos reintento cuando la URL existe — si la URL es nula
+                // el error es de la extensión y reintentar no cambia nada.
+                if (mangaUrl != null) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(onClick = { retryKey++ }) {
+                        Text("Reintentar")
+                    }
+                }
             }
         }
 
@@ -1622,6 +1764,7 @@ fun ExtensionsSection(
     installedJars: List<String>,
     onInstallSuccess: () -> Unit,
     onUninstallSuccess: () -> Unit,
+    onBlacklistExtension: (String) -> Unit = {},
 ) {
     var extensionsList by remember { mutableStateOf<List<eu.kanade.tachiyomi.extension.ExtensionInfo>>(emptyList()) }
     var searchQuery by remember { mutableStateOf("") }
@@ -1697,55 +1840,77 @@ fun ExtensionsSection(
                                 modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
                             )
                         }
-                        items(extensions, key = { it.pkg }) { ext ->
-                            val jarName = ext.pkg + ".jar"
-                            val jarFile = File(eu.kanade.tachiyomi.extension.ExtensionManager.extensionsDir, jarName)
-                            val isInstalled = installedJars.contains(jarName)
+                        items(extensions, key = { it.pkg }) { ext ->                                        val jarName = ext.pkg + ".jar"
+                                            val jarFile = File(eu.kanade.tachiyomi.extension.ExtensionManager.extensionsDir, jarName)
+                                            val isInstalled = installedJars.contains(jarName)
 
-                            var isActionLoading by remember { mutableStateOf(false) }
+                                            var isActionLoading by remember { mutableStateOf(false) }
+                                            var uninstallError by remember { mutableStateOf<String?>(null) }
 
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(8.dp),
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth().padding(16.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(text = ext.name, style = MaterialTheme.typography.titleMedium)
-                                        Text(
-                                            text = "Paquete: ${ext.pkg}\nIdioma: ${ext.lang.uppercase()} | v${ext.version}",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-
-                                    if (isActionLoading) {
-                                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                                    } else {
-                                        Button(
-                                            onClick = {
-                                                scope.launch {
-                                                    isActionLoading = true
-                                                    try {
-                                                        if (isInstalled) {
-                                                            if (jarFile.exists()) jarFile.delete()
-                                                            onUninstallSuccess()
-                                                        } else {
-                                                            eu.kanade.tachiyomi.extension.ExtensionManager.installExtension(repoUrl, ext)
-                                                            onInstallSuccess()
+                                            Card(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                shape = RoundedCornerShape(8.dp),
+                                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                                            ) {
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.SpaceBetween
+                                                ) {
+                                                    Column(modifier = Modifier.weight(1f)) {
+                                                        Text(text = ext.name, style = MaterialTheme.typography.titleMedium)
+                                                        Text(
+                                                            text = "Paquete: ${ext.pkg}\nIdioma: ${ext.lang.uppercase()} | v${ext.version}",
+                                                            style = MaterialTheme.typography.bodySmall,
+                                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                        )
+                                                        if (uninstallError != null) {
+                                                            Spacer(modifier = Modifier.height(4.dp))
+                                                            Text(
+                                                                text = uninstallError!!,
+                                                                style = MaterialTheme.typography.bodySmall,
+                                                                color = MaterialTheme.colorScheme.error
+                                                            )
                                                         }
-                                                    } catch (e: Throwable) {
-                                                        println("[main.kt] Error during extension install/uninstall action: ${e.message}")
-                                                        e.printStackTrace()
-                                                    } finally {
-                                                        isActionLoading = false
                                                     }
-                                                }
-                                            },
+
+                                                    if (isActionLoading) {
+                                                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                                                    } else {
+                                                        Button(
+                                                            onClick = {
+                                                                scope.launch {
+                                                                    isActionLoading = true
+                                                                    uninstallError = null
+                                                                    try {
+                                                                        if (isInstalled) {
+                                                                            // Run on IO dispatcher to avoid blocking UI
+                                                                            val (deleted, needsBlacklist, errMsg) = kotlinx.coroutines.withContext(Dispatchers.IO) {
+                                                                                eu.kanade.tachiyomi.extension.ExtensionManager.uninstallExtension(ext.pkg)
+                                                                            }
+                                                                            if (deleted) {
+                                                                                uninstallError = null
+                                                                            } else if (needsBlacklist) {
+                                                                                // Locked by JVM — blacklist it so it disappears from UI now
+                                                                                uninstallError = errMsg
+                                                                                onBlacklistExtension(ext.pkg)
+                                                                            } else {
+                                                                                uninstallError = errMsg
+                                                                            }
+                                                                            onUninstallSuccess()
+                                                                        } else {
+                                                                            eu.kanade.tachiyomi.extension.ExtensionManager.installExtension(repoUrl, ext)
+                                                                            onInstallSuccess()
+                                                                        }
+                                                                    } catch (e: Throwable) {
+                                                                        println("[main.kt] Error during extension install/uninstall action: ${e.message}")
+                                                                        e.printStackTrace()
+                                                                        uninstallError = e.message ?: e.toString()
+                                                                    } finally {
+                                                                        isActionLoading = false
+                                                                    }
+                                                                }
+                                                            },
                                             colors = ButtonDefaults.buttonColors(
                                                 containerColor = if (isInstalled) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
                                             )
