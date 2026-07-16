@@ -26,6 +26,10 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
+import androidx.compose.ui.input.key.*
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.verticalScroll
@@ -2012,6 +2016,11 @@ fun MangaReaderScreen(
 
     val verticalPageIndex = remember { derivedStateOf { listState.firstVisibleItemIndex } }
 
+    val focusRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+    }
+
     LaunchedEffect(chapter.url, retryKey) {
         isLoading = true
         errorText = null
@@ -2091,7 +2100,29 @@ fun MangaReaderScreen(
         Modifier
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .focusRequester(focusRequester)
+            .focusable()
+            .onKeyEvent { keyEvent ->
+                if (keyEvent.type == KeyEventType.KeyDown) {
+                    when (keyEvent.key) {
+                        Key.DirectionDown, Key.DirectionRight -> {
+                            onNextPage()
+                            true
+                        }
+                        Key.DirectionUp, Key.DirectionLeft -> {
+                            onPrevPage()
+                            true
+                        }
+                        else -> false
+                    }
+                } else {
+                    false
+                }
+            }
+    ) {
         // Barra superior
         Surface(
             tonalElevation = 4.dp,
@@ -2402,172 +2433,211 @@ fun MangaReaderScreen(
                 modifier = Modifier.fillMaxWidth(),
                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.95f)
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    // Sección de Navegación de Capítulos y Páginas
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    // Deslizador de páginas (Seekbar / Scrollbar horizontal)
                     Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        IconButton(
-                            onClick = onPrevChapter,
-                            enabled = hasPrevChapter
-                        ) {
-                            Icon(Icons.Default.SkipPrevious, contentDescription = "Capítulo anterior")
-                        }
-                        IconButton(
-                            onClick = onPrevPage,
-                            enabled = if (readingMode == ReadingMode.VERTICAL_SCROLL) verticalPageIndex.value > 0 else currentPageIndex > 0
-                        ) {
-                            Icon(Icons.Default.KeyboardArrowLeft, contentDescription = "Página anterior")
-                        }
-
-                        val pageText = if (readingMode == ReadingMode.VERTICAL_SCROLL) {
-                            "Pág. ${verticalPageIndex.value + 1} / ${pages.size}"
-                        } else if (readingMode == ReadingMode.DOUBLE_PAGE) {
-                            "Pág. ${currentPageIndex + 1}-${(currentPageIndex + 2).coerceAtMost(pages.size)} / ${pages.size}"
-                        } else {
-                            "Pág. ${currentPageIndex + 1} / ${pages.size}"
-                        }
-
                         Text(
-                            text = pageText,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 8.dp)
-                        )
-
-                        IconButton(
-                            onClick = onNextPage,
-                            enabled = if (readingMode == ReadingMode.VERTICAL_SCROLL) verticalPageIndex.value < pages.size - 1 else currentPageIndex < pages.size - 1
-                        ) {
-                            Icon(Icons.Default.KeyboardArrowRight, contentDescription = "Página siguiente")
-                        }
-                        IconButton(
-                            onClick = onNextChapter,
-                            enabled = hasNextChapter
-                        ) {
-                            Icon(Icons.Default.SkipNext, contentDescription = "Siguiente capítulo")
-                        }
-                    }
-
-                    // Sección de Modos de Lectura
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        IconButton(
-                            onClick = { readingMode = ReadingMode.VERTICAL_SCROLL },
-                            colors = IconButtonDefaults.iconButtonColors(
-                                containerColor = if (readingMode == ReadingMode.VERTICAL_SCROLL) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
-                            )
-                        ) {
-                            Icon(Icons.Default.ViewStream, contentDescription = "Desplazamiento vertical")
-                        }
-                        IconButton(
-                            onClick = {
-                                if (readingMode == ReadingMode.VERTICAL_SCROLL) {
-                                    currentPageIndex = verticalPageIndex.value
-                                }
-                                readingMode = ReadingMode.SINGLE_PAGE
-                            },
-                            colors = IconButtonDefaults.iconButtonColors(
-                                containerColor = if (readingMode == ReadingMode.SINGLE_PAGE) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
-                            )
-                        ) {
-                            Icon(Icons.Default.Description, contentDescription = "Página única")
-                        }
-                        IconButton(
-                            onClick = {
-                                if (readingMode == ReadingMode.VERTICAL_SCROLL) {
-                                    currentPageIndex = verticalPageIndex.value
-                                }
-                                if (currentPageIndex % 2 != 0) {
-                                    currentPageIndex = (currentPageIndex - 1).coerceAtLeast(0)
-                                }
-                                readingMode = ReadingMode.DOUBLE_PAGE
-                            },
-                            colors = IconButtonDefaults.iconButtonColors(
-                                containerColor = if (readingMode == ReadingMode.DOUBLE_PAGE) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
-                            )
-                        ) {
-                            Icon(Icons.Default.ChromeReaderMode, contentDescription = "Doble página")
-                        }
-                    }
-
-                    // Sección de Modos de Ajuste de Escala
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        IconButton(
-                            onClick = { scaleMode = ScaleMode.FIT_WIDTH },
-                            colors = IconButtonDefaults.iconButtonColors(
-                                containerColor = if (scaleMode == ScaleMode.FIT_WIDTH) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
-                            )
-                        ) {
-                            Icon(Icons.Default.SwapHoriz, contentDescription = "Ajustar al ancho")
-                        }
-                        IconButton(
-                            onClick = { scaleMode = ScaleMode.FIT_HEIGHT },
-                            colors = IconButtonDefaults.iconButtonColors(
-                                containerColor = if (scaleMode == ScaleMode.FIT_HEIGHT) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
-                            )
-                        ) {
-                            Icon(Icons.Default.SwapVert, contentDescription = "Ajustar al alto")
-                        }
-                        IconButton(
-                            onClick = { scaleMode = ScaleMode.FIT_PAGE },
-                            colors = IconButtonDefaults.iconButtonColors(
-                                containerColor = if (scaleMode == ScaleMode.FIT_PAGE) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
-                            )
-                        ) {
-                            Icon(Icons.Default.AspectRatio, contentDescription = "Ajustar a ventana")
-                        }
-                        IconButton(
-                            onClick = { scaleMode = ScaleMode.ORIGINAL },
-                            colors = IconButtonDefaults.iconButtonColors(
-                                containerColor = if (scaleMode == ScaleMode.ORIGINAL) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
-                            )
-                        ) {
-                            Icon(Icons.Default.CenterFocusStrong, contentDescription = "Tamaño original")
-                        }
-                    }
-
-                    // Rotación y Zoom
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        IconButton(onClick = { rotationAngle = (rotationAngle - 90f + 360f) % 360f }) {
-                            Icon(Icons.Default.RotateLeft, contentDescription = "Rotar a la izquierda")
-                        }
-                        IconButton(onClick = { rotationAngle = (rotationAngle + 90f) % 360f }) {
-                            Icon(Icons.Default.RotateRight, contentDescription = "Rotar a la derecha")
-                        }
-
-                        Spacer(modifier = Modifier.width(8.dp))
-
-                        IconButton(onClick = { zoomFactor = (zoomFactor - 0.2f).coerceAtLeast(0.4f) }) {
-                            Icon(Icons.Default.ZoomOut, contentDescription = "Zoom alejar")
-                        }
-
-                        Text(
-                            text = "${(zoomFactor * 100).toInt()}%",
-                            style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier
-                                .clickable { zoomFactor = 1.0f }
-                                .padding(horizontal = 4.dp),
+                            "1",
+                            style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                        Slider(
+                            value = if (readingMode == ReadingMode.VERTICAL_SCROLL) verticalPageIndex.value.toFloat() else currentPageIndex.toFloat(),
+                            onValueChange = { value ->
+                                val targetIndex = value.toInt().coerceIn(0, pages.size - 1)
+                                if (readingMode == ReadingMode.VERTICAL_SCROLL) {
+                                    scope.launch {
+                                        listState.scrollToItem(targetIndex)
+                                    }
+                                } else if (readingMode == ReadingMode.DOUBLE_PAGE) {
+                                    currentPageIndex = if (targetIndex % 2 != 0) (targetIndex - 1).coerceAtLeast(0) else targetIndex
+                                } else {
+                                    currentPageIndex = targetIndex
+                                }
+                            },
+                            valueRange = 0f..(pages.size - 1).toFloat().coerceAtLeast(1f),
+                            steps = if (pages.size > 2) pages.size - 2 else 0,
+                            modifier = Modifier.weight(1f).padding(horizontal = 8.dp)
+                        )
+                        Text(
+                            "${pages.size}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
 
-                        IconButton(onClick = { zoomFactor = (zoomFactor + 0.2f).coerceAtMost(3.0f) }) {
-                            Icon(Icons.Default.ZoomIn, contentDescription = "Zoom acercar")
+                    Spacer(modifier = Modifier.fillMaxWidth().height(1.dp).background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)))
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        // Sección de Navegación de Capítulos y Páginas
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            IconButton(
+                                onClick = onPrevChapter,
+                                enabled = hasPrevChapter
+                            ) {
+                                Icon(Icons.Default.SkipPrevious, contentDescription = "Capítulo anterior")
+                            }
+                            IconButton(
+                                onClick = onPrevPage,
+                                enabled = if (readingMode == ReadingMode.VERTICAL_SCROLL) verticalPageIndex.value > 0 else currentPageIndex > 0
+                            ) {
+                                Icon(Icons.Default.KeyboardArrowLeft, contentDescription = "Página anterior")
+                            }
+
+                            val pageText = if (readingMode == ReadingMode.VERTICAL_SCROLL) {
+                                "Pág. ${verticalPageIndex.value + 1} / ${pages.size}"
+                            } else if (readingMode == ReadingMode.DOUBLE_PAGE) {
+                                "Pág. ${currentPageIndex + 1}-${(currentPageIndex + 2).coerceAtMost(pages.size)} / ${pages.size}"
+                            } else {
+                                "Pág. ${currentPageIndex + 1} / ${pages.size}"
+                            }
+
+                            Text(
+                                text = pageText,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 8.dp)
+                            )
+
+                            IconButton(
+                                onClick = onNextPage,
+                                enabled = if (readingMode == ReadingMode.VERTICAL_SCROLL) verticalPageIndex.value < pages.size - 1 else currentPageIndex < pages.size - 1
+                            ) {
+                                Icon(Icons.Default.KeyboardArrowRight, contentDescription = "Página siguiente")
+                            }
+                            IconButton(
+                                onClick = onNextChapter,
+                                enabled = hasNextChapter
+                            ) {
+                                Icon(Icons.Default.SkipNext, contentDescription = "Siguiente capítulo")
+                            }
+                        }
+
+                        // Sección de Modos de Lectura
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            IconButton(
+                                onClick = { readingMode = ReadingMode.VERTICAL_SCROLL },
+                                colors = IconButtonDefaults.iconButtonColors(
+                                    containerColor = if (readingMode == ReadingMode.VERTICAL_SCROLL) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
+                                )
+                            ) {
+                                Icon(Icons.Default.ViewStream, contentDescription = "Desplazamiento vertical")
+                            }
+                            IconButton(
+                                onClick = {
+                                    if (readingMode == ReadingMode.VERTICAL_SCROLL) {
+                                        currentPageIndex = verticalPageIndex.value
+                                    }
+                                    readingMode = ReadingMode.SINGLE_PAGE
+                                },
+                                colors = IconButtonDefaults.iconButtonColors(
+                                    containerColor = if (readingMode == ReadingMode.SINGLE_PAGE) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
+                                )
+                            ) {
+                                Icon(Icons.Default.Description, contentDescription = "Página única")
+                            }
+                            IconButton(
+                                onClick = {
+                                    if (readingMode == ReadingMode.VERTICAL_SCROLL) {
+                                        currentPageIndex = verticalPageIndex.value
+                                    }
+                                    if (currentPageIndex % 2 != 0) {
+                                        currentPageIndex = (currentPageIndex - 1).coerceAtLeast(0)
+                                    }
+                                    readingMode = ReadingMode.DOUBLE_PAGE
+                                },
+                                colors = IconButtonDefaults.iconButtonColors(
+                                    containerColor = if (readingMode == ReadingMode.DOUBLE_PAGE) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
+                                )
+                            ) {
+                                Icon(Icons.Default.ChromeReaderMode, contentDescription = "Doble página")
+                            }
+                        }
+
+                        // Sección de Modos de Ajuste de Escala
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            IconButton(
+                                onClick = { scaleMode = ScaleMode.FIT_WIDTH },
+                                colors = IconButtonDefaults.iconButtonColors(
+                                    containerColor = if (scaleMode == ScaleMode.FIT_WIDTH) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
+                                )
+                            ) {
+                                Icon(Icons.Default.SwapHoriz, contentDescription = "Ajustar al ancho")
+                            }
+                            IconButton(
+                                onClick = { scaleMode = ScaleMode.FIT_HEIGHT },
+                                colors = IconButtonDefaults.iconButtonColors(
+                                    containerColor = if (scaleMode == ScaleMode.FIT_HEIGHT) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
+                                )
+                            ) {
+                                Icon(Icons.Default.SwapVert, contentDescription = "Ajustar al alto")
+                            }
+                            IconButton(
+                                onClick = { scaleMode = ScaleMode.FIT_PAGE },
+                                colors = IconButtonDefaults.iconButtonColors(
+                                    containerColor = if (scaleMode == ScaleMode.FIT_PAGE) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
+                                )
+                            ) {
+                                Icon(Icons.Default.AspectRatio, contentDescription = "Ajustar a ventana")
+                            }
+                            IconButton(
+                                onClick = { scaleMode = ScaleMode.ORIGINAL },
+                                colors = IconButtonDefaults.iconButtonColors(
+                                    containerColor = if (scaleMode == ScaleMode.ORIGINAL) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
+                                )
+                            ) {
+                                Icon(Icons.Default.CenterFocusStrong, contentDescription = "Tamaño original")
+                            }
+                        }
+
+                        // Rotación y Zoom
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            IconButton(onClick = { rotationAngle = (rotationAngle - 90f + 360f) % 360f }) {
+                                Icon(Icons.Default.RotateLeft, contentDescription = "Rotar a la izquierda")
+                            }
+                            IconButton(onClick = { rotationAngle = (rotationAngle + 90f) % 360f }) {
+                                Icon(Icons.Default.RotateRight, contentDescription = "Rotar a la derecha")
+                            }
+
+                            Spacer(modifier = Modifier.width(8.dp))
+
+                            IconButton(onClick = { zoomFactor = (zoomFactor - 0.2f).coerceAtLeast(0.4f) }) {
+                                Icon(Icons.Default.ZoomOut, contentDescription = "Zoom alejar")
+                            }
+
+                            Text(
+                                text = "${(zoomFactor * 100).toInt()}%",
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier
+                                    .clickable { zoomFactor = 1.0f }
+                                    .padding(horizontal = 4.dp),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+
+                            IconButton(onClick = { zoomFactor = (zoomFactor + 0.2f).coerceAtMost(3.0f) }) {
+                                Icon(Icons.Default.ZoomIn, contentDescription = "Zoom acercar")
+                            }
                         }
                     }
                 }
