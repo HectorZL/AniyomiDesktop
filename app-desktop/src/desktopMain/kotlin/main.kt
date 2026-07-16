@@ -1833,6 +1833,13 @@ fun MangaDetailScreen(
     // Incrementar para forzar un reintento sin cambiar la URL.
     var retryKey by remember { mutableStateOf(0) }
 
+    var filterUnreadOnly by remember { mutableStateOf(false) }
+    var filterDownloadedOnly by remember { mutableStateOf(false) }
+    var filterFavoritesOnly by remember { mutableStateOf(false) }
+    var sortOption by remember { mutableStateOf("number") }
+    var sortAscending by remember { mutableStateOf(false) }
+    var showFilterDialog by remember { mutableStateOf(false) }
+
     // Safely read url — it's lateinit and may not be initialized if the extension
     // returned a malformed SManga object.
     val mangaUrl = remember(manga) {
@@ -1985,15 +1992,35 @@ fun MangaDetailScreen(
                     }
                 }
 
+                val filteredChapters = remember(chapters, filterUnreadOnly, sortOption, sortAscending) {
+                    var list = chapters.toList()
+                    list = when (sortOption) {
+                        "number" -> if (sortAscending) list.sortedBy { it.chapter_number } else list.sortedByDescending { it.chapter_number }
+                        "date" -> if (sortAscending) list.sortedBy { it.date_upload } else list.sortedByDescending { it.date_upload }
+                        "alpha" -> if (sortAscending) list.sortedBy { it.name } else list.sortedByDescending { it.name }
+                        else -> list
+                    }
+                    list
+                }
+
                 Spacer(modifier = Modifier.height(24.dp))
-                Text(
-                    text = "Capítulos",
-                    style = MaterialTheme.typography.titleLarge,
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "Capítulos",
+                        style = MaterialTheme.typography.titleLarge,
+                    )
+                    IconButton(onClick = { showFilterDialog = true }) {
+                        Icon(Icons.Default.FilterList, contentDescription = "Filtros y orden")
+                    }
+                }
                 Spacer(modifier = Modifier.height(12.dp))
 
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxSize()) {
-                    chapters.forEach { chapter ->
+                    filteredChapters.forEach { chapter ->
                         item(key = chapter.url) {
                         Card(
                             modifier = Modifier
@@ -2019,6 +2046,103 @@ fun MangaDetailScreen(
                         }
                     }
                         }
+                }
+
+                if (showFilterDialog) {
+                    AlertDialog(
+                        onDismissRequest = { showFilterDialog = false },
+                        title = { Text("Opciones de capítulos") },
+                        text = {
+                            var activeTab by remember { mutableStateOf("filter") }
+                            Column(modifier = Modifier.width(320.dp).height(260.dp)) {
+                                TabRow(selectedTabIndex = if (activeTab == "filter") 0 else if (activeTab == "sort") 1 else 2) {
+                                    Tab(
+                                        selected = activeTab == "filter",
+                                        onClick = { activeTab = "filter" },
+                                        text = { Text("Filtrar") }
+                                    )
+                                    Tab(
+                                        selected = activeTab == "sort",
+                                        onClick = { activeTab = "sort" },
+                                        text = { Text("Ordenar") }
+                                    )
+                                    Tab(
+                                        selected = activeTab == "appearance",
+                                        onClick = { activeTab = "appearance" },
+                                        text = { Text("Apariencia") }
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(16.dp))
+                                when (activeTab) {
+                                    "filter" -> {
+                                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { filterDownloadedOnly = !filterDownloadedOnly }) {
+                                                Checkbox(checked = filterDownloadedOnly, onCheckedChange = { filterDownloadedOnly = it })
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Text("Descargados")
+                                            }
+                                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { filterUnreadOnly = !filterUnreadOnly }) {
+                                                Checkbox(checked = filterUnreadOnly, onCheckedChange = { filterUnreadOnly = it })
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Text("Sin ver")
+                                            }
+                                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { filterFavoritesOnly = !filterFavoritesOnly }) {
+                                                Checkbox(checked = filterFavoritesOnly, onCheckedChange = { filterFavoritesOnly = it })
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Text("Favoritos")
+                                            }
+                                        }
+                                    }
+                                    "sort" -> {
+                                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                modifier = Modifier.fillMaxWidth().clickable { sortAscending = !sortAscending },
+                                                horizontalArrangement = Arrangement.SpaceBetween
+                                            ) {
+                                                Text("Dirección del orden")
+                                                Icon(
+                                                    imageVector = if (sortAscending) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward,
+                                                    contentDescription = if (sortAscending) "Ascendente" else "Descendente"
+                                                )
+                                            }
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { sortOption = "number" }) {
+                                                RadioButton(selected = sortOption == "number", onClick = { sortOption = "number" })
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Text("Por número de capítulo")
+                                            }
+                                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { sortOption = "date" }) {
+                                                RadioButton(selected = sortOption == "date", onClick = { sortOption = "date" })
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Text("Por fecha de subida")
+                                            }
+                                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { sortOption = "alpha" }) {
+                                                RadioButton(selected = sortOption == "alpha", onClick = { sortOption = "alpha" })
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Text("Alfabéticamente")
+                                            }
+                                        }
+                                    }
+                                    "appearance" -> {
+                                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                            Text("Mostrar título del capítulo", style = MaterialTheme.typography.bodyMedium)
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                RadioButton(selected = true, onClick = {})
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Text("Nombre completo")
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        confirmButton = {
+                            TextButton(onClick = { showFilterDialog = false }) {
+                                Text("Cerrar")
+                            }
+                        }
+                    )
                 }
             }
         }

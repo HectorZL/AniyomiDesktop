@@ -5,6 +5,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -37,6 +40,13 @@ fun AnimeDetailsScreen(
     var videos by remember { mutableStateOf<List<RealVideo>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
     var errorText by remember { mutableStateOf<String?>(null) }
+
+    var filterUnreadOnly by remember { mutableStateOf(false) }
+    var filterDownloadedOnly by remember { mutableStateOf(false) }
+    var filterFavoritesOnly by remember { mutableStateOf(false) }
+    var sortOption by remember { mutableStateOf("number") }
+    var sortAscending by remember { mutableStateOf(false) }
+    var showFilterDialog by remember { mutableStateOf(false) }
 
     val isInLibrary = libraryList.any { it.url == anime.url }
 
@@ -200,17 +210,40 @@ fun AnimeDetailsScreen(
                 }
             }
         } else {
+            val filteredEpisodes = remember(episodes, filterUnreadOnly, sortOption, sortAscending) {
+                var list = episodes
+                list = when (sortOption) {
+                    "number" -> if (sortAscending) list.sortedBy { it.episodeNumber } else list.sortedByDescending { it.episodeNumber }
+                    "alpha" -> if (sortAscending) list.sortedBy { it.name } else list.sortedByDescending { it.name }
+                    else -> list
+                }
+                list
+            }
+
             Row(modifier = Modifier.fillMaxWidth().weight(1f)) {
                 // Episodes List
                 Column(modifier = Modifier.weight(1.2f)) {
-                    Text(
-                        text = "Episodios",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "Episodios",
+                            style = MaterialTheme.typography.titleLarge,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                        IconButton(onClick = { showFilterDialog = true }) {
+                            Icon(
+                                imageVector = Icons.Default.FilterList,
+                                contentDescription = "Filtros y orden",
+                                tint = MaterialTheme.colorScheme.onBackground
+                            )
+                        }
+                    }
                     Spacer(modifier = Modifier.height(8.dp))
                     LazyColumn(modifier = Modifier.fillMaxWidth()) {
-                        items(episodes) { episode ->
+                        items(filteredEpisodes) { episode ->
                             Card(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -317,5 +350,97 @@ fun AnimeDetailsScreen(
                 }
             }
         }
+    }
+
+    if (showFilterDialog) {
+        AlertDialog(
+            onDismissRequest = { showFilterDialog = false },
+            title = { Text("Opciones de episodios") },
+            text = {
+                var activeTab by remember { mutableStateOf("filter") }
+                Column(modifier = Modifier.width(320.dp).height(260.dp)) {
+                    TabRow(selectedTabIndex = if (activeTab == "filter") 0 else if (activeTab == "sort") 1 else 2) {
+                        Tab(
+                            selected = activeTab == "filter",
+                            onClick = { activeTab = "filter" },
+                            text = { Text("Filtrar") }
+                        )
+                        Tab(
+                            selected = activeTab == "sort",
+                            onClick = { activeTab = "sort" },
+                            text = { Text("Ordenar") }
+                        )
+                        Tab(
+                            selected = activeTab == "appearance",
+                            onClick = { activeTab = "appearance" },
+                            text = { Text("Apariencia") }
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                    when (activeTab) {
+                        "filter" -> {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { filterDownloadedOnly = !filterDownloadedOnly }) {
+                                    Checkbox(checked = filterDownloadedOnly, onCheckedChange = { filterDownloadedOnly = it })
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Descargados")
+                                }
+                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { filterUnreadOnly = !filterUnreadOnly }) {
+                                    Checkbox(checked = filterUnreadOnly, onCheckedChange = { filterUnreadOnly = it })
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Sin ver")
+                                }
+                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { filterFavoritesOnly = !filterFavoritesOnly }) {
+                                    Checkbox(checked = filterFavoritesOnly, onCheckedChange = { filterFavoritesOnly = it })
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Favoritos")
+                                }
+                            }
+                        }
+                        "sort" -> {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.fillMaxWidth().clickable { sortAscending = !sortAscending },
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text("Dirección del orden")
+                                    Icon(
+                                        imageVector = if (sortAscending) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward,
+                                        contentDescription = if (sortAscending) "Ascendente" else "Descendente"
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { sortOption = "number" }) {
+                                    RadioButton(selected = sortOption == "number", onClick = { sortOption = "number" })
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Por número de episodio")
+                                }
+                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { sortOption = "alpha" }) {
+                                    RadioButton(selected = sortOption == "alpha", onClick = { sortOption = "alpha" })
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Alfabéticamente")
+                                }
+                            }
+                        }
+                        "appearance" -> {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text("Mostrar título del episodio", style = MaterialTheme.typography.bodyMedium)
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    RadioButton(selected = true, onClick = {})
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Nombre completo")
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showFilterDialog = false }) {
+                    Text("Cerrar")
+                }
+            }
+        )
     }
 }
