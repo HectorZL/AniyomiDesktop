@@ -352,6 +352,12 @@ fun main() {
     Injekt.addSingleton(android.app.Application())
     Injekt.addSingleton(Json { ignoreUnknownKeys = true })
 
+    // Boot JavaFX Platform early so extensions that use android.webkit.WebView
+    // get a real WebKit engine (DesktopWebEngine) instead of a no-op stub.
+    // This takes ~1-2 s on first launch; doing it here avoids blocking the UI later.
+    android.webkit.DesktopWebEngine.initPlatform()
+
+
     // --- TEMPORARY TEST BLOCK ---
     try {
         val jarFile = java.io.File(java.io.File(System.getProperty("user.home"), "AppData/Local/AniyomiDesktop/extensions"), "eu.kanade.tachiyomi.animeextension.es.veohentai.jar")
@@ -512,11 +518,26 @@ fun MainScreen(
                         }
                         dynamicAnimeSources.clear()
                         dynamicMangaSources.clear()
+                        // Paquete del JAR de JKanime que tiene el regex catastrófico
+                        val JKANIME_PKG = "eu.kanade.tachiyomi.animeextension.es.jkanime"
+                        var jkanimeNativeAdded = false
                         local.forEach { loadedSource ->
                             when (loadedSource) {
                                 is eu.kanade.tachiyomi.extension.ExtensionManager.LoadedSource.Anime -> {
                                     if (loadedSource.source is AnimeHttpSource) {
-                                        dynamicAnimeSources.add(loadedSource.source)
+                                        val srcPkg = loadedSource.source.javaClass.name
+                                        if (srcPkg.startsWith(JKANIME_PKG) && !jkanimeNativeAdded) {
+                                            // Sustituir con implementación nativa libre de regex catastrófico.
+                                            // La fuente nativa parsea el JSON de /directorio con Jsoup
+                                            // (balanceo de llaves O(n)) en lugar del regex problemático.
+                                            dynamicAnimeSources.add(
+                                                eu.kanade.tachiyomi.animeextension.es.jkanime.JkanimeNativeSource()
+                                            )
+                                            jkanimeNativeAdded = true
+                                            println("[main.kt] JKanime: reemplazado con JkanimeNativeSource (fix regex catastrófico)")
+                                        } else {
+                                            dynamicAnimeSources.add(loadedSource.source)
+                                        }
                                     }
                                 }
                                 is eu.kanade.tachiyomi.extension.ExtensionManager.LoadedSource.Manga -> dynamicMangaSources.add(loadedSource.source)
@@ -583,6 +604,8 @@ fun MainScreen(
 
             LaunchedEffect(activeVideo) {
                 activeVideo?.let { video ->
+                    println("[DEPURE] Playing video: ${video.url}")
+                    println("[DEPURE] Subtitle tracks: ${video.subtitleTracks.size}")
                     val rawHeaders = video.headers
                     val headers = when (rawHeaders) {
                         is Headers -> rawHeaders
@@ -1179,7 +1202,8 @@ fun UpdatesTab(onAnimeClick: (RealAnime) -> Unit) {
                     }
                     isLoading = false
                 }
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
+                // Captura también StackOverflowError (catastrophic backtracking en regex de extensiones)
                 e.printStackTrace()
                 withContext(Dispatchers.Main) {
                     isLoading = false
@@ -1787,10 +1811,14 @@ fun MangaSourceCatalogScreen(source: MangaSource, onBack: () -> Unit) {
                     mangaList = filtered
                     isLoading = false
                 }
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
+                // Captura también StackOverflowError (catastrophic backtracking en regex de extensiones)
                 e.printStackTrace()
                 withContext(Dispatchers.Main) {
-                    errorText = e.message ?: e.toString()
+                    errorText = when (e) {
+                        is StackOverflowError -> "Error en la extensión: regex con backtracking catastrófico (HTML demasiado grande). Intenta con otra fuente."
+                        else -> e.message ?: e.toString()
+                    }
                     isLoading = false
                 }
             }
@@ -3163,10 +3191,16 @@ fun SourceCatalogScreen(source: AnimeHttpSource, onBack: () -> Unit, onAnimeClic
                     }
                     isLoading = false
                 }
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
+                // Captura también StackOverflowError (catastrophic backtracking en regex de extensiones)
+                // Ejemplo: Jkanime usa el regex `Lvar\s+animes\s*=\s*(\{(?:[^"']|"...|'...')*?\})\s*;`
+                // que hace backtracking catastrófico sobre el HTML de 67KB de /directorio
                 e.printStackTrace()
                 withContext(Dispatchers.Main) {
-                    errorText = e.message ?: e.toString()
+                    errorText = when (e) {
+                        is StackOverflowError -> "Error en la extensión: regex con backtracking catastrófico (HTML demasiado grande). Intenta con otra fuente."
+                        else -> e.message ?: e.toString()
+                    }
                     isLoading = false
                 }
             }
