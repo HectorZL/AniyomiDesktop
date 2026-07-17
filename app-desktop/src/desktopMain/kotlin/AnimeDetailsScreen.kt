@@ -103,6 +103,12 @@ fun AnimeDetailsScreen(
                     }
                     val parsedVideos = source.getVideoList(sEpisode)
                     println("[DEPURE] Servidores encontrados en la página: ${parsedVideos.size}")
+                    parsedVideos.forEachIndexed { index, video ->
+                        println("[DEPURE] Video $index: title=${video.videoTitle}, url=${video.videoUrl}, quality=${video.quality}")
+                        video.subtitleTracks.forEachIndexed { subIndex, track ->
+                            println("[DEPURE]   Subtitle $subIndex: lang=${track.lang}, url=${track.url}")
+                        }
+                    }
                     
                     withContext(Dispatchers.Main) {
                         videos = parsedVideos.map {
@@ -321,8 +327,13 @@ fun AnimeDetailsScreen(
                                                     val nowStr = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm - dd/MM"))
                                                     // Remove old entries for same ep
                                                     historyList.removeAll { it.anime.url == anime.url && it.episode.url == selectedEpisode!!.url }
-                                                    historyList.add(0, HistoryItem(anime, selectedEpisode!!, video.url, nowStr))
-                                                    
+                                                    println("Creating HistoryItem: anime=$anime, episode=$selectedEpisode, url=${video.url}, time=$nowStr")
+                                                    // Buscar si existe progreso previo para este episodio
+                                                    val existingProgress = historyList.find { it.anime.url == anime.url && it.episode.url == selectedEpisode!!.url }
+                                                    val progress = existingProgress?.progressSeconds ?: 0L
+                                                    val duration = existingProgress?.durationSeconds ?: 0L
+                                                    historyList.add(0, HistoryItem(anime, selectedEpisode!!, video.url, nowStr, progress, duration))
+
                                                     onPlayEpisode(selectedEpisode!!, video)
                                                 },
                                                 modifier = Modifier.weight(1f)

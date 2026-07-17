@@ -39,7 +39,9 @@ data class HistoryItem(
     val anime: RealAnime,
     val episode: RealEpisode,
     val videoUrl: String,
-    val timestamp: String
+    val timestamp: String,
+    val progressSeconds: Long = 0L, // Progreso en segundos
+    val durationSeconds: Long = 0L // Duración total en segundos
 )
 
 @Serializable
@@ -77,6 +79,8 @@ fun loadLibrary(): List<RealAnime> {
 }
 
 fun saveHistory(history: List<HistoryItem>) {
+    // ponytail: logging for verification
+    println("[DEBUG] saveHistory called with ${history.size} items")
     try {
         val appDir = File(System.getProperty("user.home"), "AppData/Local/AniyomiDesktop")
         if (!appDir.exists()) appDir.mkdirs()

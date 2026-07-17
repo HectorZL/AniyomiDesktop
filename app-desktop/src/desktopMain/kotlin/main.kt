@@ -602,6 +602,11 @@ fun MainScreen(
         Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
             val playerState = rememberVideoPlayerState()
 
+            // Buscar progreso guardado para este episodio
+            val savedProgress = remember {
+                historyList.find { it.anime.url == currentAnime.url && it.episode.url == currentEpisode.url }
+            }
+
             LaunchedEffect(activeVideo) {
                 activeVideo?.let { video ->
                     println("[DEPURE] Playing video: ${video.url}")
@@ -619,6 +624,36 @@ fun MainScreen(
                         return@let
                     }
                     playerState.openUri(proxiedUrl)
+
+                    // Cargar progreso guardado si existe
+                    savedProgress?.let { historyItem ->
+                        if (historyItem.progressSeconds > 0 && historyItem.durationSeconds > 0) {
+                            val progressRatio = historyItem.progressSeconds.toFloat() / historyItem.durationSeconds.toFloat()
+                            kotlinx.coroutines.delay(1000) // Esperar a que el video cargue
+                            playerState.seekStart(progressRatio * 1000f)
+                            playerState.seekFinished()
+                            println("[PROGRESS] Resuming from ${historyItem.progressSeconds}s (${String.format("%02d:%02d", historyItem.progressSeconds / 60, historyItem.progressSeconds % 60)})")
+                        }
+                    }
+                }
+            }
+
+            // Guardar progreso periódicamente (cada 5 segundos)
+            LaunchedEffect(playerState.isPlaying) {
+                while (playerState.isPlaying) {
+                    kotlinx.coroutines.delay(5000)
+                    val currentPos = (playerState.sliderPos / 1000f) * playerState.duration
+                    val duration = playerState.duration
+
+                    // Actualizar el historial con el progreso actual
+                    val historyIndex = historyList.indexOfFirst { it.anime.url == currentAnime.url && it.episode.url == currentEpisode.url }
+                    if (historyIndex >= 0) {
+                        historyList[historyIndex] = historyList[historyIndex].copy(
+                            progressSeconds = currentPos.toLong(),
+                            durationSeconds = duration.toLong()
+                        )
+                        println("[PROGRESS] Saved progress: ${String.format("%02d:%02d", currentPos.toLong() / 60, currentPos.toLong() % 60)} / ${String.format("%02d:%02d", duration.toLong() / 60, duration.toLong() % 60)}")
+                    }
                 }
             }
 
@@ -1346,6 +1381,27 @@ fun HistoryTab(
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
+                                if (item.progressSeconds > 0 && item.durationSeconds > 0) {
+                                    val progressPercent = (item.progressSeconds.toFloat() / item.durationSeconds.toFloat() * 100).toInt()
+                                    val progressTime = String.format("%02d:%02d", item.progressSeconds / 60, item.progressSeconds % 60)
+                                    val durationTime = String.format("%02d:%02d", item.durationSeconds / 60, item.durationSeconds % 60)
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        LinearProgressIndicator(
+                                            progress = { item.progressSeconds.toFloat() / item.durationSeconds.toFloat() },
+                                            modifier = Modifier.width(60.dp).height(4.dp),
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                        Text(
+                                            text = "$progressTime / $durationTime ($progressPercent%)",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                        )
+                                    }
+                                }
                             }
                             Text(
                                 text = item.timestamp,
