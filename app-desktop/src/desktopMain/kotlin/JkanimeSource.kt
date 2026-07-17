@@ -13,6 +13,7 @@ import okhttp3.FormBody
 import okhttp3.Request
 import okhttp3.Response
 import org.jsoup.Jsoup
+import java.util.Base64
 
 /**
  * Fuente nativa de JKanime para desktop.
@@ -86,6 +87,17 @@ class JkanimeNativeSource : AnimeHttpSource() {
         val id: Int = 0,
         val number: Int = 0,
         val image: String = "",
+    )
+
+    // ─── Modelos de servidores externos (array `servers` en el HTML del episodio) ───
+
+    @Serializable
+    private data class JkServer(
+        val remote: String = "",   // URL en base64
+        val server: String = "",   // Nombre: Streamwish, Mega, VOE...
+        val lang: Int = 1,
+        val size: String = "",
+        val append: Int = 0,
     )
 
     // ─── Extracción del JSON sin regex ────────────────────────────────────────
@@ -284,22 +296,264 @@ class JkanimeNativeSource : AnimeHttpSource() {
             }
     }
 
-    // ─── Videos ───────────────────────────────────────────────────────────────
+    // ─── Videos ─────────────────────────────────────────────────────────────
 
-    override fun videoListParse(response: Response): List<Video> = emptyList()
+    /**
+     * Parsea el HTML del episodio y extrae todos los servidores de video.
+     *
+     * El HTML del episodio contiene DOS fuentes de servers:
+     *
+     * 1) Array `video[]` en JS — iframes directos para Desu/Magi (reproductores propios):
+     *    ```js
+     *    video[0] = '<iframe src="https://jkanime.net/jkplayer/um?e=...&t=HASH&op=...">...';
+     *    ```
+     *    Se extraen con regex simple sobre el texto del script (son pocas las entradas).
+     *
+     * 2) Array `servers` en JS — servidores externos (Streamwish, VOE, Mega, Mixdrop, etc.):
+     *    ```js
+     *    var servers = [{"remote":"BASE64_URL","server":"Streamwish",...}, ...]
+     *    ```
+     *    Se extraen con kotlinx.serialization. El `remote` es la URL en Base64.
+     *    El iframe resultante es: /jkplayer/c1?u={remote}&s={server_name}
+     */
+    override fun videoListParse(response: Response): List<Video> {
+        val html = response.body!!.string()
+        val doc = Jsoup.parse(html)
+        val videos = mutableListOf<Video>()
 
-    // ─── Stubs requeridos por AnimeHttpSource ─────────────────────────────────
+        // ─── 1. Servidores propios del script 'CARGAR REPRODUCTORES AISLADOS' ───
+        // Busca el script que contiene el array video[] con iframes
+        val scriptWithVideos = doc.select("script")
+            .map { it.data() }
+            .firstOrNull { it.contains("video[0]") && it.contains("player_conte") }
 
-    override fun episodeVideoParse(response: Response): SEpisode = SEpisode.create()
+        if (scriptWithVideos != null) {
+            // Extrae cada video[N] = '...src="URL"...'
+            val iframeSrcRegex = Regex("""src=\"(https://jkanime\.net/jkplayer/[^\"]+)""")
+            // Obtiene el nombre del servidor desde .bg-servers a[data-id=N]
+            val serverBtns = doc.select("div.bg-servers a.btn-show")
+            val btnById = serverBtns.associateBy { it.attr("data-id") }
+
+            val videoEntries = Regex("""video\[(\d+)\]\s*=\s*'(.*?)'(?=;)""", RegexOption.DOT_MATCHES_ALL)
+                .findAll(scriptWithVideos)
+            for (m in videoEntries) {
+                val idx = m.groupValues[1]
+                val iframeHtml = m.groupValues[2]
+                val src = iframeSrcRegex.find(iframeHtml)?.groupValues?.get(1) ?: continue
+                val serverName = btnById[idx]?.text() ?: "Servidor $idx"
+
+                // Resolver el stream real del reproductor jkplayer
+                val streamUrl = extractStreamFromJkplayer(src)
+                if (streamUrl != null) {
+                    videos.add(Video(streamUrl, "[JK-Propio] $serverName", streamUrl))
+                } else {
+                    // Fallback: usar la URL del iframe si no se pudo extraer el stream
+                    videos.add(Video(src, "[JK-Propio] $serverName", src))
+                }
+            }
+        }
+
+        // ─── 2. Servidores externos del array `servers` (base64) ───
+        // NOTA: Los servidores externos (Mega, Streamwish, VOE, etc.) requieren JavaScript
+        // para extraer el stream real. El framework desktop no puede ejecutar JS.
+        // Por ahora, solo usamos los servidores propios de JKanime (Desu, Magi, Xtreme S)
+        // que ya tienen streams directos del script video[] arriba.
+        /*
+        val scriptWithServers = doc.select("script")
+            .map { it.data() }
+            .firstOrNull { it.contains("var servers =") }
+
+        if (scriptWithServers != null) {
+            val serversPrefix = "var servers = "
+            val idx = scriptWithServers.indexOf(serversPrefix)
+            if (idx >= 0) {
+                // Extraer array JSON con balanceo de corchetes
+                val startIdx = idx + serversPrefix.length
+                val sb = StringBuilder()
+                var depth = 0
+                var inString = false
+                var escape = false
+
+                for (i in startIdx until scriptWithServers.length) {
+                    val c = scriptWithServers[i]
+                    sb.append(c)
+                    when {
+                        escape -> escape = false
+                        c == '\\' && inString -> escape = true
+                        c == '"' -> inString = !inString
+                        !inString && (c == '[' || c == '{') -> depth++
+                        !inString && (c == ']' || c == '}') -> {
+                            depth--
+                            if (depth == 0) break
+                        }
+                    }
+                }
+
+                val serversJson = sb.toString()
+                val servers = runCatching {
+                    json.decodeFromString<List<JkServer>>(serversJson)
+                }.getOrElse { emptyList() }
+
+                for (srv in servers) {
+                    if (srv.server.equals("Mediafire", ignoreCase = true)) continue // no embeddable
+                    val remoteUrl = runCatching {
+                        String(java.util.Base64.getDecoder().decode(srv.remote))
+                    }.getOrNull() ?: continue
+
+                    // Devolver la URL decodificada directamente (embed externo)
+                    // El framework desktop manejará estos embeds
+                    videos.add(Video(remoteUrl, "[${srv.server}] ${srv.size}", remoteUrl))
+                }
+            }
+        }
+        */
+
+        return videos
+    }
+
+    // ─── Extracción de stream del reproductor jkplayer ─────────────────────────────
+
+    /**
+     * Hace request al reproductor jkplayer y extrae la URL del stream real.
+     */
+    private fun extractStreamFromJkplayer(playerUrl: String): String? {
+        return runCatching {
+            val req = GET(playerUrl, headers)
+            val resp = client.newCall(req).execute()
+            val html = resp.body?.string() ?: return@runCatching null
+
+            val doc = Jsoup.parse(html)
+
+            // Buscar video directo
+            val videoElement = doc.selectFirst("video")
+            if (videoElement != null) {
+                val src = videoElement.attr("src")
+                if (src.isNotBlank()) {
+                    return@runCatching if (src.startsWith("http")) src else "$baseUrl$src".replace("/+", "/")
+                }
+            }
+
+            // Buscar source dentro de video
+            val sourceElement = doc.selectFirst("video source")
+            if (sourceElement != null) {
+                val src = sourceElement.attr("src")
+                if (src.isNotBlank()) {
+                    return@runCatching if (src.startsWith("http")) src else "$baseUrl$src".replace("/+", "/")
+                }
+            }
+
+            // Buscar URL de video en scripts del reproductor
+            val scripts = doc.select("script")
+            for (script in scripts) {
+                val scriptText = script.data()
+                // Buscar patrones comunes de URLs de video en jkplayer
+                val urlPattern = Regex("""https?://[^\s"']+\.m3u8[^\s"']*""")
+                val match = urlPattern.find(scriptText)
+                if (match != null) {
+                    return@runCatching match.value
+                }
+
+                // Buscar URLs .mp4
+                val mp4Pattern = Regex("""https?://[^\s"']+\.mp4[^\s"']*""")
+                val mp4Match = mp4Pattern.find(scriptText)
+                if (mp4Match != null) {
+                    return@runCatching mp4Match.value
+                }
+            }
+
+            null
+        }.getOrNull()
+    }
+
+    // Stub: métodos requeridos por AnimeHttpSource
+    override fun videoListParse(response: Response, hoster: eu.kanade.tachiyomi.animesource.model.Hoster): List<Video> = emptyList()
 
     override fun seasonListParse(response: Response): List<SAnime> = emptyList()
 
     override fun hosterListParse(response: Response): List<eu.kanade.tachiyomi.animesource.model.Hoster> = emptyList()
 
-    override fun videoListParse(
-        response: Response,
-        hoster: eu.kanade.tachiyomi.animesource.model.Hoster,
-    ): List<Video> = emptyList()
+    override fun episodeVideoParse(response: Response): SEpisode = throw Exception("Not used")
 
     override fun videoUrlParse(response: Response): String = ""
+
+    // ─── Resolución de videos ─────────────────────────────────────────────────────
+
+    /**
+     * Resuelve la URL real del video desde un embed de jkplayer.
+     * Este método es llamado por el framework para obtener el stream real.
+     */
+    override suspend fun resolveVideo(video: Video): Video? {
+        val url = video.videoUrl
+        if (url.isEmpty()) return null
+
+        // Si ya es una URL directa (no es un reproductor jk), devolver tal cual
+        if (!url.contains("jkanime.net/jkplayer")) {
+            return video
+        }
+
+        // Resolver los reproductores propios de JKanime (um, umv, jk)
+        return runCatching {
+            val req = GET(url, headers)
+            val resp = client.newCall(req).execute()
+            val html = resp.body?.string() ?: return@runCatching video
+
+            val doc = Jsoup.parse(html)
+
+            // Buscar video directo en el reproductor
+            val videoElement = doc.selectFirst("video")
+            if (videoElement != null) {
+                val src = videoElement.attr("src")
+                if (src.isNotBlank()) {
+                    return@runCatching Video(
+                        if (src.startsWith("http")) src else "$baseUrl$src".replace("/+", "/"),
+                        video.videoTitle,
+                        src
+                    )
+                }
+            }
+
+            // Buscar source dentro de video
+            val sourceElement = doc.selectFirst("video source")
+            if (sourceElement != null) {
+                val src = sourceElement.attr("src")
+                if (src.isNotBlank()) {
+                    return@runCatching Video(
+                        if (src.startsWith("http")) src else "$baseUrl$src".replace("/+", "/"),
+                        video.videoTitle,
+                        src
+                    )
+                }
+            }
+
+            // Buscar URL de video en scripts del reproductor
+            val scripts = doc.select("script")
+            for (script in scripts) {
+                val scriptText = script.data()
+                // Buscar patrones comunes de URLs de video en jkplayer
+                val urlPattern = Regex("""https?://[^\s"']+\.m3u8[^\s"']*""")
+                val match = urlPattern.find(scriptText)
+                if (match != null) {
+                    return@runCatching Video(
+                        match.value,
+                        video.videoTitle,
+                        match.value
+                    )
+                }
+
+                // Buscar URLs .mp4
+                val mp4Pattern = Regex("""https?://[^\s"']+\.mp4[^\s"']*""")
+                val mp4Match = mp4Pattern.find(scriptText)
+                if (mp4Match != null) {
+                    return@runCatching Video(
+                        mp4Match.value,
+                        video.videoTitle,
+                        mp4Match.value
+                    )
+                }
+            }
+
+            // Si no se encontró nada, devolver el video original
+            video
+        }.getOrNull() ?: video
+    }
 }
