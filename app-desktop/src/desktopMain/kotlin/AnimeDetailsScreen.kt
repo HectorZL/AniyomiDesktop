@@ -115,10 +115,11 @@ fun AnimeDetailsScreen(
                             RealVideo(
                                 name = it.quality,
                                 url = it.url,
-                                subtitleTracks = it.subtitleTracks.map { track ->
-                                    val proxiedSubUrl = eu.kanade.tachiyomi.network.VideoProxyServer.registerVideo(track.url, headersMap)
-                                    RealTrack(url = proxiedSubUrl, lang = track.lang)
-                                },
+                                 subtitleTracks = it.subtitleTracks.map { track ->
+                                     val proxiedSubUrl = eu.kanade.tachiyomi.network.VideoProxyServer.registerVideo(track.url, it.headers ?: Headers.headersOf())
+                                     RealTrack(url = proxiedSubUrl, lang = track.lang)
+                                 },
+
                                 headers = headersMap
                             )
                         }

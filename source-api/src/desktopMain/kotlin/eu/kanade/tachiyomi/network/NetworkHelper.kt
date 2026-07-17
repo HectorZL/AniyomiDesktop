@@ -4,7 +4,7 @@ import okhttp3.CookieJar
 import okhttp3.OkHttpClient
 
 class NetworkHelper {
-    val cookieJar: CookieJar = CookieJar.NO_COOKIES
+    val cookieJar: CookieJar = DesktopCookieJar()
 
     val client: OkHttpClient = OkHttpClient.Builder()
         .cookieJar(cookieJar)

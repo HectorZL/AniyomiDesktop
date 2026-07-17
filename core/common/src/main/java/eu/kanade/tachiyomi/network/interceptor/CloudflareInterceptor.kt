@@ -66,7 +66,16 @@ class CloudflareInterceptor(
         var isWebViewOutdated = false
 
         val origRequestUrl = originalRequest.url.toString()
-        val headers = parseHeaders(originalRequest.headers)
+        val headers = parseHeaders(originalRequest.headers).toMutableMap().apply {
+            putIfAbsent("Sec-Ch-Ua", "\"Not A(Brand\";v=\"99\", \"Google Chrome\";v=\"121\", \"Chromium\";v=\"121\"")
+            putIfAbsent("Sec-Ch-Ua-Mobile", "?0")
+            putIfAbsent("Sec-Ch-Ua-Platform", "\"Windows\"")
+            putIfAbsent("Sec-Fetch-Site", "same-origin")
+            putIfAbsent("Sec-Fetch-Mode", "navigate")
+            putIfAbsent("Sec-Fetch-User", "?1")
+            putIfAbsent("Sec-Fetch-Dest", "document")
+            putIfAbsent("Referer", originalRequest.url.toString())
+        }
 
         executor.execute {
             webview = createWebView(originalRequest)

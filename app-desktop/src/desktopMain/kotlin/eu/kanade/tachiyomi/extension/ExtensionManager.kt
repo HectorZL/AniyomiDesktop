@@ -102,10 +102,9 @@ object ExtensionManager {
     fun translateApkToJar(apkFile: File, jarFile: File) {
         try {
             if (jarFile.exists()) jarFile.delete()
-            apkFile.inputStream().use { stream ->
-                val reader = MultiDexFileReader.open(stream)
-                Dex2jar.from(reader).to(jarFile.toPath())
-            }
+            val bytes = apkFile.readBytes()
+            val reader = MultiDexFileReader.open(bytes)
+            Dex2jar.from(reader).to(jarFile.toPath())
         } catch (e: Exception) {
             throw RuntimeException("Error al traducir DEX a JAR: ${e.message}", e)
         }

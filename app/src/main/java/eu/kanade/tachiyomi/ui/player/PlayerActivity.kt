@@ -1172,7 +1172,15 @@ class PlayerActivity : BaseActivity() {
     }
 
     fun parseVideoUrl(videoUrl: String?): String? {
-        return videoUrl?.toUri()?.resolveUri(this)
+        if (videoUrl == null) return null
+
+        // ponytail: intercept http/https for proxying
+        if (videoUrl.startsWith("http://") || videoUrl.startsWith("https://")) {
+            val encodedUrl = java.net.URLEncoder.encode(videoUrl, "UTF-8")
+            return "http://localhost:8080/proxy?url=$encodedUrl"
+        }
+
+        return videoUrl.toUri().resolveUri(this)
             ?: videoUrl
     }
 

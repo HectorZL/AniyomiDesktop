@@ -31,6 +31,7 @@ dependencies {
     api(libs.okio)
 
     implementation(libs.image.decoder)
+    implementation(libs.conscrypt.android)
 
     implementation(libs.unifile)
     implementation(libs.libarchive)
@@ -54,6 +55,8 @@ dependencies {
 
     // TorrServer
     implementation(aniyomilibs.torrserver)
+
+    implementation(libs.cronet.okhttp)
 
     // Tests
     testImplementation(libs.bundles.test)

@@ -1,15 +1,19 @@
 package eu.kanade.tachiyomi.network
 
 import android.content.Context
+import com.google.net.cronet.CronetInterceptor
 import eu.kanade.tachiyomi.network.interceptor.CloudflareInterceptor
 import eu.kanade.tachiyomi.network.interceptor.IgnoreGzipInterceptor
 import eu.kanade.tachiyomi.network.interceptor.UncaughtExceptionInterceptor
 import eu.kanade.tachiyomi.network.interceptor.UserAgentInterceptor
+import org.chromium.net.CronetEngine
 import okhttp3.Cache
 import okhttp3.OkHttpClient
 import okhttp3.brotli.BrotliInterceptor
 import okhttp3.logging.HttpLoggingInterceptor
+import org.conscrypt.Conscrypt
 import java.io.File
+import java.security.Security
 import java.util.concurrent.TimeUnit
 
 class NetworkHelper(
@@ -17,11 +21,31 @@ class NetworkHelper(
     private val preferences: NetworkPreferences,
 ) {
 
+    init {
+        Security.insertProviderAt(Conscrypt.newProvider(), 1)
+    }
+
+    private val cronetEngine: CronetEngine? by lazy {
+        try {
+            CronetEngine.Builder(context)
+                .enableHttp2(true)
+                .enableQuic(true)
+                .build()
+        } catch (e: Exception) {
+            // ponytail: fallback to OkHttp if Cronet fails
+            null
+        }
+    }
+
     val cookieJar = AndroidCookieJar()
 
     private val clientBuilder: OkHttpClient.Builder = run {
+        val trustManager = Conscrypt.newTrustManager()
+        val sslSocketFactory = Conscrypt.newSSLSocketFactory(trustManager)
+
         val builder = OkHttpClient.Builder()
             .cookieJar(cookieJar)
+            .sslSocketFactory(sslSocketFactory, trustManager)
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .callTimeout(2, TimeUnit.MINUTES)
@@ -40,7 +64,11 @@ class NetworkHelper(
             val httpLoggingInterceptor = HttpLoggingInterceptor().apply {
                 level = HttpLoggingInterceptor.Level.HEADERS
             }
-            builder.addNetworkInterceptor(httpLoggingInterceptor)
+            builder.addInterceptor(httpLoggingInterceptor)
+        }
+
+        cronetEngine?.let {
+            builder.addInterceptor(CronetInterceptor(it))
         }
 
         when (preferences.dohProvider().get()) {

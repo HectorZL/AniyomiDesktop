@@ -8,6 +8,7 @@ import kotlinx.serialization.json.okio.decodeFromBufferedSource
 import kotlinx.serialization.serializer
 import okhttp3.Call
 import okhttp3.Callback
+import okhttp3.Headers
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -18,6 +19,8 @@ import rx.Subscription
 import java.io.IOException
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.resumeWithException
+
+fun Map<String, String>.toHeaders(): Headers = Headers.Builder().apply { forEach { (k, v) -> add(k, v) } }.build()
 
 val jsonMime = "application/json; charset=utf-8".toMediaType()
 

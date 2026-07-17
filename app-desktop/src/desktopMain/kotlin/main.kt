@@ -62,6 +62,7 @@ import okhttp3.Response
 import okhttp3.Headers
 import eu.kanade.tachiyomi.network.NetworkHelper
 import eu.kanade.tachiyomi.network.GET
+import eu.kanade.tachiyomi.network.toHeaders
 import eu.kanade.tachiyomi.util.asJsoup
 import eu.kanade.tachiyomi.source.CatalogueSource
 import eu.kanade.tachiyomi.source.online.HttpSource
@@ -351,6 +352,51 @@ fun main() {
     Injekt.addSingleton(android.app.Application())
     Injekt.addSingleton(Json { ignoreUnknownKeys = true })
 
+    // --- TEMPORARY TEST BLOCK ---
+    try {
+        val jarFile = java.io.File(java.io.File(System.getProperty("user.home"), "AppData/Local/AniyomiDesktop/extensions"), "eu.kanade.tachiyomi.animeextension.es.veohentai.jar")
+        if (jarFile.exists()) {
+            println("[INSPECT] Loading veohentai extension...")
+            val sources = eu.kanade.tachiyomi.extension.ExtensionManager.loadExtension(jarFile)
+            println("[INSPECT] Loaded sources: ${sources.size}")
+            val veohentaiSource = sources.mapNotNull {
+                when (it) {
+                    is eu.kanade.tachiyomi.extension.ExtensionManager.LoadedSource.Anime -> it.source
+                    else -> null
+                }
+            }.firstOrNull { it.name.contains("VeoHentai", ignoreCase = true) }
+            
+            if (veohentaiSource != null) {
+                println("[INSPECT] Found VeoHentai source: ${veohentaiSource.name}")
+                // Mock an episode
+                val mockEpisode = eu.kanade.tachiyomi.animesource.model.SEpisode.create().apply {
+                    url = "/ver/ane-wa-yan-mama-junyuu-chuu-1"
+                    name = "Episodio 1"
+                }
+                
+                kotlinx.coroutines.runBlocking {
+                    try {
+                        println("[INSPECT] Calling getVideoList...")
+                        val videos = veohentaiSource.getVideoList(mockEpisode)
+                        println("[INSPECT] Videos found: ${videos.size}")
+                        videos.forEach { println(" - Video: ${it.quality} | ${it.url}") }
+                    } catch (e: Throwable) {
+                        println("[INSPECT] Error calling getVideoList:")
+                        e.printStackTrace()
+                    }
+                }
+            } else {
+                println("[INSPECT] VeoHentai source NOT found in sources!")
+            }
+        } else {
+            println("[INSPECT] VeoHentai jar file not found at ${jarFile.absolutePath}")
+        }
+    } catch (e: Throwable) {
+        println("[INSPECT] Global inspect error:")
+        e.printStackTrace()
+    }
+    // --- END TEMPORARY TEST BLOCK ---
+
     application {
         val windowState = rememberWindowState(width = 1280.dp, height = 720.dp)
 
@@ -416,6 +462,8 @@ fun MainScreen(
     var selectedEpisode by remember { mutableStateOf<RealEpisode?>(null) }
     var activeVideo by remember { mutableStateOf<RealVideo?>(null) }
     
+    val scope = rememberCoroutineScope()
+
     // Shared state managers loaded from disk
     val libraryList = remember { mutableStateListOf<RealAnime>().apply { addAll(loadLibrary()) } }
     val historyList = remember { mutableStateListOf<HistoryItem>().apply { addAll(loadHistory()) } }
@@ -429,8 +477,6 @@ fun MainScreen(
 
     // Track extension loading errors
     val extensionLoadErrors = remember { mutableStateListOf<String>() }
-
-    val scope = rememberCoroutineScope()
 
     fun refreshExtensions() {
         scope.launch {
@@ -485,9 +531,23 @@ fun MainScreen(
         }
     }
 
+    val onRemoveFromBlacklist = remember(appSettings) {
+        { pkg: String ->
+            val newBlacklist = appSettings.blacklistedExtensions.toMutableList()
+            if (newBlacklist.remove(pkg)) {
+                onSettingsChange(appSettings.copy(blacklistedExtensions = newBlacklist))
+                refreshExtensions()
+            }
+        }
+    }
+
     // Load local extensions on startup
     LaunchedEffect(Unit) {
         refreshExtensions()
+        val networkHelper = Injekt.get<NetworkHelper>()
+        eu.kanade.tachiyomi.network.VideoProxyServer.setClient(networkHelper.client)
+        eu.kanade.tachiyomi.network.VideoProxyServer.setCookieJar(networkHelper.cookieJar)
+        eu.kanade.tachiyomi.network.VideoProxyServer.start()
     }
 
     // Auto-save library when list contents change
@@ -523,7 +583,18 @@ fun MainScreen(
 
             LaunchedEffect(activeVideo) {
                 activeVideo?.let { video ->
-                    val proxiedUrl = eu.kanade.tachiyomi.network.VideoProxyServer.registerVideo(video.url, video.headers)
+                    val rawHeaders = video.headers
+                    val headers = when (rawHeaders) {
+                        is Headers -> rawHeaders
+                        is Map<*, *> -> (rawHeaders as Map<String, String>).toHeaders()
+                        else -> Headers.headersOf()
+                    }
+                    val proxiedUrl = eu.kanade.tachiyomi.network.VideoProxyServer.registerVideo(video.url, headers)
+                    // ponytail: simple check, add more robust validation if needed
+                    if (proxiedUrl.isBlank() || !proxiedUrl.startsWith("http")) {
+                        println("[Error] Invalid proxied URL: $proxiedUrl")
+                        return@let
+                    }
                     playerState.openUri(proxiedUrl)
                 }
             }
@@ -980,6 +1051,7 @@ fun MainScreen(
                         extensionLoadErrors = extensionLoadErrors,
                         onInstallSuccess = { refreshExtensions() },
                         onUninstallSuccess = { refreshExtensions() },
+                        onRemoveFromBlacklist = onRemoveFromBlacklist,
                         onBlacklistExtension = { pkg ->
                             val newBlacklist = appSettings.blacklistedExtensions.toMutableList()
                             if (pkg !in newBlacklist) newBlacklist.add(pkg)
@@ -1302,6 +1374,7 @@ fun BrowseTab(
     onMangaClick: (MangaSource) -> Unit,
     onInstallSuccess: () -> Unit,
     onUninstallSuccess: () -> Unit,
+    onRemoveFromBlacklist: (String) -> Unit,
     onBlacklistExtension: (String) -> Unit = {},  // packageName -> blacklist it
 ) {
     var selectedSource by remember { mutableStateOf<AnimeHttpSource?>(null) }
@@ -1516,6 +1589,7 @@ fun BrowseTab(
                             installedJars = installedJars,
                             onInstallSuccess = onInstallSuccess,
                             onUninstallSuccess = onUninstallSuccess,
+                            onRemoveFromBlacklist = onRemoveFromBlacklist,
                             onBlacklistExtension = onBlacklistExtension,
                         )
                     } else {
@@ -2887,6 +2961,7 @@ fun ExtensionsSection(
     installedJars: List<String>,
     onInstallSuccess: () -> Unit,
     onUninstallSuccess: () -> Unit,
+    onRemoveFromBlacklist: (String) -> Unit,
     onBlacklistExtension: (String) -> Unit = {},
 ) {
     var extensionsList by remember { mutableStateOf<List<eu.kanade.tachiyomi.extension.ExtensionInfo>>(emptyList()) }
@@ -3013,6 +3088,7 @@ fun ExtensionsSection(
                                                                             }
                                                                             if (deleted) {
                                                                                 uninstallError = null
+                                                                                onRemoveFromBlacklist(ext.pkg)
                                                                             } else if (needsBlacklist) {
                                                                                 // Locked by JVM — blacklist it so it disappears from UI now
                                                                                 uninstallError = errMsg
@@ -3023,6 +3099,7 @@ fun ExtensionsSection(
                                                                             onUninstallSuccess()
                                                                         } else {
                                                                             eu.kanade.tachiyomi.extension.ExtensionManager.installExtension(repoUrl, ext)
+                                                                            onRemoveFromBlacklist(ext.pkg)
                                                                             onInstallSuccess()
                                                                         }
                                                                     } catch (e: Throwable) {
