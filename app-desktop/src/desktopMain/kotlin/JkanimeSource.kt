@@ -9,6 +9,7 @@ import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.network.GET
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import okhttp3.FormBody
 import okhttp3.Request
 import okhttp3.Response
 import org.jsoup.Jsoup
@@ -69,6 +70,22 @@ class JkanimeNativeSource : AnimeHttpSource() {
         val estado: String = "",
         val tipo: String = "",
         val type: String = "",
+    )
+
+    // ─── Modelos de episodios (API AJAX) ──────────────────────────────────────
+
+    /** Respuesta de POST /ajax/episodes/{id}/{pag} */
+    @Serializable
+    private data class JkEpisodesResponse(
+        val total: Int = 0,
+        val data: List<JkEpisodeEntry> = emptyList(),
+    )
+
+    @Serializable
+    private data class JkEpisodeEntry(
+        val id: Int = 0,
+        val number: Int = 0,
+        val image: String = "",
     )
 
     // ─── Extracción del JSON sin regex ────────────────────────────────────────
@@ -203,14 +220,68 @@ class JkanimeNativeSource : AnimeHttpSource() {
 
     // ─── Episodios ─────────────────────────────────────────────────────────────
 
+    /**
+     * El primer request carga la página del anime para obtener:
+     *  - el CSRF token (`<meta name="csrf-token">`)
+     *  - el anime ID (`data-anime="4784"` en #guardar-anime)
+     * Con esos datos hacemos POST paginados a /ajax/episodes/{id}/{pag}
+     */
     override fun episodeListRequest(anime: SAnime): Request =
         GET(baseUrl + anime.url, headers)
 
     override fun episodeListParse(response: Response): List<SEpisode> {
-        // La lógica de episodios del JAR original funciona bien
-        // (no usa el regex problemático). Aquí dejamos una implementación
-        // básica; los episodios se cargarán a través del AnimeDetailsScreen.
-        return emptyList()
+        val html = response.body!!.string()
+        val doc = Jsoup.parse(html)
+
+        // Obtener CSRF token
+        val csrfToken = doc.selectFirst("meta[name=csrf-token]")?.attr("content") ?: ""
+
+        // Obtener el ID interno del anime desde data-anime
+        val animeId = doc.selectFirst("div#guardar-anime[data-anime]")?.attr("data-anime")
+            ?: return emptyList()
+
+        // Construir la URL base del anime para los links de episodios
+        val animeSlug = response.request.url.encodedPath.trimEnd('/')
+
+        // Paginar: el sitio sirve 16 eps/página
+        val episodesPerPage = 16
+        val allEpisodes = mutableListOf<JkEpisodeEntry>()
+        var page = 1
+
+        while (true) {
+            val body = FormBody.Builder()
+                .add("_token", csrfToken)
+                .build()
+            val req = okhttp3.Request.Builder()
+                .url("$baseUrl/ajax/episodes/$animeId/$page")
+                .post(body)
+                .headers(headers)
+                .build()
+
+            val resp = client.newCall(req).execute()
+            if (!resp.isSuccessful) break
+
+            val result = runCatching {
+                json.decodeFromString<JkEpisodesResponse>(resp.body!!.string())
+            }.getOrNull() ?: break
+
+            allEpisodes.addAll(result.data)
+
+            val totalPages = Math.ceil(result.total.toDouble() / episodesPerPage).toInt()
+            if (page >= totalPages || result.data.isEmpty()) break
+            page++
+        }
+
+        // Construir lista de SEpisode ordenada de más reciente a más antigua
+        return allEpisodes
+            .sortedByDescending { it.number }
+            .map { entry ->
+                SEpisode.create().apply {
+                    name = "Episodio ${entry.number}"
+                    episode_number = entry.number.toFloat()
+                    setUrlWithoutDomain("$animeSlug/${entry.number}/")
+                }
+            }
     }
 
     // ─── Videos ───────────────────────────────────────────────────────────────
