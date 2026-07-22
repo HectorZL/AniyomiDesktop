@@ -99,6 +99,7 @@ class AniyomiMPVView(context: Context, attributes: AttributeSet) : BaseMPVView(c
             return v?.toIntOrNull() ?: -1
         }
         operator fun setValue(thisRef: Any?, property: KProperty<*>, value: Int) {
+            logcat(LogPriority.DEBUG) { "Setting $name to $value" }
             if (value == -1) {
                 MPVLib.setPropertyString(name, "no")
             } else {

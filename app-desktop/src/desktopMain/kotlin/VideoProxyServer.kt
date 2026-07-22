@@ -200,11 +200,9 @@ object VideoProxyServer {
                 val registeredFilename = baseHttpUrl.pathSegments.lastOrNull() ?: ""
                 val targetHttpUrl = when {
                     relativePath.isEmpty() -> baseHttpUrl
-                    relativePath == registeredFilename ->
-                        // Player requested the registered URL itself (just with filename hint in path)
-                        baseHttpUrl  // ← preserves ?t=TOKEN&s=...&e=... query params
+                    relativePath == registeredFilename -> baseHttpUrl
+                    relativePath.startsWith("http") -> relativePath.toHttpUrlOrNull()
                     else -> {
-                        // HLS sub-resource: either an absolute URL (encoded) or a relative segment
                         val relativeWithQuery = if (query != null) "$relativePath?$query" else relativePath
                         baseHttpUrl.resolve(relativeWithQuery)
                     }
@@ -223,7 +221,7 @@ object VideoProxyServer {
                 val requestBuilder = Request.Builder().url(resolvedUrl)
 
                 // Copy request headers from player
-                val headersToSkip = setOf("Host", "Accept-Encoding", "Connection", "User-Agent")
+                val headersToSkip = setOf("Host", "Accept-Encoding", "Connection", "User-Agent", "If-None-Match", "If-Modified-Since")
                 exchange.requestHeaders.getFirst("Range")?.let { println("[ProxyServer] Range header: $it") }
                 
                 // Explicitly log and copy Referer and Origin if they exist
@@ -334,8 +332,8 @@ object VideoProxyServer {
                 println("[ProxyServer] Sending Referer: ${request.header("Referer")}")
                 println("[ProxyServer] Sending Origin: ${request.header("Origin")}")
 
+                val call = client.newCall(request)
                 try {
-                    val call = client.newCall(request)
                     val startTime = System.currentTimeMillis()
                     val response = call.execute()
                     val latency = System.currentTimeMillis() - startTime
@@ -365,6 +363,7 @@ object VideoProxyServer {
                     if (isHls && responseBody != null) {
                         val bodyString = responseBody.string()
                         val modifiedBody = modifyHlsPlaylist(bodyString, uuid, realUrl)
+                        println("[ProxyServer] Modified HLS Playlist (first 5 lines):\n${modifiedBody.lines().take(5).joinToString("\n")}")
                         val bytes = modifiedBody.toByteArray(StandardCharsets.UTF_8)
                         exchange.sendResponseHeaders(statusCode, bytes.size.toLong())
                         exchange.responseBody.write(bytes)
@@ -392,7 +391,12 @@ object VideoProxyServer {
                         }
                     }
                     response.close()
+                } catch (e: java.io.IOException) {
+                    call.cancel()
+                    println("[ProxyServer] IOException proxying request: ${e.message}")
+                    // Gracefully handle client disconnection or interruption
                 } catch (e: Exception) {
+                    call.cancel()
                     println("[ProxyServer] Error proxying request: ${e.message}")
                     try {
                         exchange.sendResponseHeaders(500, 0)

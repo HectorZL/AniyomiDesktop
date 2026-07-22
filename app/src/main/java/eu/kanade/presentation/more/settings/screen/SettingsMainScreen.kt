@@ -49,6 +49,8 @@ import eu.kanade.tachiyomi.ui.setting.PlayerSettingsScreen
 import kotlinx.collections.immutable.persistentListOf
 import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
+import tachiyomi.presentation.core.util.drawVerticalScrollbar
+
 import tachiyomi.presentation.core.components.material.Scaffold
 import tachiyomi.presentation.core.i18n.stringResource
 import cafe.adriel.voyager.core.screen.Screen as VoyagerScreen
@@ -123,6 +125,9 @@ object SettingsMainScreen : Screen() {
                 LazyColumn(
                     state = state,
                     contentPadding = contentPadding,
+                    modifier = Modifier
+                        .drawVerticalScrollbar(state)
+                        .padding(vertical = 8.dp),
                 ) {
                     itemsIndexed(
                         items = items,
@@ -150,7 +155,7 @@ object SettingsMainScreen : Screen() {
                         }
                         CompositionLocalProvider(LocalContentColor provides contentColor) {
                             TextPreferenceWidget(
-                                modifier = modifier,
+                                modifier = modifier.padding(vertical = 4.dp),
                                 title = stringResource(item.titleRes),
                                 subtitle = item.formatSubtitle(),
                                 icon = item.icon,

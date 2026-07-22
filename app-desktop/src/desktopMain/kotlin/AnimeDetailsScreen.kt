@@ -325,13 +325,13 @@ fun AnimeDetailsScreen(
                                                 onClick = {
                                                     // Register to History
                                                     val nowStr = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm - dd/MM"))
-                                                    // Remove old entries for same ep
-                                                    historyList.removeAll { it.anime.url == anime.url && it.episode.url == selectedEpisode!!.url }
-                                                    println("Creating HistoryItem: anime=$anime, episode=$selectedEpisode, url=${video.url}, time=$nowStr")
-                                                    // Buscar si existe progreso previo para este episodio
+                                                    // Buscar si existe progreso previo para este episodio ANTES de eliminar
                                                     val existingProgress = historyList.find { it.anime.url == anime.url && it.episode.url == selectedEpisode!!.url }
                                                     val progress = existingProgress?.progressSeconds ?: 0L
                                                     val duration = existingProgress?.durationSeconds ?: 0L
+                                                    // Remove old entries for same ep
+                                                    historyList.removeAll { it.anime.url == anime.url && it.episode.url == selectedEpisode!!.url }
+                                                    println("Creating HistoryItem: anime=$anime, episode=$selectedEpisode, url=${video.url}, time=$nowStr, progress=$progress, duration=$duration")
                                                     historyList.add(0, HistoryItem(anime, selectedEpisode!!, video.url, nowStr, progress, duration))
 
                                                     onPlayEpisode(selectedEpisode!!, video)

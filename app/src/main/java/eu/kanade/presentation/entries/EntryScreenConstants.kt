@@ -20,4 +20,5 @@ enum class EntryScreenItem {
     ITEM_HEADER,
     ITEM,
     AIRING_TIME,
+    TRACKING_SECTION,
 }

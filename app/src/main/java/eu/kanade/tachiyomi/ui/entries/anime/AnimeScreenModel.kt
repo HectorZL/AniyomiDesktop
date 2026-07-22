@@ -1522,6 +1522,7 @@ class AnimeScreenModel(
                 .distinctUntilChanged()
                 .collectLatest { trackItems ->
                     updateAiringTime(anime, trackItems, manualFetch = false)
+                    updateSuccessState { it.copy(trackItems = trackItems) }
                 }
         }
     }

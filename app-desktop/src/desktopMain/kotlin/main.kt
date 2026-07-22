@@ -14,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,6 +44,7 @@ import androidx.compose.foundation.rememberScrollState
 import io.github.kdroidfilter.composemediaplayer.VideoPlayerSurface
 import io.github.kdroidfilter.composemediaplayer.rememberVideoPlayerState
 import io.github.kdroidfilter.composemediaplayer.SubtitleTrack
+import io.github.kdroidfilter.composemediaplayer.CacheConfig
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -600,7 +602,7 @@ fun MainScreen(
     if (activeVideo != null && currentEpisode != null && currentAnime != null) {
         // Player View
         Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
-            val playerState = rememberVideoPlayerState()
+            val playerState = rememberVideoPlayerState(cacheConfig = CacheConfig(enabled = true, maxCacheSizeBytes = 100L * 1024L * 1024L))
 
             // Buscar progreso guardado para este episodio
             val savedProgress = remember {
@@ -623,13 +625,14 @@ fun MainScreen(
                         println("[Error] Invalid proxied URL: $proxiedUrl")
                         return@let
                     }
+
                     playerState.openUri(proxiedUrl)
 
                     // Cargar progreso guardado si existe
                     savedProgress?.let { historyItem ->
                         if (historyItem.progressSeconds > 0 && historyItem.durationSeconds > 0) {
                             val progressRatio = historyItem.progressSeconds.toFloat() / historyItem.durationSeconds.toFloat()
-                            kotlinx.coroutines.delay(1000) // Esperar a que el video cargue
+                            kotlinx.coroutines.delay(2000) // Esperar más tiempo para que el video cargue completamente
                             playerState.seekStart(progressRatio * 1000f)
                             playerState.seekFinished()
                             println("[PROGRESS] Resuming from ${historyItem.progressSeconds}s (${String.format("%02d:%02d", historyItem.progressSeconds / 60, historyItem.progressSeconds % 60)})")
@@ -642,17 +645,35 @@ fun MainScreen(
             LaunchedEffect(playerState.isPlaying) {
                 while (playerState.isPlaying) {
                     kotlinx.coroutines.delay(5000)
-                    val currentPos = (playerState.sliderPos / 1000f) * playerState.duration
+                    val currentPos = playerState.currentTime.toLong()
                     val duration = playerState.duration
 
-                    // Actualizar el historial con el progreso actual
-                    val historyIndex = historyList.indexOfFirst { it.anime.url == currentAnime.url && it.episode.url == currentEpisode.url }
-                    if (historyIndex >= 0) {
-                        historyList[historyIndex] = historyList[historyIndex].copy(
-                            progressSeconds = currentPos.toLong(),
-                            durationSeconds = duration.toLong()
-                        )
-                        println("[PROGRESS] Saved progress: ${String.format("%02d:%02d", currentPos.toLong() / 60, currentPos.toLong() % 60)} / ${String.format("%02d:%02d", duration.toLong() / 60, duration.toLong() % 60)}")
+                    if (playerState.currentTime.toLong() > 0 && duration > 0.0) {
+                        // Actualizar el historial con el progreso actual
+                        val historyIndex = historyList.indexOfFirst { it.anime.url == currentAnime.url && it.episode.url == currentEpisode.url }
+                        if (historyIndex >= 0) {
+                            historyList[historyIndex] = historyList[historyIndex].copy(
+                                progressSeconds = currentPos.toLong(),
+                                durationSeconds = duration.toLong()
+                            )
+                            println("[PROGRESS] Saved progress: ${String.format("%02d:%02d", currentPos.toLong() / 60, currentPos.toLong() % 60)} / ${String.format("%02d:%02d", duration.toLong() / 60, duration.toLong() % 60)}")
+                        }
+                    }
+                }
+            }
+
+            // Guardar progreso al salir del reproductor
+            LaunchedEffect(activeVideo) {
+                snapshotFlow { playerState.currentTime.toLong() }.collect { position ->
+                    if (playerState.currentTime.toLong() > 0) {
+                        val duration = playerState.duration
+                        val historyIndex = historyList.indexOfFirst { it.anime.url == currentAnime.url && it.episode.url == currentEpisode.url }
+                        if (historyIndex >= 0 && duration > 0.0) {
+                            historyList[historyIndex] = historyList[historyIndex].copy(
+                                progressSeconds = position.toLong(),
+                                durationSeconds = duration.toLong()
+                            )
+                        }
                     }
                 }
             }

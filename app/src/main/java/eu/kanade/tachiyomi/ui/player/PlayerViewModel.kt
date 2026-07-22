@@ -22,6 +22,7 @@
 
 package eu.kanade.tachiyomi.ui.player
 
+
 import android.app.Application
 import android.content.Context
 import android.content.pm.ActivityInfo
@@ -417,6 +418,7 @@ class PlayerViewModel @JvmOverloads constructor(
 
     private var trackLoadingJob: Job? = null
     fun loadTracks() {
+        logcat(LogPriority.DEBUG) { "loadTracks: tracksCount=${MPVLib.getPropertyInt("track-list/count")}" }
         trackLoadingJob?.cancel()
         trackLoadingJob = viewModelScope.launch {
             val possibleTrackTypes = listOf("audio", "sub")
@@ -542,6 +544,7 @@ class PlayerViewModel @JvmOverloads constructor(
     }
 
     fun selectSub(id: Int) {
+        logcat(LogPriority.DEBUG) { "selectSub: id=$id, currentSid=${activity.player.sid}, currentSecondarySid=${activity.player.secondarySid}" }
         val selectedSubs = selectedSubtitles.value
         _selectedSubtitles.update {
             when (id) {
@@ -672,6 +675,7 @@ class PlayerViewModel @JvmOverloads constructor(
     private var _wasPlayingBeforeBackground = false
 
     fun pause() {
+        logcat { "Playback paused" }
         activity.player.paused = true
         _paused.update { true }
         runCatching {
@@ -680,6 +684,7 @@ class PlayerViewModel @JvmOverloads constructor(
     }
 
     fun unpause() {
+        logcat { "Playback unpaused" }
         activity.player.paused = false
         _paused.update { false }
     }
@@ -1776,6 +1781,10 @@ class PlayerViewModel @JvmOverloads constructor(
     }
 
     fun saveCurrentEpisodeWatchingProgress() {
+        logcat(LogPriority.DEBUG) { "saveCurrentEpisodeWatchingProgress called" }
+        if (currentEpisode.value == null) {
+            logcat(LogPriority.DEBUG) { "currentEpisode is null" }
+        }
         currentEpisode.value?.let { saveWatchingProgress(it) }
     }
 
@@ -1794,18 +1803,18 @@ class PlayerViewModel @JvmOverloads constructor(
      * If incognito mode isn't on or has at least 1 tracker
      */
     private suspend fun saveEpisodeProgress(episode: Episode) {
-        if (!incognitoMode || hasTrackers) {
-            updateEpisode.await(
-                EpisodeUpdate(
-                    id = episode.id!!,
-                    seen = episode.seen,
-                    bookmark = episode.bookmark,
-                    fillermark = episode.fillermark,
-                    lastSecondSeen = episode.last_second_seen,
-                    totalSeconds = episode.total_seconds,
-                ),
-            )
-        }
+        Log.d("AniyomiPlayerDebug", "Saving progress for episode ${episode.name} at position ${episode.last_second_seen} ms")
+        logcat(LogPriority.DEBUG) { "saveEpisodeProgress: id=${episode.id}, last_second_seen=${episode.last_second_seen}, incognitoMode=$incognitoMode, hasTrackers=$hasTrackers" }
+        updateEpisode.await(
+            EpisodeUpdate(
+                id = episode.id!!,
+                seen = episode.seen,
+                bookmark = episode.bookmark,
+                fillermark = episode.fillermark,
+                lastSecondSeen = episode.last_second_seen,
+                totalSeconds = episode.total_seconds,
+            ),
+        )
     }
 
     /**

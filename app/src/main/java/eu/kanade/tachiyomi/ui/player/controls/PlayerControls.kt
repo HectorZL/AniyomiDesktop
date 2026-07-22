@@ -17,6 +17,7 @@
 
 package eu.kanade.tachiyomi.ui.player.controls
 
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.FiniteAnimationSpec
@@ -85,6 +86,8 @@ import tachiyomi.presentation.core.components.material.padding
 import tachiyomi.presentation.core.i18n.stringResource
 import tachiyomi.presentation.core.util.collectAsState
 import tachiyomi.source.local.entries.anime.LocalAnimeSource
+import tachiyomi.core.common.util.system.logcat
+import logcat.LogPriority
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 
@@ -138,7 +141,8 @@ fun PlayerControls(
         resetControls,
     ) {
         if (controlsShown && !paused && !isSeeking) {
-            delay(playerTimeToDisappear.toLong())
+            delay(CONTROL_HIDE_DELAY_MS)
+            logcat { "Hiding controls: controlsShown=$controlsShown, paused=$paused, isSeeking=$isSeeking" }
             viewModel.hideControls()
         }
     }
@@ -591,7 +595,10 @@ fun PlayerControls(
             subtitles = subtitles.toImmutableList(),
             selectedSubtitles = selectedSubtitles.toList().toImmutableList(),
             onAddSubtitle = viewModel::addSubtitle,
-            onSelectSubtitle = viewModel::selectSub,
+            onSelectSubtitle = { id ->
+                logcat { "Subtitle track selected: $id" }
+                viewModel.selectSub(id)
+            },
             audioTracks = audioTracks.toImmutableList(),
             selectedAudio = selectedAudio,
             onAddAudio = viewModel::addAudio,
@@ -669,6 +676,8 @@ fun PlayerControls(
         )
     }
 }
+
+private const val CONTROL_HIDE_DELAY_MS = 10000L
 
 fun <T> playerControlsExitAnimationSpec(): FiniteAnimationSpec<T> = tween(
     durationMillis = 300,

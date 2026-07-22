@@ -17,7 +17,9 @@ import uy.kohesive.injekt.api.get
 import java.io.File
 import java.io.FileOutputStream
 import java.net.URLClassLoader
+import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
+import java.util.zip.ZipOutputStream
 
 @Serializable
 data class ExtensionInfo(
@@ -105,6 +107,46 @@ object ExtensionManager {
             val bytes = apkFile.readBytes()
             val reader = MultiDexFileReader.open(bytes)
             Dex2jar.from(reader).to(jarFile.toPath())
+
+            // dex2jar only converts .dex bytecode — all non-class assets (including
+            // i18n/*.properties bundles used by the keiyoushi localisation system) are
+            // silently dropped.  We re-open the APK (which is a plain ZIP) and append
+            // every .properties file found inside it directly into the output JAR so that
+            // ClassLoader.getResourceAsStream("i18n/en.properties") works at runtime.
+            val propertiesEntries = mutableMapOf<String, ByteArray>()
+            ZipFile(apkFile).use { apkZip ->
+                val entries = apkZip.entries()
+                while (entries.hasMoreElements()) {
+                    val entry = entries.nextElement()
+                    if (entry.name.endsWith(".properties")) {
+                        propertiesEntries[entry.name] = apkZip.getInputStream(entry).readBytes()
+                    }
+                }
+            }
+
+            if (propertiesEntries.isNotEmpty()) {
+                // Read the JAR dex2jar just wrote, then rewrite it with the extra entries.
+                val originalJarBytes = jarFile.readBytes()
+                ZipOutputStream(FileOutputStream(jarFile)).use { zos ->
+                    // Copy all existing JAR entries
+                    java.util.zip.ZipInputStream(originalJarBytes.inputStream()).use { zis ->
+                        var entry = zis.nextEntry
+                        while (entry != null) {
+                            zos.putNextEntry(ZipEntry(entry.name))
+                            zis.copyTo(zos)
+                            zos.closeEntry()
+                            entry = zis.nextEntry
+                        }
+                    }
+                    // Append the .properties files extracted from the APK
+                    for ((name, content) in propertiesEntries) {
+                        println("[ExtensionManager] Injecting asset into JAR: $name")
+                        zos.putNextEntry(ZipEntry(name))
+                        zos.write(content)
+                        zos.closeEntry()
+                    }
+                }
+            }
         } catch (e: Exception) {
             throw RuntimeException("Error al traducir DEX a JAR: ${e.message}", e)
         }
@@ -137,43 +179,78 @@ object ExtensionManager {
                         if (AnimeSource::class.java.isAssignableFrom(clazz)) {
                             val ctor = clazz.getDeclaredConstructor()
                             ctor.isAccessible = true
-                            val instance = ctor.newInstance() as AnimeSource
+                            val prevCL = Thread.currentThread().contextClassLoader
+                            Thread.currentThread().contextClassLoader = classLoader
+                            val instance = try { ctor.newInstance() as AnimeSource } finally {
+                                Thread.currentThread().contextClassLoader = prevCL
+                            }
                             loadedSources.add(LoadedSource.Anime(instance))
                         } else if (MangaSource::class.java.isAssignableFrom(clazz)) {
                             val ctor = clazz.getDeclaredConstructor()
                             ctor.isAccessible = true
-                            val instance = ctor.newInstance() as MangaSource
+                            val prevCL = Thread.currentThread().contextClassLoader
+                            Thread.currentThread().contextClassLoader = classLoader
+                            val instance = try { ctor.newInstance() as MangaSource } finally {
+                                Thread.currentThread().contextClassLoader = prevCL
+                            }
                             loadedSources.add(LoadedSource.Manga(instance))
                         } else if (AnimeSourceFactory::class.java.isAssignableFrom(clazz)) {
                             val ctor = clazz.getDeclaredConstructor()
                             ctor.isAccessible = true
-                            val factoryInstance = ctor.newInstance() as AnimeSourceFactory
+                            val prevCL = Thread.currentThread().contextClassLoader
+                            Thread.currentThread().contextClassLoader = classLoader
+                            val factoryInstance = try { ctor.newInstance() as AnimeSourceFactory } finally {
+                                Thread.currentThread().contextClassLoader = prevCL
+                            }
                             loadedSources.addAll(factoryInstance.createSources().map { LoadedSource.Anime(it) })
                         } else if (SourceFactory::class.java.isAssignableFrom(clazz)) {
                             val ctor = clazz.getDeclaredConstructor()
                             ctor.isAccessible = true
-                            val factoryInstance = ctor.newInstance() as SourceFactory
+                            val prevCL = Thread.currentThread().contextClassLoader
+                            Thread.currentThread().contextClassLoader = classLoader
+                            val factoryInstance = try { ctor.newInstance() as SourceFactory } finally {
+                                Thread.currentThread().contextClassLoader = prevCL
+                            }
                             loadedSources.addAll(factoryInstance.createSources().map { LoadedSource.Manga(it) })
                         }
                     } catch (e: java.lang.reflect.InvocationTargetException) {
                         val cause = e.cause
+                        // Walk the full cause chain to find the real root error
+                        val causeChain = buildString {
+                            var c: Throwable? = cause
+                            var depth = 0
+                            while (c != null && depth < 6) {
+                                append("  ".repeat(depth))
+                                append("${c.javaClass.name}: ${c.message}")
+                                append("\n")
+                                c = c.cause
+                                depth++
+                            }
+                        }.trimEnd()
                         val msg = when {
-                            cause is java.lang.NoClassDefFoundError -> "Falta clase Android: ${cause.message}"
-                            cause is java.lang.ExceptionInInitializerError -> "Error en init/structor: ${cause.message}"
-                            else -> "${e.message}"
+                            cause is java.lang.NoClassDefFoundError ->
+                                "Falta clase Android: ${cause.message}"
+                            cause is java.lang.ExceptionInInitializerError -> {
+                                val ic = cause.cause
+                                "Error en initializer: ${ic?.javaClass?.simpleName}: ${ic?.message}"
+                            }
+                            else ->
+                                "${cause?.javaClass?.simpleName ?: "?"}: ${cause?.message}"
                         }
                         errorCollector?.add("$className → $msg")
-                        println("[LOAD_EXT_ERR] Error al instanciar $className: ${e.message}")
-                        if (cause != null) cause.printStackTrace() else e.printStackTrace()
+                        println("[LOAD_EXT_ERR] Error al instanciar $className")
+                        println("[LOAD_EXT_ERR] Causa raíz:")
+                        println(causeChain)
+                        cause?.printStackTrace() ?: e.printStackTrace()
                     } catch (e: java.lang.NoClassDefFoundError) {
                         val msg = "Falta clase: ${e.message}"
                         errorCollector?.add("$className → $msg")
                         println("[LOAD_EXT_ERR] Falta clase para $className: ${e.message}")
                         e.printStackTrace()
                     } catch (e: Throwable) {
-                        val msg = "${e.message}"
-                        errorCollector?.add("$className → $msg")
-                        println("[LOAD_EXT_ERR] Error al cargar clase $className: ${e.message}")
+                        val causeMsg = "${e.javaClass.simpleName}: ${e.message}"
+                        errorCollector?.add("$className → $causeMsg")
+                        println("[LOAD_EXT_ERR] Error al cargar clase $className: $causeMsg")
                         e.printStackTrace()
                     }
                 }
@@ -299,6 +376,34 @@ object ExtensionManager {
 }
 
 class ASMClassLoader(urls: Array<java.net.URL>, parent: ClassLoader) : URLClassLoader(urls, parent) {
+
+    /**
+     * Overrides resource loading to handle missing `.properties` files.
+     *
+     * Extensions using the keiyoushi i18n system (class `h`) call
+     *   ClassLoader.getResourceAsStream("i18n/en.properties")
+     * to load localisation bundles. These files exist in the original APK but are
+     * NOT preserved when the APK is converted to JAR via dex2jar.
+     *
+     * Since translateApkToJar() now extracts .properties files from the APK and
+     * injects them into the output JAR, super.getResourceAsStream() will find them
+     * for freshly-converted extensions.
+     *
+     * The empty-stream fallback below acts as a safety net for JARs that were cached
+     * before this fix was applied (i.e. they lack the injected .properties entries).
+     * PropertyResourceBundle accepts an empty stream and produces an empty bundle,
+     * so the extension loads successfully and falls back to translation-key names.
+     */
+    override fun getResourceAsStream(name: String): java.io.InputStream? {
+        val stream = super.getResourceAsStream(name)
+        if (stream != null) return stream
+        if (name.endsWith(".properties")) {
+            println("[ASMClassLoader] Resource not found: $name — returning empty .properties fallback")
+            return java.io.ByteArrayInputStream(ByteArray(0))
+        }
+        return null
+    }
+
     override fun loadClass(name: String, resolve: Boolean): Class<*> {
         synchronized(this) {
             val loadedClass = findLoadedClass(name)
@@ -375,19 +480,16 @@ class ASMClassLoader(urls: Array<java.net.URL>, parent: ClassLoader) : URLClassL
                             descriptor: String,
                             isInterface: Boolean,
                         ) {
-                            // Only intercept INVOKESTATIC on kotlin/Result synthetic methods
+                            // ── 1. kotlin/Result synthetic *_impl methods ───────────────────────
                             if (opcode == org.objectweb.asm.Opcodes.INVOKESTATIC &&
                                 owner == "kotlin/Result" &&
                                 (name.endsWith("_impl") || name.endsWith("-impl"))
                             ) {
                                 println("[ASMClassLoader] Patching kotlin/Result.$name$descriptor")
-                                // Normalise: dex2jar sometimes emits '_impl' instead of '-impl'
                                 val base = name.removeSuffix("_impl").removeSuffix("-impl")
                                 when (base) {
-                                    // (Object) → Object  identity — just leave value on stack
                                     "constructor" -> { /* no-op, value already on stack */ }
 
-                                    // (Object) → boolean
                                     "isSuccess" -> super.visitMethodInsn(
                                         org.objectweb.asm.Opcodes.INVOKESTATIC, COMPAT,
                                         "isSuccess", "(Ljava/lang/Object;)Z", false,
@@ -397,25 +499,21 @@ class ASMClassLoader(urls: Array<java.net.URL>, parent: ClassLoader) : URLClassL
                                         "isFailure", "(Ljava/lang/Object;)Z", false,
                                     )
 
-                                    // (Object) → Throwable
                                     "exceptionOrNull" -> super.visitMethodInsn(
                                         org.objectweb.asm.Opcodes.INVOKESTATIC, COMPAT,
                                         "exceptionOrNull", "(Ljava/lang/Object;)Ljava/lang/Throwable;", false,
                                     )
 
-                                    // (Object) → Object  (success value or null)
                                     "getOrNull", "getValue" -> super.visitMethodInsn(
                                         org.objectweb.asm.Opcodes.INVOKESTATIC, COMPAT,
                                         "getOrNull", "(Ljava/lang/Object;)Ljava/lang/Object;", false,
                                     )
 
-                                    // (Object) → void  (throws if failure)
                                     "throwOnFailure" -> super.visitMethodInsn(
                                         org.objectweb.asm.Opcodes.INVOKESTATIC, COMPAT,
                                         "throwOnFailure", "(Ljava/lang/Object;)V", false,
                                     )
 
-                                    // (Object) → Object  wrap/unwrap
                                     "box" -> super.visitMethodInsn(
                                         org.objectweb.asm.Opcodes.INVOKESTATIC, COMPAT,
                                         "box", "(Ljava/lang/Object;)Ljava/lang/Object;", false,
@@ -425,36 +523,103 @@ class ASMClassLoader(urls: Array<java.net.URL>, parent: ClassLoader) : URLClassL
                                         "unbox", "(Ljava/lang/Object;)Ljava/lang/Object;", false,
                                     )
 
-                                    // (Object) → String
                                     "toString" -> super.visitMethodInsn(
                                         org.objectweb.asm.Opcodes.INVOKESTATIC, COMPAT,
                                         "toStringImpl", "(Ljava/lang/Object;)Ljava/lang/String;", false,
                                     )
 
-                                    // (Object) → int
                                     "hashCode" -> super.visitMethodInsn(
                                         org.objectweb.asm.Opcodes.INVOKESTATIC, COMPAT,
                                         "hashCodeImpl", "(Ljava/lang/Object;)I", false,
                                     )
 
-                                    // (Object, Object) → boolean
                                     "equals" -> super.visitMethodInsn(
                                         org.objectweb.asm.Opcodes.INVOKESTATIC, COMPAT,
                                         "equalsImpl", "(Ljava/lang/Object;Ljava/lang/Object;)Z", false,
                                     )
 
                                     else -> {
-                                        // Unknown *_impl — route through generic compat handler
-                                        // so it fails with a clear error rather than a cryptic
-                                        // NoSuchMethodError pointing into the JVM internals.
                                         println("[ASMClassLoader] Unknown kotlin/Result synthetic: $name$descriptor — passing through")
                                         super.visitMethodInsn(opcode, owner, name, descriptor, isInterface)
                                     }
                                 }
-                            } else {
-                                super.visitMethodInsn(opcode, owner, name, descriptor, isInterface)
+                                return
                             }
+
+                            // ── 2. kotlin/time/Duration$Companion INVOKEVIRTUAL methods ─────────
+                            // Extensions compiled with a different Kotlin version reference
+                            // Duration companion properties with a mangled type-hash suffix
+                            // (e.g. getZERO_UwyO8pc) that doesn't exist in our stdlib.
+                            // We replace them with inline literal values so the JVM never
+                            // looks for the missing method.
+                            //
+                            // Stack before INVOKEVIRTUAL on no-arg Companion method: [companion_ref]
+                            // We must POP the companion and push the result value.
+                            if (opcode == org.objectweb.asm.Opcodes.INVOKEVIRTUAL &&
+                                owner == "kotlin/time/Duration\$Companion" &&
+                                descriptor == "()J"  // all Duration raw-value getters return long
+                            ) {
+                                val base = name
+                                    .substringBefore('_')   // strip type-hash suffix
+                                    .lowercase()
+                                println("[ASMClassLoader] Patching kotlin/time/Duration\$Companion.$name$descriptor → inline long")
+                                // Pop the Companion reference, then push the raw Long value
+                                super.visitInsn(org.objectweb.asm.Opcodes.POP) // remove Companion ref
+                                when {
+                                    base == "getzero" || base == "zero" ->
+                                        super.visitInsn(org.objectweb.asm.Opcodes.LCONST_0)
+
+                                    base == "getinfinite" || base == "infinite" ->
+                                        super.visitLdcInsn(Long.MAX_VALUE / 2)  // safe large value
+
+                                    else -> {
+                                        // Unknown companion property → return 0 as safe default
+                                        println("[ASMClassLoader] Unknown Duration companion prop: $name — using 0L")
+                                        super.visitInsn(org.objectweb.asm.Opcodes.LCONST_0)
+                                    }
+                                }
+                                return
+                            }
+
+                            // ── 3. kotlin/time/Duration INVOKESTATIC *-impl methods ─────────────
+                            // Duration is also an inline class; its own static synthetic methods
+                            // may carry a type-hash that doesn't match our stdlib.
+                            // For now we patch the most common ones to sensible no-ops.
+                            if (opcode == org.objectweb.asm.Opcodes.INVOKESTATIC &&
+                                owner == "kotlin/time/Duration" &&
+                                (name.contains("-impl") || name.contains("_impl"))
+                            ) {
+                                val base = name.substringBefore('-').substringBefore('_').lowercase()
+                                println("[ASMClassLoader] Patching kotlin/time/Duration.$name$descriptor")
+                                when (base) {
+                                    // box-impl(Long):Duration  →  identity (Long IS Duration)
+                                    "box" -> { /* value already on stack as Long */ }
+                                    // unbox-impl(Duration):Long → identity
+                                    "unbox" -> { /* value already on stack */ }
+                                    // constructor-impl(Long):Long → identity
+                                    "constructor" -> { /* value already on stack */ }
+                                    // tostring-impl(Long):String → toString
+                                    "tostring" -> super.visitMethodInsn(
+                                        org.objectweb.asm.Opcodes.INVOKESTATIC,
+                                        "java/lang/Long", "toString", "(J)Ljava/lang/String;", false,
+                                    )
+                                    // compareto-impl(Long, Long):Int → Long.compare
+                                    "compareto" -> super.visitMethodInsn(
+                                        org.objectweb.asm.Opcodes.INVOKESTATIC,
+                                        "java/lang/Long", "compare", "(JJ)I", false,
+                                    )
+                                    else -> {
+                                        println("[ASMClassLoader] Unknown Duration impl: $name — passing through")
+                                        super.visitMethodInsn(opcode, owner, name, descriptor, isInterface)
+                                    }
+                                }
+                                return
+                            }
+
+                            // Default: pass through unchanged
+                            super.visitMethodInsn(opcode, owner, name, descriptor, isInterface)
                         }
+
                     }
                 }
             }

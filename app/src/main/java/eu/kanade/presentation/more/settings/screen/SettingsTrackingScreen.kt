@@ -57,6 +57,7 @@ import eu.kanade.tachiyomi.util.system.openInBrowser
 import eu.kanade.tachiyomi.util.system.toast
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
+import kotlinx.collections.immutable.toPersistentList
 import kotlinx.collections.immutable.toPersistentMap
 import tachiyomi.core.common.i18n.stringResource
 import tachiyomi.core.common.util.lang.launchIO
@@ -137,6 +138,38 @@ object SettingsTrackingScreen : SearchableSettings {
             enhancedTrackerInfo += "\n\n$missingSourcesInfo"
         }
 
+        val loginActions = remember(context) {
+            mapOf(
+                trackerManager.myAnimeList to { context.openInBrowser(MyAnimeListApi.authUrl(), forceDefaultBrowser = true) },
+                trackerManager.aniList to { context.openInBrowser(AnilistApi.authUrl(), forceDefaultBrowser = true) },
+                trackerManager.kitsu to { dialog = LoginDialog(trackerManager.kitsu, MR.strings.email) },
+                trackerManager.mangaUpdates to { dialog = LoginDialog(trackerManager.mangaUpdates, MR.strings.username) },
+                trackerManager.shikimori to { context.openInBrowser(ShikimoriApi.authUrl(), forceDefaultBrowser = true) },
+                trackerManager.simkl to { context.openInBrowser(SimklApi.authUrl(), forceDefaultBrowser = true) },
+                trackerManager.trakt to { context.openInBrowser(TraktApi.authUrl(), forceDefaultBrowser = true) },
+                trackerManager.bangumi to { context.openInBrowser(BangumiApi.authUrl(), forceDefaultBrowser = true) },
+            )
+        }
+
+        val services = listOf(
+            trackerManager.myAnimeList,
+            trackerManager.aniList,
+            trackerManager.kitsu,
+            trackerManager.mangaUpdates,
+            trackerManager.shikimori,
+            trackerManager.simkl,
+            trackerManager.trakt,
+            trackerManager.bangumi,
+        )
+
+        val trackerPreferences = services.map { tracker ->
+            Preference.PreferenceItem.TrackerPreference(
+                tracker = tracker,
+                login = loginActions[tracker] ?: { },
+                logout = { dialog = LogoutDialog(tracker) },
+            )
+        }
+
         return listOf(
             Preference.PreferenceItem.SwitchPreference(
                 preference = trackPreferences.autoUpdateTrack(),
@@ -159,79 +192,7 @@ object SettingsTrackingScreen : SearchableSettings {
             ),
             Preference.PreferenceGroup(
                 title = stringResource(MR.strings.services),
-                preferenceItems = persistentListOf(
-                    Preference.PreferenceItem.TrackerPreference(
-                        tracker = trackerManager.myAnimeList,
-                        login = {
-                            context.openInBrowser(
-                                MyAnimeListApi.authUrl(),
-                                forceDefaultBrowser = true,
-                            )
-                        },
-                        logout = { dialog = LogoutDialog(trackerManager.myAnimeList) },
-                    ),
-                    Preference.PreferenceItem.TrackerPreference(
-                        tracker = trackerManager.aniList,
-                        login = {
-                            context.openInBrowser(
-                                AnilistApi.authUrl(),
-                                forceDefaultBrowser = true,
-                            )
-                        },
-                        logout = { dialog = LogoutDialog(trackerManager.aniList) },
-                    ),
-                    Preference.PreferenceItem.TrackerPreference(
-                        tracker = trackerManager.kitsu,
-                        login = { dialog = LoginDialog(trackerManager.kitsu, MR.strings.email) },
-                        logout = { dialog = LogoutDialog(trackerManager.kitsu) },
-                    ),
-                    Preference.PreferenceItem.TrackerPreference(
-                        tracker = trackerManager.mangaUpdates,
-                        login = { dialog = LoginDialog(trackerManager.mangaUpdates, MR.strings.username) },
-                        logout = { dialog = LogoutDialog(trackerManager.mangaUpdates) },
-                    ),
-                    Preference.PreferenceItem.TrackerPreference(
-                        tracker = trackerManager.shikimori,
-                        login = {
-                            context.openInBrowser(
-                                ShikimoriApi.authUrl(),
-                                forceDefaultBrowser = true,
-                            )
-                        },
-                        logout = { dialog = LogoutDialog(trackerManager.shikimori) },
-                    ),
-                    Preference.PreferenceItem.TrackerPreference(
-                        tracker = trackerManager.simkl,
-                        login = {
-                            context.openInBrowser(
-                                SimklApi.authUrl(),
-                                forceDefaultBrowser = true,
-                            )
-                        },
-                        logout = { dialog = LogoutDialog(trackerManager.simkl) },
-                    ),
-                    Preference.PreferenceItem.TrackerPreference(
-                        tracker = trackerManager.trakt,
-                        login = {
-                            context.openInBrowser(
-                                TraktApi.authUrl(),
-                                forceDefaultBrowser = true,
-                            )
-                        },
-                        logout = { dialog = LogoutDialog(trackerManager.trakt) },
-                    ),
-                    Preference.PreferenceItem.TrackerPreference(
-                        tracker = trackerManager.bangumi,
-                        login = {
-                            context.openInBrowser(
-                                BangumiApi.authUrl(),
-                                forceDefaultBrowser = true,
-                            )
-                        },
-                        logout = { dialog = LogoutDialog(trackerManager.bangumi) },
-                    ),
-                    Preference.PreferenceItem.InfoPreference(stringResource(MR.strings.tracking_info)),
-                ),
+                preferenceItems = (trackerPreferences + Preference.PreferenceItem.InfoPreference(stringResource(MR.strings.tracking_info))).toPersistentList(),
             ),
             Preference.PreferenceGroup(
                 title = stringResource(MR.strings.enhanced_services),

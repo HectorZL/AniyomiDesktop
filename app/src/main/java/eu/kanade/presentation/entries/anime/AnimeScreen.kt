@@ -71,6 +71,7 @@ import eu.kanade.presentation.entries.anime.components.AnimeSeasonListItem
 import eu.kanade.presentation.entries.anime.components.EpisodeDownloadAction
 import eu.kanade.presentation.entries.anime.components.ExpandableAnimeDescription
 import eu.kanade.presentation.entries.anime.components.NextEpisodeAiringListItem
+import eu.kanade.presentation.entries.anime.components.TrackingSection
 import eu.kanade.presentation.entries.components.EntryBottomActionMenu
 import eu.kanade.presentation.entries.components.EntryToolbar
 import eu.kanade.presentation.entries.components.ItemHeader
@@ -501,6 +502,20 @@ private fun AnimeScreenSmallImpl(
                     }
 
                     item(
+                        key = EntryScreenItem.TRACKING_SECTION,
+                        contentType = EntryScreenItem.TRACKING_SECTION,
+                        span = { GridItemSpan(maxLineSpan) },
+                    ) {
+                        if (state.trackItems.isNotEmpty()) {
+                            TrackingSection(
+                                trackItems = state.trackItems,
+                                onTrackingClicked = onTrackingClicked ?: {},
+                                modifier = Modifier.ignorePadding(offsetGridPaddingPx),
+                            )
+                        }
+                    }
+
+                    item(
                         key = EntryScreenItem.DESCRIPTION_WITH_TAG,
                         contentType = EntryScreenItem.DESCRIPTION_WITH_TAG,
                         span = { GridItemSpan(maxLineSpan) },
@@ -819,6 +834,12 @@ fun AnimeScreenLargeImpl(
                                 onEditIntervalClicked = onEditIntervalClicked,
                                 onEditCategory = onEditCategoryClicked,
                             )
+                            if (state.trackItems.isNotEmpty()) {
+                                TrackingSection(
+                                    trackItems = state.trackItems,
+                                    onTrackingClicked = onTrackingClicked ?: {},
+                                )
+                            }
                             ExpandableAnimeDescription(
                                 defaultExpandState = true,
                                 description = state.anime.description,

@@ -27,6 +27,17 @@ kotlin {
                 implementation("io.github.kdroidfilter:composemediaplayer:0.10.0")
                 implementation("de.femtopedia.dex2jar:dex-translator:2.4.37")
                 implementation("de.femtopedia.dex2jar:dex-tools:2.4.37")
+
+                // JavaFX WebEngine — real WebKit engine for desktop WebView bridge
+                // Allows extensions that use android.webkit.WebView to execute
+                // real JavaScript on the desktop JVM.
+                val javafxVersion = "21.0.2"
+                val javafxPlatform = "win" // Windows only for now
+                implementation("org.openjfx:javafx-base:$javafxVersion:$javafxPlatform")
+                implementation("org.openjfx:javafx-graphics:$javafxVersion:$javafxPlatform")
+                implementation("org.openjfx:javafx-controls:$javafxVersion:$javafxPlatform")
+                implementation("org.openjfx:javafx-web:$javafxVersion:$javafxPlatform")
+                implementation("org.openjfx:javafx-swing:$javafxVersion:$javafxPlatform")
             }
         }
     }
