@@ -31,6 +31,8 @@ fun AnimeDetailsScreen(
     source: AnimeHttpSource,
     libraryList: MutableList<RealAnime>,
     historyList: MutableList<HistoryItem>,
+    trackingState: DesktopTrackingState,
+    onOpenAccounts: () -> Unit,
     onBack: () -> Unit,
     onPlayEpisode: (RealEpisode, RealVideo) -> Unit
 ) {
@@ -201,6 +203,14 @@ fun AnimeDetailsScreen(
                 )
             }
         }
+
+        Spacer(modifier = Modifier.height(18.dp))
+        DesktopTrackerPanel(
+            contentType = DesktopContentType.AUDIOVISUAL,
+            title = detailAnime.title,
+            trackingState = trackingState,
+            onOpenAccounts = onOpenAccounts,
+        )
 
         Spacer(modifier = Modifier.height(24.dp))
         

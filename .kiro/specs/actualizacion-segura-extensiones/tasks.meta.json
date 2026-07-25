@@ -1,0 +1,553 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1.1 Configurar el source set `desktopTest` y sus dependencias de prueba": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010307690
+      },
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010319099
+      },
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785012634604
+      }
+    ],
+    "1.2 Crear los modelos, resultados y puertos Kotlin independientes de Compose": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010308010
+      },
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010321452
+      },
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785012637133
+      }
+    ],
+    "1.3 Implementar primitivas seguras de archivos y la disposición de estado local": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010308062
+      },
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785012642771
+      }
+    ],
+    "1.4 Escribir pruebas obligatorias de las primitivas de almacenamiento": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010308103
+      }
+    ],
+    "2.1 Ampliar `AppSettings` y convertir su persistencia en atómica y migrable": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010308167
+      },
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785012645659
+      }
+    ],
+    "2.2 Implementar normalización, confianza y `RepositoryPlanner`": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010308206
+      }
+    ],
+    "2.3 Escribir la prueba basada en propiedades de normalización": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010308246
+      }
+    ],
+    "2.4 Escribir la prueba basada en propiedades de round-trip de ajustes": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010308290
+      }
+    ],
+    "2.5 Escribir la prueba basada en propiedades de migración": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010308342
+      }
+    ],
+    "2.6 Escribir la prueba basada en propiedades del plan de consulta": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010308396
+      }
+    ],
+    "2.7 Escribir pruebas de integración del almacén de ajustes": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010308436
+      }
+    ],
+    "3.1 Ampliar la consulta y el parseo de índices detrás de `ExtensionManager`": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010308473
+      }
+    ],
+    "3.2 Implementar `VersionComparator`": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010308508
+      }
+    ],
+    "3.3 Implementar `RemoteCandidateSelector`": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010308544
+      }
+    ],
+    "3.4 Escribir la prueba basada en propiedades de selección máxima": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010308582
+      }
+    ],
+    "3.5 Escribir la prueba basada en propiedades de conflicto seguro": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010308620
+      }
+    ],
+    "3.6 Escribir la prueba basada en propiedades del comparador": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010308663
+      }
+    ],
+    "3.7 Escribir la prueba basada en propiedades de compatibilidad del índice": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010308710
+      }
+    ],
+    "3.8 Escribir la prueba basada en propiedades de aislamiento de entradas": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010308748
+      }
+    ],
+    "3.9 Escribir pruebas de integración HTTP y de parseo": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010308783
+      }
+    ],
+    "4.1 Crear `LocalMetadataStore` y el escaneo de instalaciones": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010308821
+      }
+    ],
+    "4.2 Implementar `InventoryBuilder` y las acciones derivadas": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010308858
+      }
+    ],
+    "4.3 Escribir la prueba basada en propiedades de unión del inventario": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010308894
+      }
+    ],
+    "4.4 Escribir la prueba basada en propiedades de clasificación": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010308934
+      }
+    ],
+    "4.5 Escribir la prueba basada en propiedades de JAR heredados": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010308981
+      }
+    ],
+    "4.6 Escribir la prueba basada en propiedades de acciones": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010309036
+      }
+    ],
+    "4.7 Escribir pruebas de integración de sidecars e inventario": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010309072
+      }
+    ],
+    "5. Punto de control de lógica pura": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010309120
+      }
+    ],
+    "6.1 Añadir adquisición temporal y política estricta de integridad a `ExtensionManager`": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010309161
+      }
+    ],
+    "6.2 Implementar `IsolatedCandidateValidator` y su proceso JVM auxiliar": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010309201
+      }
+    ],
+    "6.3 Escribir la prueba basada en propiedades de integridad": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010309282
+      }
+    ],
+    "6.4 Escribir la prueba basada en propiedades de autorización sin integridad": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010309321
+      }
+    ],
+    "6.5 Escribir la prueba basada en propiedades de aislamiento de validación": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010309360
+      }
+    ],
+    "6.6 Escribir pruebas de integración criptográficas y del proceso auxiliar": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010309401
+      }
+    ],
+    "7.1 Crear el diario durable y la prefase transaccional de `ExtensionManager`": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010309441
+      }
+    ],
+    "7.2 Implementar activación, handles por paquete y commit posterior a recarga": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010309478
+      }
+    ],
+    "7.3 Implementar rollback de actualización e instalación": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010309518
+      }
+    ],
+    "7.4 Escribir la prueba basada en propiedades de prefase": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010309557
+      }
+    ],
+    "7.5 Escribir la prueba basada en propiedades de commit": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010309601
+      }
+    ],
+    "7.6 Escribir la prueba basada en propiedades de rollback de actualización": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010309649
+      }
+    ],
+    "7.7 Escribir la prueba basada en propiedades de rollback de instalación": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010309688
+      }
+    ],
+    "7.8 Escribir la prueba basada en propiedades de limpieza de commit": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010309724
+      }
+    ],
+    "7.9 Escribir la matriz obligatoria de fault injection transaccional": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010309763
+      }
+    ],
+    "7.10 Escribir pruebas obligatorias de reemplazo, rollback y classloaders en Windows": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010309799
+      }
+    ],
+    "8.1 Crear la recuperación idempotente de transacciones interrumpidas": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010309836
+      }
+    ],
+    "8.2 Escribir la prueba basada en propiedades de recuperación": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010309871
+      }
+    ],
+    "8.3 Escribir la matriz obligatoria de reinicio y recuperación": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010309908
+      }
+    ],
+    "9. Punto de control transaccional": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010309948
+      }
+    ],
+    "10.1 Crear `ExtensionUpdateController` y coordinar comprobaciones": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010309995
+      }
+    ],
+    "10.2 Implementar confirmaciones vigentes y exclusión mutua por paquete": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010310030
+      }
+    ],
+    "10.3 Escribir la prueba basada en propiedades de comprobación no destructiva": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010310067
+      }
+    ],
+    "10.4 Escribir la prueba basada en propiedades de agregación parcial": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010310125
+      }
+    ],
+    "10.5 Escribir la prueba basada en propiedades de confirmación": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010310165
+      }
+    ],
+    "10.6 Escribir pruebas del controlador con red y reloj falsos": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010310203
+      }
+    ],
+    "11.1 Convertir `refreshExtensions` en la implementación suspendible de `ExtensionRuntimePort`": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010310239
+      }
+    ],
+    "11.2 Cablear una única instancia del controlador en `MainScreen`": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010310276
+      }
+    ],
+    "11.3 Escribir la prueba basada en propiedades de reconciliación": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010310313
+      }
+    ],
+    "11.4 Escribir pruebas de integración del runtime y el orden de arranque": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010310348
+      }
+    ],
+    "12.1 Añadir controles de actualización en `SettingsTab`": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010310392
+      }
+    ],
+    "12.2 Sustituir la lógica por repositorio de `ExtensionsSection` por el inventario compartido": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010310429
+      }
+    ],
+    "12.3 Añadir confirmaciones, progreso y resultados a la UI existente": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010310467
+      }
+    ],
+    "12.4 Escribir pruebas Compose obligatorias de las pantallas ampliadas": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010310504
+      }
+    ],
+    "13.1 Añadir planificación y ejecución masiva al controlador": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010310542
+      }
+    ],
+    "13.2 Integrar «Actualizar todas» y su resumen en `ExtensionsSection`": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010310579
+      }
+    ],
+    "13.3 Escribir la prueba basada en propiedades del lote": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010310632
+      }
+    ],
+    "13.4 Escribir la prueba basada en propiedades de elegibilidad y exclusión mutua": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010310685
+      }
+    ],
+    "13.5 Escribir pruebas de integración del lote con scheduler controlado": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010310723
+      }
+    ],
+    "14.1 Ampliar la desinstalación existente de `ExtensionManager`": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010310758
+      }
+    ],
+    "14.2 Cablear confirmación, progreso y resultado de desinstalación": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010310797
+      }
+    ],
+    "14.3 Escribir pruebas obligatorias de desinstalación y classloaders en Windows": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010310835
+      }
+    ],
+    "14.4 Escribir pruebas de integración de coherencia posterior a desinstalación": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010310876
+      }
+    ],
+    "15.1 Crear una suite de aceptación de componentes de extremo a extremo": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010310921
+      }
+    ],
+    "15.2 Validar compilación, pruebas y matriz obligatoria de Windows": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010310957
+      }
+    ],
+    "16. Punto de control final": [
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785010310995
+      }
+    ]
+  }
+}

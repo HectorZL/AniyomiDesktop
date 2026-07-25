@@ -1,0 +1,456 @@
+﻿Configuration on demand is an incubating feature.
+Type-safe project accessors is an incubating feature.
+> Task :buildSrc:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :buildSrc:generateExternalPluginSpecBuilders UP-TO-DATE
+> Task :buildSrc:extractPrecompiledScriptPluginPlugins UP-TO-DATE
+> Task :buildSrc:compilePluginsBlocks UP-TO-DATE
+> Task :buildSrc:generatePrecompiledScriptPluginAccessors UP-TO-DATE
+> Task :buildSrc:generateScriptPluginAdapters UP-TO-DATE
+> Task :buildSrc:compileKotlin UP-TO-DATE
+> Task :buildSrc:compileJava NO-SOURCE
+> Task :buildSrc:compileGroovy NO-SOURCE
+> Task :buildSrc:pluginDescriptors UP-TO-DATE
+> Task :buildSrc:processResources UP-TO-DATE
+> Task :buildSrc:classes UP-TO-DATE
+> Task :buildSrc:jar UP-TO-DATE
+
+> Configure project :app-desktop
+w: 'org.jetbrains.kotlin.multiplatform' plugin 'withJava()' configuration deprecation.
+Kotlin multiplatform plugin always configures Java sources compilation and 'withJava()' configuration is deprecated.
+Solution: Please remove 'withJava()' method call from build configuration.
+
+
+> Task :source-api:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :i18n:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :i18n-aniyomi:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :app-desktop:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :app-desktop:convertXmlValueResourcesForCommonMain NO-SOURCE
+> Task :app-desktop:copyNonXmlValueResourcesForCommonMain NO-SOURCE
+> Task :i18n-aniyomi:generateMRcommonMain UP-TO-DATE
+> Task :i18n:generateMRcommonMain UP-TO-DATE
+> Task :app-desktop:prepareComposeResourcesTaskForCommonMain NO-SOURCE
+> Task :app-desktop:generateResourceAccessorsForCommonMain SKIPPED
+> Task :i18n:generateMRdesktopMain UP-TO-DATE
+> Task :app-desktop:convertXmlValueResourcesForDesktopMain NO-SOURCE
+> Task :i18n-aniyomi:generateMRdesktopMain UP-TO-DATE
+> Task :app-desktop:copyNonXmlValueResourcesForDesktopMain NO-SOURCE
+> Task :app-desktop:prepareComposeResourcesTaskForDesktopMain NO-SOURCE
+> Task :app-desktop:generateResourceAccessorsForDesktopMain SKIPPED
+> Task :app-desktop:generateActualResourceCollectorsForDesktopMain SKIPPED
+> Task :app-desktop:generateComposeResClass SKIPPED
+> Task :app-desktop:generateExpectResourceCollectorsForCommonMain SKIPPED
+> Task :app-desktop:assembleDesktopMainResources UP-TO-DATE
+> Task :app-desktop:desktopProcessResources UP-TO-DATE
+> Task :app-desktop:processDesktopMainResources SKIPPED
+> Task :app-desktop:prepareAppResources NO-SOURCE
+> Task :source-api:compileKotlinDesktop UP-TO-DATE
+> Task :i18n-aniyomi:compileKotlinDesktop UP-TO-DATE
+> Task :i18n:compileKotlinDesktop UP-TO-DATE
+> Task :i18n-aniyomi:compileDesktopMainJava NO-SOURCE
+> Task :i18n:compileDesktopMainJava NO-SOURCE
+> Task :source-api:compileDesktopMainJava NO-SOURCE
+> Task :source-api:desktopProcessResources NO-SOURCE
+> Task :source-api:processDesktopMainResources SKIPPED
+> Task :source-api:desktopMainClasses UP-TO-DATE
+> Task :i18n:desktopProcessResources UP-TO-DATE
+> Task :i18n-aniyomi:desktopProcessResources UP-TO-DATE
+> Task :i18n:processDesktopMainResources SKIPPED
+> Task :i18n-aniyomi:processDesktopMainResources SKIPPED
+> Task :i18n-aniyomi:desktopMainClasses UP-TO-DATE
+> Task :i18n:desktopMainClasses UP-TO-DATE
+> Task :source-api:desktopJar UP-TO-DATE
+> Task :i18n-aniyomi:desktopJar UP-TO-DATE
+> Task :i18n:desktopJar UP-TO-DATE
+> Task :app-desktop:compileDesktopMainJava SKIPPED
+> Task :app-desktop:compileKotlinDesktop UP-TO-DATE
+> Task :app-desktop:compileJava NO-SOURCE
+> Task :app-desktop:desktopMainClasses UP-TO-DATE
+> Task :app-desktop:desktopJar UP-TO-DATE
+
+> Task :app-desktop:run
+.\gradlew.bat : OpenJDK 64-Bit Server VM warning: Options -Xverify:none and -noverify were deprecated in JDK 13 and 
+will likely be removed in a future release.
+En línea: 1 Carácter: 1
++ .\gradlew.bat :app-desktop:run 2>&1 | Out-File -FilePath ".\ext_error ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (OpenJDK 64-Bit ...future release.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+OpenJDK 64-Bit Server VM warning: Options -Xverify:none and -noverify were deprecated in JDK 13 and will likely be 
+removed in a future release.
+jul. 17, 2026 9:02:53 A.┬áM. com.sun.javafx.application.PlatformImpl startup
+ADVERTENCIA: Unsupported JavaFX configuration: classes were loaded from 'unnamed module @6a01e23'
+[DesktopWebEngine] JavaFX Platform started.
+[INSPECT] Loading veohentai extension...
+[INSPECT] Loaded sources: 1
+[INSPECT] Found VeoHentai source: VeoHentai
+[INSPECT] Calling getVideoList...
+[HTTP REQUEST] GET https://veohentai.com/ver/ane-wa-yan-mama-junyuu-chuu-1
+[HTTP RESPONSE] 200 https://veohentai.com/ver/ane-wa-yan-mama-junyuu-chuu-1 (Body Length: 53308)
+[INSPECT] Videos found: 0
+[ProxyServer] Starting on port 65354
+[DEBUG] saveHistory called with 24 items
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.exceptionOrNull_impl(Ljava/lang/Object;)Ljava/lang/Throwable;
+[ExtensionManager] Loaded 1 sources from eu.kanade.tachiyomi.animeextension.all.animeonsen.jar: [AnimeOnsen]
+[ExtensionManager] Loaded 1 sources from eu.kanade.tachiyomi.animeextension.all.animetsu.jar: [Animetsu]
+[ExtensionManager] Loaded 1 sources from eu.kanade.tachiyomi.animeextension.all.anizone.jar: [AniZone]
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.exceptionOrNull_impl(Ljava/lang/Object;)Ljava/lang/Throwable;
+[ExtensionManager] Loaded 1 sources from eu.kanade.tachiyomi.animeextension.all.missav.jar: [MissAV]
+[ExtensionManager] Loaded 1 sources from eu.kanade.tachiyomi.animeextension.all.xnxx.jar: [Xnxx]
+[ExtensionManager] Loaded 1 sources from eu.kanade.tachiyomi.animeextension.all.xvideos.jar: [Xvideos]
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.isFailure_impl(Ljava/lang/Object;)Z
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.isFailure_impl(Ljava/lang/Object;)Z
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.exceptionOrNull_impl(Ljava/lang/Object;)Ljava/lang/Throwable;
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.isFailure_impl(Ljava/lang/Object;)Z
+[ExtensionManager] Loaded 1 sources from eu.kanade.tachiyomi.animeextension.en.cineby.jar: [Cineby]
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.isFailure_impl(Ljava/lang/Object;)Z
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.exceptionOrNull_impl(Ljava/lang/Object;)Ljava/lang/Throwable;
+[ExtensionManager] Loaded 1 sources from eu.kanade.tachiyomi.animeextension.en.hanime.jar: [hanime.tv]
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.isFailure_impl(Ljava/lang/Object;)Z
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.isFailure_impl(Ljava/lang/Object;)Z
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.isFailure_impl(Ljava/lang/Object;)Z
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.isFailure_impl(Ljava/lang/Object;)Z
+[HTTP REQUEST] GET https://animeflv.net/uploads/animes/covers/4388.jpg
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.isFailure_impl(Ljava/lang/Object;)Z
+[HTTP REQUEST] GET https://image.tmdb.org/t/p/w500/88HdcCMumGqGAt2kR3vVOr8NYiA.jpg
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.isFailure_impl(Ljava/lang/Object;)Z
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.isFailure_impl(Ljava/lang/Object;)Z
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.exceptionOrNull_impl(Ljava/lang/Object;)Ljava/lang/Throwable;
+[ExtensionManager] Loaded 1 sources from eu.kanade.tachiyomi.animeextension.es.cinecalidad.jar: [CineCalidad]
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.isFailure_impl(Ljava/lang/Object;)Z
+[ExtensionManager] Loaded 1 sources from eu.kanade.tachiyomi.animeextension.es.fanpelis.jar: [FanPelis]
+[ExtensionManager] Skipping blacklisted extension: eu.kanade.tachiyomi.animeextension.es.hentaijk.jar
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.isFailure_impl(Ljava/lang/Object;)Z
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.isFailure_impl(Ljava/lang/Object;)Z
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.isFailure_impl(Ljava/lang/Object;)Z
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.isFailure_impl(Ljava/lang/Object;)Z
+[ExtensionManager] Loaded 1 sources from eu.kanade.tachiyomi.animeextension.es.jkanime.jar: [Jkanime]
+[ExtensionManager] Loaded 1 sources from eu.kanade.tachiyomi.animeextension.es.veohentai.jar: [VeoHentai]
+[ExtensionManager] Skipping blacklisted extension: eu.kanade.tachiyomi.extension.all.ahottie.jar
+[ExtensionManager] Skipping blacklisted extension: eu.kanade.tachiyomi.extension.all.hentai3.jar
+[ASMClassLoader] Patching kotlin/time/Duration$Companion.getZERO_UwyO8pc()J ÔåÆ inline long
+[ASMClassLoader] Patching kotlin/time/Duration$Companion.getZERO_UwyO8pc()J ÔåÆ inline long
+[ASMClassLoader] Patching kotlin/time/Duration$Companion.getZERO_UwyO8pc()J ÔåÆ inline long
+[ASMClassLoader] Patching kotlin/time/Duration.box_impl(J)Lkotlin/time/Duration;
+[ASMClassLoader] Patching kotlin/time/Duration.box_impl(J)Lkotlin/time/Duration;
+[ASMClassLoader] Patching kotlin/time/Duration$Companion.getZERO_UwyO8pc()J ÔåÆ inline long
+[ASMClassLoader] Patching kotlin/time/Duration.box_impl(J)Lkotlin/time/Duration;
+[ASMClassLoader] Patching kotlin/time/Duration$Companion.getZERO_UwyO8pc()J ÔåÆ inline long
+[ASMClassLoader] Patching kotlin/time/Duration.equals_impl0(JJ)Z
+[ASMClassLoader] Unknown Duration impl: equals_impl0 ÔÇö passing through
+[ASMClassLoader] Patching kotlin/time/Duration.box_impl(J)Lkotlin/time/Duration;
+[ASMClassLoader] Patching kotlin/time/Duration.box_impl(J)Lkotlin/time/Duration;
+[ASMClassLoader] Patching kotlin/time/Duration.getInWholeNanoseconds_impl(J)J
+[ASMClassLoader] Unknown Duration impl: getInWholeNanoseconds_impl ÔÇö passing through
+[ExtensionManager] Loaded 1 sources from eu.kanade.tachiyomi.extension.en.allanime.jar: [AllManga]
+[LOAD_EXT_ERR] Error al instanciar eu.kanade.tachiyomi.extension.en.allporncomic.ExtensionGenerated
+[LOAD_EXT_ERR] Causa ra├¡z:
+java.lang.NullPointerException: null
+java.lang.NullPointerException
+	at java.base/java.io.Reader.<init>(Reader.java:168)
+	at java.base/java.io.InputStreamReader.<init>(InputStreamReader.java:97)
+	at h.d(Unknown Source)
+	at h.c(Unknown Source)
+	at e.invoke(Unknown Source)
+	at kotlin.SynchronizedLazyImpl.getValue(LazyJVM.kt:86)
+	at h.f(Unknown Source)
+	at h.a(Unknown Source)
+	at f.invoke(Unknown Source)
+	at kotlin.SynchronizedLazyImpl.getValue(LazyJVM.kt:86)
+	at h.g(Unknown Source)
+	at h.e(Unknown Source)
+	at h0.<init>(Unknown Source)
+	at a.<init>(Unknown Source)
+	at eu.kanade.tachiyomi.extension.en.allporncomic.ExtensionGenerated.<init>(Unknown Source)
+	at java.base/jdk.internal.reflect.NativeConstructorAccessorImpl.newInstance0(Native Method)
+	at java.base/jdk.internal.reflect.NativeConstructorAccessorImpl.newInstance(NativeConstructorAccessorImpl.java:77)
+	at 
+java.base/jdk.internal.reflect.DelegatingConstructorAccessorImpl.newInstance(DelegatingConstructorAccessorImpl.java:45)
+	at java.base/java.lang.reflect.Constructor.newInstanceWithCaller(Constructor.java:500)
+	at java.base/java.lang.reflect.Constructor.newInstance(Constructor.java:481)
+	at eu.kanade.tachiyomi.extension.ExtensionManager.loadExtension(ExtensionManager.kt:145)
+	at eu.kanade.tachiyomi.extension.ExtensionManager.loadLocalExtensionsWithErrors(ExtensionManager.kt:232)
+	at MainKt$MainScreen$refreshExtensions$1$1.invokeSuspend(main.kt:504)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
+	at kotlinx.coroutines.internal.LimitedDispatcher$Worker.run(LimitedDispatcher.kt:124)
+	at kotlinx.coroutines.scheduling.TaskImpl.run(Tasks.kt:89)
+	at kotlinx.coroutines.scheduling.CoroutineScheduler.runSafely(CoroutineScheduler.kt:586)
+	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.executeTask(CoroutineScheduler.kt:820)
+	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.runWorker(CoroutineScheduler.kt:717)
+	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.run(CoroutineScheduler.kt:704)
+[ExtensionManager] Loaded 0 sources from eu.kanade.tachiyomi.extension.en.allporncomic.jar WITH 1 errors: eu.kanade.tachiyomi.extension.en.allporncomic.ExtensionGenerated ÔåÆ NullPointerException: null
+[LOAD_EXT_ERR] Error al instanciar eu.kanade.tachiyomi.extension.en.webtoonxyz.ExtensionGenerated
+[LOAD_EXT_ERR] Causa ra├¡z:
+java.lang.NullPointerException: null
+java.lang.NullPointerException
+	at java.base/java.io.Reader.<init>(Reader.java:168)
+	at java.base/java.io.InputStreamReader.<init>(InputStreamReader.java:97)
+	at g.d(Unknown Source)
+	at g.c(Unknown Source)
+	at d.invoke(Unknown Source)
+	at kotlin.SynchronizedLazyImpl.getValue(LazyJVM.kt:86)
+	at g.f(Unknown Source)
+	at g.a(Unknown Source)
+	at e.invoke(Unknown Source)
+	at kotlin.SynchronizedLazyImpl.getValue(LazyJVM.kt:86)
+	at g.g(Unknown Source)
+	at g.e(Unknown Source)
+	at g0.<init>(Unknown Source)
+	at h0.<init>(Unknown Source)
+	at eu.kanade.tachiyomi.extension.en.webtoonxyz.ExtensionGenerated.<init>(Unknown Source)
+	at java.base/jdk.internal.reflect.NativeConstructorAccessorImpl.newInstance0(Native Method)
+	at java.base/jdk.internal.reflect.NativeConstructorAccessorImpl.newInstance(NativeConstructorAccessorImpl.java:77)
+	at 
+java.base/jdk.internal.reflect.DelegatingConstructorAccessorImpl.newInstance(DelegatingConstructorAccessorImpl.java:45)
+	at java.base/java.lang.reflect.Constructor.newInstanceWithCaller(Constructor.java:500)
+	at java.base/java.lang.reflect.Constructor.newInstance(Constructor.java:481)
+	at eu.kanade.tachiyomi.extension.ExtensionManager.loadExtension(ExtensionManager.kt:145)
+	at eu.kanade.tachiyomi.extension.ExtensionManager.loadLocalExtensionsWithErrors(ExtensionManager.kt:232)
+	at MainKt$MainScreen$refreshExtensions$1$1.invokeSuspend(main.kt:504)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
+	at kotlinx.coroutines.internal.LimitedDispatcher$Worker.run(LimitedDispatcher.kt:124)
+	at kotlinx.coroutines.scheduling.TaskImpl.run(Tasks.kt:89)
+	at kotlinx.coroutines.scheduling.CoroutineScheduler.runSafely(CoroutineScheduler.kt:586)
+	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.executeTask(CoroutineScheduler.kt:820)
+	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.runWorker(CoroutineScheduler.kt:717)
+	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.run(CoroutineScheduler.kt:704)
+[ExtensionManager] Loaded 0 sources from eu.kanade.tachiyomi.extension.en.webtoonxyz.jar WITH 1 errors: eu.kanade.tachiyomi.extension.en.webtoonxyz.ExtensionGenerated ÔåÆ NullPointerException: null
+[ExtensionManager] Loaded 1 sources from eu.kanade.tachiyomi.extension.es.inmanga.jar: [InManga]
+[ExtensionManager] Skipping blacklisted extension: eu.kanade.tachiyomi.extension.es.vcpvmp.jar
+[main.kt] Loaded local extensions: 14 sources found.
+[main.kt] Extension loading errors: eu.kanade.tachiyomi.extension.en.allporncomic.jar: eu.kanade.tachiyomi.extension.en.allporncomic.ExtensionGenerated ÔåÆ NullPointerException: null; eu.kanade.tachiyomi.extension.en.webtoonxyz.jar: eu.kanade.tachiyomi.extension.en.webtoonxyz.ExtensionGenerated ÔåÆ NullPointerException: null
+[HTTP RESPONSE] 200 https://animeflv.net/uploads/animes/covers/4388.jpg (Body Length: 24430)
+[HTTP RESPONSE] 200 https://image.tmdb.org/t/p/w500/88HdcCMumGqGAt2kR3vVOr8NYiA.jpg (Body Length: 74782)
+[HTTP REQUEST] GET https://fanpelis.la/movies-hd/page/1/
+[HTTP RESPONSE] 200 https://fanpelis.la/movies-hd/page/1/ (Body Length: 6956)
+[HTTP REQUEST] GET https://veohentai.com/mas-visitados/page/1
+[HTTP RESPONSE] 200 https://veohentai.com/mas-visitados/page/1 (Body Length: 46666)
+[HTTP REQUEST] GET https://veohentai.com/wp-content/uploads/2025/06/Imaria-Episode-6.jpg
+[HTTP REQUEST] GET https://veohentai.com/wp-content/uploads/2025/07/Shoujo-Ramune-Episode-5.jpg
+[HTTP REQUEST] GET https://veohentai.com/wp-content/uploads/2023/04/My-Mother-Episode-1-721x1024-1.jpg
+[HTTP REQUEST] GET https://veohentai.com/wp-content/uploads/2024/12/Shounen-ga-Otona-ni-Natta-Natsu-Episode-3.jpg
+[HTTP REQUEST] GET https://veohentai.com/wp-content/uploads/2025/08/Asa-made-Shiru-Daku-Oyakodon-Episode-2.jpg
+[HTTP REQUEST] GET https://veohentai.com/wp-content/uploads/2025/10/Shoujo-Ramune-Episode-6.jpg
+[HTTP REQUEST] GET https://veohentai.com/wp-content/uploads/2026/01/Natsu-to-Hako-Episode-1.jpg
+[HTTP REQUEST] GET https://veohentai.com/wp-content/uploads/2025/03/Shounen-ga-Otona-ni-Natta-Natsu-Episode-4.jpg
+[HTTP REQUEST] GET https://veohentai.com/wp-content/uploads/2024/02/rc1228234package.jpg
+[HTTP REQUEST] GET https://veohentai.com/wp-content/uploads/2025/10/Netorareta-Bakunyuu-Tsuma-tachi-Episode-1.jpg
+[HTTP REQUEST] GET https://veohentai.com/wp-content/uploads/2022/10/Boku-ni-Sexfriend-ga-Dekita-Riyuu-Episode-1.jpg
+[HTTP REQUEST] GET https://veohentai.com/wp-content/uploads/2022/08/ane-wa-yanmama-junyuu-chuu-1-cv1.png
+[HTTP RESPONSE] 200 https://veohentai.com/wp-content/uploads/2024/02/rc1228234package.jpg (Body Length: 33149)
+[HTTP RESPONSE] 200 https://veohentai.com/wp-content/uploads/2022/08/ane-wa-yanmama-junyuu-chuu-1-cv1.png (Body Length: 39330)
+[HTTP RESPONSE] 200 https://veohentai.com/wp-content/uploads/2022/10/Boku-ni-Sexfriend-ga-Dekita-Riyuu-Episode-1.jpg (Body Length: 45301)
+[HTTP RESPONSE] 200 https://veohentai.com/wp-content/uploads/2025/07/Shoujo-Ramune-Episode-5.jpg (Body Length: 58541)
+[HTTP RESPONSE] 200 https://veohentai.com/wp-content/uploads/2025/10/Shoujo-Ramune-Episode-6.jpg (Body Length: 60569)
+[HTTP RESPONSE] 200 https://veohentai.com/wp-content/uploads/2025/10/Netorareta-Bakunyuu-Tsuma-tachi-Episode-1.jpg (Body Length: 63411)
+[HTTP RESPONSE] 200 https://veohentai.com/wp-content/uploads/2025/08/Asa-made-Shiru-Daku-Oyakodon-Episode-2.jpg (Body Length: 78517)
+[HTTP RESPONSE] 200 https://veohentai.com/wp-content/uploads/2024/12/Shounen-ga-Otona-ni-Natta-Natsu-Episode-3.jpg (Body Length: 101025)
+[HTTP RESPONSE] 200 https://veohentai.com/wp-content/uploads/2025/06/Imaria-Episode-6.jpg (Body Length: 63331)
+[HTTP RESPONSE] 200 https://veohentai.com/wp-content/uploads/2023/04/My-Mother-Episode-1-721x1024-1.jpg (Body Length: 117513)
+[HTTP RESPONSE] 200 https://veohentai.com/wp-content/uploads/2026/01/Natsu-to-Hako-Episode-1.jpg (Body Length: 211853)
+[HTTP RESPONSE] 200 https://veohentai.com/wp-content/uploads/2025/03/Shounen-ga-Otona-ni-Natta-Natsu-Episode-4.jpg (Body Length: 102129)
+[HTTP REQUEST] GET https://veohentai.com/wp-content/uploads/2025/10/Shoujo-Ramune-Episode-6.jpg
+[HTTP REQUEST] GET https://veohentai.com/ver/shoujo-ramune-episodio-6/
+[HTTP RESPONSE] 200 https://veohentai.com/wp-content/uploads/2025/10/Shoujo-Ramune-Episode-6.jpg (Body Length: 60569)
+[HTTP RESPONSE] 200 https://veohentai.com/ver/shoujo-ramune-episodio-6/ (Body Length: 37623)
+[HTTP REQUEST] GET https://veohentai.com/ver/shoujo-ramune-episodio-6/
+[HTTP RESPONSE] 200 https://veohentai.com/ver/shoujo-ramune-episodio-6/ (Body Length: 37520)
+[HTTP REQUEST] GET https://veohentai.com/ver/shoujo-ramune-episodio-6/
+[HTTP RESPONSE] 200 https://veohentai.com/ver/shoujo-ramune-episodio-6/ (Body Length: 37489)
+[HTTP REQUEST] GET https://hentaiplayer.com/v/FDMGld7q6MyiqMe/
+[HTTP RESPONSE] 200 https://hentaiplayer.com/v/FDMGld7q6MyiqMe/ (Body Length: 2745)
+[HTTP REQUEST] GET https://hentaiplayer.com/player.php?vid=aHR0cHM6Ly9yMi4xaGFuaW1lLmNvbS9zaG91am8tcmFtdW5lLTYubXA0fDE3ODQzODMzOTR8NjIyZTI3MjlmNzdiY2M2Mw==&s=aHR0cHM6Ly9jZG4uaHRzdHJlYW1pbmcuY29tL3NwYW5pc2gvU2hvdWpvJTIwUmFtdW5lJTIwNiUyMGVzcGFub2wuc3J0&i=aHR0cHM6Ly9oZW50YWlwbGF5ZXIuY29tL2NvbnRlbnQvcHJldmlld3MvNGViN2Y3YmZkMmQ0YzUzOTUzZjM0YzI2YjdkMTU1MjcuanBn&type=
+[HTTP RESPONSE] 403 https://hentaiplayer.com/player.php?vid=aHR0cHM6Ly9yMi4xaGFuaW1lLmNvbS9zaG91am8tcmFtdW5lLTYubXA0fDE3ODQzODMzOTR8NjIyZTI3MjlmNzdiY2M2Mw==&s=aHR0cHM6Ly9jZG4uaHRzdHJlYW1pbmcuY29tL3NwYW5pc2gvU2hvdWpvJTIwUmFtdW5lJTIwNiUyMGVzcGFub2wuc3J0&i=aHR0cHM6Ly9oZW50YWlwbGF5ZXIuY29tL2NvbnRlbnQvcHJldmlld3MvNGViN2Y3YmZkMmQ0YzUzOTUzZjM0YzI2YjdkMTU1MjcuanBn&type= (Body Length: 9)
+[HTTP DETECTED] Potential challenge or block page. Sneak peek: Forbidden
+[DEPURE] Servidores encontrados en la p├ígina: 0
+[Hanime] (DEBUG) Signature provider created: w8
+[SignatureProvider] (DEBUG) Building signature headers (length=64)
+[HTTP REQUEST] GET https://cached.freeanimehentai.net/api/v10/search_hvs
+[HTTP ERROR] https://cached.freeanimehentai.net/api/v10/search_hvs: Host desconocido (cached.freeanimehentai.net)
+java.io.IOException: Host desconocido (cached.freeanimehentai.net)
+	at eu.kanade.tachiyomi.animeextension.en.hanime.Hanime.M(Unknown Source)
+	at eu.kanade.tachiyomi.animeextension.en.hanime.Hanime.getPopularAnime(Unknown Source)
+	at MainKt$SourceCatalogScreen$1$1$1.invokeSuspend(main.kt:3158)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
+	at kotlinx.coroutines.internal.LimitedDispatcher$Worker.run(LimitedDispatcher.kt:124)
+	at kotlinx.coroutines.scheduling.TaskImpl.run(Tasks.kt:89)
+	at kotlinx.coroutines.scheduling.CoroutineScheduler.runSafely(CoroutineScheduler.kt:586)
+	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.executeTask(CoroutineScheduler.kt:820)
+	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.runWorker(CoroutineScheduler.kt:717)
+	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.run(CoroutineScheduler.kt:704)
+Caused by: java.net.UnknownHostException: Host desconocido (cached.freeanimehentai.net)
+	at java.base/java.net.Inet6AddressImpl.lookupAllHostAddr(Native Method)
+	at java.base/java.net.InetAddress$PlatformNameService.lookupAllHostAddr(InetAddress.java:934)
+	at java.base/java.net.InetAddress.getAddressesFromNameService(InetAddress.java:1543)
+	at java.base/java.net.InetAddress$NameServiceAddresses.get(InetAddress.java:852)
+	at java.base/java.net.InetAddress.getAllByName0(InetAddress.java:1533)
+	at java.base/java.net.InetAddress.getAllByName(InetAddress.java:1385)
+	at java.base/java.net.InetAddress.getAllByName(InetAddress.java:1306)
+	at okhttp3.Dns$Companion$DnsSystem.lookup(Dns.kt:50)
+	at okhttp3.internal.connection.RouteSelector.resetNextInetSocketAddress(RouteSelector.kt:171)
+	at okhttp3.internal.connection.RouteSelector.nextProxy(RouteSelector.kt:133)
+	at okhttp3.internal.connection.RouteSelector.next(RouteSelector.kt:71)
+	at okhttp3.internal.connection.RealRoutePlanner.planConnect$okhttp(RealRoutePlanner.kt:161)
+	at okhttp3.internal.connection.RealRoutePlanner.plan(RealRoutePlanner.kt:72)
+	at okhttp3.internal.connection.FastFallbackExchangeFinder.launchTcpConnect(FastFallbackExchangeFinder.kt:119)
+	at okhttp3.internal.connection.FastFallbackExchangeFinder.find(FastFallbackExchangeFinder.kt:62)
+	at okhttp3.internal.connection.RealCall.initExchange$okhttp(RealCall.kt:275)
+	at okhttp3.internal.connection.ConnectInterceptor.intercept(ConnectInterceptor.kt:32)
+	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+	at okhttp3.internal.cache.CacheInterceptor.intercept(CacheInterceptor.kt:95)
+	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+	at okhttp3.internal.http.BridgeInterceptor.intercept(BridgeInterceptor.kt:83)
+	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+	at okhttp3.internal.http.RetryAndFollowUpInterceptor.intercept(RetryAndFollowUpInterceptor.kt:72)
+	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+	at eu.kanade.tachiyomi.network.NetworkHelper$special$$inlined$-addInterceptor$1.intercept(OkHttpClient.kt:1414)
+	at okhttp3.internal.http.RealInterceptorChain.proceed(RealInterceptorChain.kt:126)
+	at okhttp3.internal.connection.RealCall.getResponseWithInterceptorChain$okhttp(RealCall.kt:203)
+	at okhttp3.internal.connection.RealCall$AsyncCall.run(RealCall.kt:527)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1136)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:635)
+	at java.base/java.lang.Thread.run(Thread.java:840)
+[HTTP REQUEST] POST https://inmanga.com/manga/getMangasConsultResult
+[HTTP RESPONSE] 200 https://inmanga.com/manga/getMangasConsultResult (Body Length: 24904)
+[MangaCatalog] page.mangas=10, after filter=10
+[HTTP REQUEST] GET https://cdn1.intomanga.com/i/m/dfc7ecb5-e9b3-4aa5-a61b-a498993cd935/t/o/dfc7ecb5-e9b3-4aa5-a61b-a498993cd935.jpg
+[HTTP REQUEST] GET https://cdn1.intomanga.com/i/m/5cc13fca-2e10-41e7-bbca-d70353d6a55a/t/o/5cc13fca-2e10-41e7-bbca-d70353d6a55a.jpg
+[HTTP REQUEST] GET https://cdn1.intomanga.com/i/m/78352626-0e2c-4b10-9610-28abf57c6881/t/o/78352626-0e2c-4b10-9610-28abf57c6881.jpg
+[HTTP REQUEST] GET https://cdn1.intomanga.com/i/m/dda0c17a-83da-4ef6-8c65-4763e8fbe436/t/o/dda0c17a-83da-4ef6-8c65-4763e8fbe436.jpg
+[HTTP REQUEST] GET https://cdn1.intomanga.com/i/m/d88692a5-c341-47fc-8e39-da11a8fdee82/t/o/d88692a5-c341-47fc-8e39-da11a8fdee82.jpg
+[HTTP REQUEST] GET https://cdn1.intomanga.com/i/m/e7f9297e-377a-4c23-b396-ae88600251b1/t/o/e7f9297e-377a-4c23-b396-ae88600251b1.jpg
+[HTTP REQUEST] GET https://cdn1.intomanga.com/i/m/030de05e-ef8f-4cfe-a349-89b4599f6bf5/t/o/030de05e-ef8f-4cfe-a349-89b4599f6bf5.jpg
+[HTTP REQUEST] GET https://cdn1.intomanga.com/i/m/74d824c1-85ba-4544-8fb2-aa4ccecd9eea/t/o/74d824c1-85ba-4544-8fb2-aa4ccecd9eea.jpg
+[HTTP REQUEST] GET https://cdn1.intomanga.com/i/m/f5abfdce-15e5-42ca-93f4-98f824cc1c42/t/o/f5abfdce-15e5-42ca-93f4-98f824cc1c42.jpg
+[HTTP REQUEST] GET https://cdn1.intomanga.com/i/m/81459b12-bd95-476e-a078-186e91ca6786/t/o/81459b12-bd95-476e-a078-186e91ca6786.jpg
+[HTTP RESPONSE] 200 https://cdn1.intomanga.com/i/m/78352626-0e2c-4b10-9610-28abf57c6881/t/o/78352626-0e2c-4b10-9610-28abf57c6881.jpg (Body Length: 41907)
+[HTTP RESPONSE] 200 https://cdn1.intomanga.com/i/m/030de05e-ef8f-4cfe-a349-89b4599f6bf5/t/o/030de05e-ef8f-4cfe-a349-89b4599f6bf5.jpg (Body Length: 39970)
+[HTTP RESPONSE] 200 https://cdn1.intomanga.com/i/m/5cc13fca-2e10-41e7-bbca-d70353d6a55a/t/o/5cc13fca-2e10-41e7-bbca-d70353d6a55a.jpg (Body Length: 90275)
+[HTTP RESPONSE] 200 https://cdn1.intomanga.com/i/m/d88692a5-c341-47fc-8e39-da11a8fdee82/t/o/d88692a5-c341-47fc-8e39-da11a8fdee82.jpg (Body Length: 64241)
+[HTTP RESPONSE] 200 https://cdn1.intomanga.com/i/m/dfc7ecb5-e9b3-4aa5-a61b-a498993cd935/t/o/dfc7ecb5-e9b3-4aa5-a61b-a498993cd935.jpg (Body Length: 91443)
+[HTTP RESPONSE] 200 https://cdn1.intomanga.com/i/m/81459b12-bd95-476e-a078-186e91ca6786/t/o/81459b12-bd95-476e-a078-186e91ca6786.jpg (Body Length: 102103)
+[HTTP RESPONSE] 200 https://cdn1.intomanga.com/i/m/74d824c1-85ba-4544-8fb2-aa4ccecd9eea/t/o/74d824c1-85ba-4544-8fb2-aa4ccecd9eea.jpg (Body Length: 158756)
+[HTTP RESPONSE] 200 https://cdn1.intomanga.com/i/m/f5abfdce-15e5-42ca-93f4-98f824cc1c42/t/o/f5abfdce-15e5-42ca-93f4-98f824cc1c42.jpg (Body Length: 143756)
+[HTTP RESPONSE] 200 https://cdn1.intomanga.com/i/m/dda0c17a-83da-4ef6-8c65-4763e8fbe436/t/o/dda0c17a-83da-4ef6-8c65-4763e8fbe436.jpg (Body Length: 371326)
+[HTTP RESPONSE] 200 https://cdn1.intomanga.com/i/m/e7f9297e-377a-4c23-b396-ae88600251b1/t/o/e7f9297e-377a-4c23-b396-ae88600251b1.jpg (Body Length: 579108)
+[HTTP REQUEST] GET https://inmanga.com/ver/manga/One-Piece/dfc7ecb5-e9b3-4aa5-a61b-a498993cd935
+[HTTP RESPONSE] 200 https://inmanga.com/ver/manga/One-Piece/dfc7ecb5-e9b3-4aa5-a61b-a498993cd935 (Body Length: 24211)
+[HTTP REQUEST] GET https://inmanga.com/chapter/getall?mangaIdentification=dfc7ecb5-e9b3-4aa5-a61b-a498993cd935
+[HTTP RESPONSE] 200 https://inmanga.com/chapter/getall?mangaIdentification=dfc7ecb5-e9b3-4aa5-a61b-a498993cd935 (Body Length: 477959)
+[HTTP REQUEST] GET https://cdn1.intomanga.com/i/m/dfc7ecb5-e9b3-4aa5-a61b-a498993cd935/t/o/dfc7ecb5-e9b3-4aa5-a61b-a498993cd935.jpg
+[HTTP RESPONSE] 200 https://cdn1.intomanga.com/i/m/dfc7ecb5-e9b3-4aa5-a61b-a498993cd935/t/o/dfc7ecb5-e9b3-4aa5-a61b-a498993cd935.jpg (Body Length: 91443)
+[HTTP REQUEST] GET https://inmanga.com/chapter/chapterIndexControls?identification=18CABCB9-2B41-4F94-AB3B-4B96D87A92DD
+[HTTP RESPONSE] 200 https://inmanga.com/chapter/chapterIndexControls?identification=18CABCB9-2B41-4F94-AB3B-4B96D87A92DD (Body Length: 176262)
+[HTTP REQUEST] GET https://cdn1.intomanga.com/i/m/dfc7ecb5-e9b3-4aa5-a61b-a498993cd935/c/18cabcb9-2b41-4f94-ab3b-4b96d87a92dd/o/df041475-76ad-4a57-9dcc-cfbd997ad0cc.jpg
+[HTTP REQUEST] GET https://cdn1.intomanga.com/i/m/dfc7ecb5-e9b3-4aa5-a61b-a498993cd935/c/18cabcb9-2b41-4f94-ab3b-4b96d87a92dd/o/bc932eab-bbff-4095-83e1-a4af702cca56.jpg
+[HTTP REQUEST] GET https://cdn1.intomanga.com/i/m/dfc7ecb5-e9b3-4aa5-a61b-a498993cd935/c/18cabcb9-2b41-4f94-ab3b-4b96d87a92dd/o/7afe867b-deb6-45dc-a421-d99afb8cf81e.jpg
+[HTTP RESPONSE] 200 https://cdn1.intomanga.com/i/m/dfc7ecb5-e9b3-4aa5-a61b-a498993cd935/c/18cabcb9-2b41-4f94-ab3b-4b96d87a92dd/o/df041475-76ad-4a57-9dcc-cfbd997ad0cc.jpg (Body Length: 218276)
+[HTTP RESPONSE] 200 https://cdn1.intomanga.com/i/m/dfc7ecb5-e9b3-4aa5-a61b-a498993cd935/c/18cabcb9-2b41-4f94-ab3b-4b96d87a92dd/o/bc932eab-bbff-4095-83e1-a4af702cca56.jpg (Body Length: 992707)
+[HTTP RESPONSE] 200 https://cdn1.intomanga.com/i/m/dfc7ecb5-e9b3-4aa5-a61b-a498993cd935/c/18cabcb9-2b41-4f94-ab3b-4b96d87a92dd/o/7afe867b-deb6-45dc-a421-d99afb8cf81e.jpg (Body Length: 992858)
+[HTTP REQUEST] GET https://cdn1.intomanga.com/i/m/dfc7ecb5-e9b3-4aa5-a61b-a498993cd935/t/o/dfc7ecb5-e9b3-4aa5-a61b-a498993cd935.jpg
+[HTTP RESPONSE] 200 https://cdn1.intomanga.com/i/m/dfc7ecb5-e9b3-4aa5-a61b-a498993cd935/t/o/dfc7ecb5-e9b3-4aa5-a61b-a498993cd935.jpg (Body Length: 91443)
+[HTTP REQUEST] POST https://inmanga.com/manga/getMangasConsultResult
+[HTTP REQUEST] GET https://cdn1.intomanga.com/i/m/5cc13fca-2e10-41e7-bbca-d70353d6a55a/t/o/5cc13fca-2e10-41e7-bbca-d70353d6a55a.jpg
+[HTTP REQUEST] GET https://cdn1.intomanga.com/i/m/81459b12-bd95-476e-a078-186e91ca6786/t/o/81459b12-bd95-476e-a078-186e91ca6786.jpg
+[HTTP REQUEST] GET https://cdn1.intomanga.com/i/m/74d824c1-85ba-4544-8fb2-aa4ccecd9eea/t/o/74d824c1-85ba-4544-8fb2-aa4ccecd9eea.jpg
+[HTTP REQUEST] GET https://cdn1.intomanga.com/i/m/e7f9297e-377a-4c23-b396-ae88600251b1/t/o/e7f9297e-377a-4c23-b396-ae88600251b1.jpg
+[HTTP REQUEST] GET https://cdn1.intomanga.com/i/m/78352626-0e2c-4b10-9610-28abf57c6881/t/o/78352626-0e2c-4b10-9610-28abf57c6881.jpg
+[HTTP REQUEST] GET https://cdn1.intomanga.com/i/m/dda0c17a-83da-4ef6-8c65-4763e8fbe436/t/o/dda0c17a-83da-4ef6-8c65-4763e8fbe436.jpg
+[HTTP REQUEST] GET https://cdn1.intomanga.com/i/m/030de05e-ef8f-4cfe-a349-89b4599f6bf5/t/o/030de05e-ef8f-4cfe-a349-89b4599f6bf5.jpg
+[HTTP REQUEST] GET https://cdn1.intomanga.com/i/m/f5abfdce-15e5-42ca-93f4-98f824cc1c42/t/o/f5abfdce-15e5-42ca-93f4-98f824cc1c42.jpg
+[HTTP REQUEST] GET https://cdn1.intomanga.com/i/m/d88692a5-c341-47fc-8e39-da11a8fdee82/t/o/d88692a5-c341-47fc-8e39-da11a8fdee82.jpg
+[HTTP REQUEST] GET https://cdn1.intomanga.com/i/m/dfc7ecb5-e9b3-4aa5-a61b-a498993cd935/t/o/dfc7ecb5-e9b3-4aa5-a61b-a498993cd935.jpg
+[HTTP RESPONSE] 200 https://cdn1.intomanga.com/i/m/74d824c1-85ba-4544-8fb2-aa4ccecd9eea/t/o/74d824c1-85ba-4544-8fb2-aa4ccecd9eea.jpg (Body Length: 158756)
+[HTTP RESPONSE] 200 https://cdn1.intomanga.com/i/m/5cc13fca-2e10-41e7-bbca-d70353d6a55a/t/o/5cc13fca-2e10-41e7-bbca-d70353d6a55a.jpg (Body Length: 90275)
+[HTTP RESPONSE] 200 https://cdn1.intomanga.com/i/m/030de05e-ef8f-4cfe-a349-89b4599f6bf5/t/o/030de05e-ef8f-4cfe-a349-89b4599f6bf5.jpg (Body Length: 39970)
+[HTTP RESPONSE] 200 https://cdn1.intomanga.com/i/m/dda0c17a-83da-4ef6-8c65-4763e8fbe436/t/o/dda0c17a-83da-4ef6-8c65-4763e8fbe436.jpg (Body Length: 371326)
+[HTTP RESPONSE] 200 https://cdn1.intomanga.com/i/m/e7f9297e-377a-4c23-b396-ae88600251b1/t/o/e7f9297e-377a-4c23-b396-ae88600251b1.jpg (Body Length: 579108)
+[HTTP RESPONSE] 200 https://cdn1.intomanga.com/i/m/78352626-0e2c-4b10-9610-28abf57c6881/t/o/78352626-0e2c-4b10-9610-28abf57c6881.jpg (Body Length: 41907)
+[HTTP RESPONSE] 200 https://cdn1.intomanga.com/i/m/d88692a5-c341-47fc-8e39-da11a8fdee82/t/o/d88692a5-c341-47fc-8e39-da11a8fdee82.jpg (Body Length: 64241)
+[HTTP RESPONSE] 200 https://cdn1.intomanga.com/i/m/dfc7ecb5-e9b3-4aa5-a61b-a498993cd935/t/o/dfc7ecb5-e9b3-4aa5-a61b-a498993cd935.jpg (Body Length: 91443)
+[HTTP RESPONSE] 200 https://cdn1.intomanga.com/i/m/f5abfdce-15e5-42ca-93f4-98f824cc1c42/t/o/f5abfdce-15e5-42ca-93f4-98f824cc1c42.jpg (Body Length: 143756)
+[HTTP RESPONSE] 200 https://cdn1.intomanga.com/i/m/81459b12-bd95-476e-a078-186e91ca6786/t/o/81459b12-bd95-476e-a078-186e91ca6786.jpg (Body Length: 102103)
+[HTTP RESPONSE] 200 https://inmanga.com/manga/getMangasConsultResult (Body Length: 24904)
+androidx.compose.runtime.LeftCompositionCancellationException: The coroutine scope left the composition
+[HTTP REQUEST] GET https://image.tmdb.org/t/p/w342//vZ3GfOoeha2xVCPec0jv2jf3yfC.jpg
+[HTTP REQUEST] GET https://anizone.to/images/anime/55f093a4-1a1a-4d1d-a41e-bffe96318da7.jpg
+[HTTP REQUEST] GET https://image.tmdb.org/t/p/w342//hTSOLJ0lxn8TS2SrW9j1zmiPBqW.jpg
+[HTTP REQUEST] GET https://image.tmdb.org/t/p/w342//rmCkNtzYR2xTOO3ZXmIqB5zgYdE.jpg
+[HTTP REQUEST] GET https://anizone.to/images/anime/d3b8185c-2cbc-4774-9bb7-453626f1009a.jpg
+[HTTP REQUEST] GET https://api.animeonsen.xyz/v4/image/210x300/Lv4tiUeSYBNn2CJ3
+[HTTP REQUEST] GET https://image.tmdb.org/t/p/w342//oEdNEIO7641g6ZXJEe6zhQC4Jsj.jpg
+[HTTP RESPONSE] 200 https://api.animeonsen.xyz/v4/image/210x300/Lv4tiUeSYBNn2CJ3 (Body Length: 11656)
+[HTTP RESPONSE] 200 https://anizone.to/images/anime/d3b8185c-2cbc-4774-9bb7-453626f1009a.jpg (Body Length: 160474)
+[HTTP RESPONSE] 200 https://anizone.to/images/anime/55f093a4-1a1a-4d1d-a41e-bffe96318da7.jpg (Body Length: 166405)
+[HTTP RESPONSE] 200 https://image.tmdb.org/t/p/w342//rmCkNtzYR2xTOO3ZXmIqB5zgYdE.jpg (Body Length: 27817)
+[HTTP RESPONSE] 200 https://image.tmdb.org/t/p/w342//vZ3GfOoeha2xVCPec0jv2jf3yfC.jpg (Body Length: 39894)
+[HTTP RESPONSE] 200 https://image.tmdb.org/t/p/w342//hTSOLJ0lxn8TS2SrW9j1zmiPBqW.jpg (Body Length: 53917)
+[HTTP RESPONSE] 200 https://image.tmdb.org/t/p/w342//oEdNEIO7641g6ZXJEe6zhQC4Jsj.jpg (Body Length: 50013)
+[HTTP REQUEST] GET https://anizone.to/images/anime/d3b8185c-2cbc-4774-9bb7-453626f1009a.jpg
+[HTTP REQUEST] GET https://anizone.to/images/anime/55f093a4-1a1a-4d1d-a41e-bffe96318da7.jpg
+[HTTP REQUEST] GET https://image.tmdb.org/t/p/w342//vZ3GfOoeha2xVCPec0jv2jf3yfC.jpg
+[HTTP REQUEST] GET https://image.tmdb.org/t/p/w342//oEdNEIO7641g6ZXJEe6zhQC4Jsj.jpg
+[HTTP REQUEST] GET https://image.tmdb.org/t/p/w342//rmCkNtzYR2xTOO3ZXmIqB5zgYdE.jpg
+[HTTP REQUEST] GET https://api.animeonsen.xyz/v4/image/210x300/Lv4tiUeSYBNn2CJ3
+[HTTP REQUEST] GET https://image.tmdb.org/t/p/w342//hTSOLJ0lxn8TS2SrW9j1zmiPBqW.jpg
+[HTTP RESPONSE] 200 https://api.animeonsen.xyz/v4/image/210x300/Lv4tiUeSYBNn2CJ3 (Body Length: 11656)
+[HTTP RESPONSE] 200 https://anizone.to/images/anime/d3b8185c-2cbc-4774-9bb7-453626f1009a.jpg (Body Length: 160474)
+[HTTP RESPONSE] 200 https://anizone.to/images/anime/55f093a4-1a1a-4d1d-a41e-bffe96318da7.jpg (Body Length: 166405)
+[HTTP RESPONSE] 200 https://image.tmdb.org/t/p/w342//rmCkNtzYR2xTOO3ZXmIqB5zgYdE.jpg (Body Length: 27817)
+[HTTP RESPONSE] 200 https://image.tmdb.org/t/p/w342//hTSOLJ0lxn8TS2SrW9j1zmiPBqW.jpg (Body Length: 53917)
+[HTTP RESPONSE] 200 https://image.tmdb.org/t/p/w342//oEdNEIO7641g6ZXJEe6zhQC4Jsj.jpg (Body Length: 50013)
+[HTTP RESPONSE] 200 https://image.tmdb.org/t/p/w342//vZ3GfOoeha2xVCPec0jv2jf3yfC.jpg (Body Length: 39894)
+
+[Incubating] Problems report is available at: file:///C:/Users/jesuc/Documents/proyects/aniyomi/build/reports/problems/problems-report.html
+
+BUILD SUCCESSFUL in 1m 13s
+26 actionable tasks: 1 executed, 25 up-to-date

@@ -63,7 +63,10 @@ import okhttp3.Request
 import okhttp3.Response
 import okhttp3.Headers
 import eu.kanade.tachiyomi.network.NetworkHelper
+import eu.kanade.tachiyomi.network.DesktopCloudflareHandlerRegistry
+import eu.kanade.tachiyomi.network.DesktopCloudflareWebViewHandler
 import eu.kanade.tachiyomi.network.GET
+import eu.kanade.tachiyomi.network.HttpException
 import eu.kanade.tachiyomi.network.toHeaders
 import eu.kanade.tachiyomi.util.asJsoup
 import eu.kanade.tachiyomi.source.CatalogueSource
@@ -358,6 +361,7 @@ fun main() {
     // get a real WebKit engine (DesktopWebEngine) instead of a no-op stub.
     // This takes ~1-2 s on first launch; doing it here avoids blocking the UI later.
     android.webkit.DesktopWebEngine.initPlatform()
+    DesktopCloudflareHandlerRegistry.install(DesktopCloudflareWebViewHandler)
 
 
     // --- TEMPORARY TEST BLOCK ---
@@ -422,36 +426,24 @@ fun main() {
             title = "Aniyomi Desktop (KMP Nativo - Multi-pestaña)"
         ) {
             var appSettings by remember { mutableStateOf(loadSettings()) }
+            var trackingState by remember { mutableStateOf(loadTrackingState()) }
 
-            val primaryColor = when (appSettings.themeColor) {
-                "Purple" -> Color(0xFF9C27B0)
-                "Blue" -> Color(0xFF2196F3)
-                "Green" -> Color(0xFF4CAF50)
-                "Red" -> Color(0xFFE91E63)
-                else -> Color(0xFFFF9800) // Orange
-            }
-
-            MaterialTheme(
-                colorScheme = darkColorScheme(
-                    primary = primaryColor,
-                    background = Color(0xFF121212),
-                    surface = Color(0xFF1E1E1E),
-                    onBackground = Color(0xFFE3E3E3),
-                    onSurface = Color(0xFFFFFFFF),
-                    primaryContainer = primaryColor.copy(alpha = 0.3f),
-                    onPrimaryContainer = Color.White
-                )
-            ) {
+            AniyomiDesktopTheme(settings = appSettings) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
                     MainScreen(
                         appSettings = appSettings,
+                        trackingState = trackingState,
                         onSettingsChange = { newSettings ->
                             appSettings = newSettings
                             saveSettings(newSettings)
-                        }
+                        },
+                        onTrackingChange = { newTrackingState ->
+                            trackingState = newTrackingState
+                            saveTrackingState(newTrackingState)
+                        },
                     )
                 }
             }
@@ -462,7 +454,9 @@ fun main() {
 @Composable
 fun MainScreen(
     appSettings: AppSettings,
-    onSettingsChange: (AppSettings) -> Unit
+    trackingState: DesktopTrackingState,
+    onSettingsChange: (AppSettings) -> Unit,
+    onTrackingChange: (DesktopTrackingState) -> Unit,
 ) {
     var currentTab by remember { mutableStateOf("biblioteca") }
     var selectedAnime by remember { mutableStateOf<RealAnime?>(null) }
@@ -1020,6 +1014,11 @@ fun MainScreen(
     } else if (selectedMangaSource != null) {
         MangaSourceCatalogScreen(
             source = selectedMangaSource!!,
+            trackingState = trackingState,
+            onOpenAccounts = {
+                selectedMangaSource = null
+                currentTab = "cuentas"
+            },
             onBack = { selectedMangaSource = null },
         )
     } else if (selectedAnime != null) {
@@ -1034,8 +1033,13 @@ fun MainScreen(
             source = activeSource,
             libraryList = libraryList,
             historyList = historyList,
-            onBack = { 
-                selectedAnime = null 
+            trackingState = trackingState,
+            onOpenAccounts = {
+                selectedAnime = null
+                currentTab = "cuentas"
+            },
+            onBack = {
+                selectedAnime = null
                 selectedEpisode = null
             },
             onPlayEpisode = { episode, video ->
@@ -1094,8 +1098,14 @@ fun MainScreen(
                     onClick = { currentTab = "examinar" }
                 )
                 NavigationRailItem(
+                    icon = { Icon(Icons.Default.Sync, contentDescription = "Cuentas") },
+                    label = { Text("Cuentas") },
+                    selected = currentTab == "cuentas",
+                    onClick = { currentTab = "cuentas" }
+                )
+                NavigationRailItem(
                     icon = { Icon(Icons.Default.Settings, contentDescription = "Configuración") },
-                    label = { Text("Configurar") },
+                    label = { Text("Ajustes") },
                     selected = currentTab == "configuracion",
                     onClick = { currentTab = "configuracion" }
                 )
@@ -1141,6 +1151,10 @@ fun MainScreen(
                     "configuracion" -> SettingsTab(
                         appSettings = appSettings,
                         onSettingsChange = onSettingsChange
+                    )
+                    "cuentas" -> TrackingTab(
+                        trackingState = trackingState,
+                        onTrackingChange = onTrackingChange,
                     )
                 }
             }
@@ -1824,7 +1838,12 @@ fun SourceItemCard(name: String, lang: String, version: String, onClick: (() -> 
 }
 
 @Composable
-fun MangaSourceCatalogScreen(source: MangaSource, onBack: () -> Unit) {
+fun MangaSourceCatalogScreen(
+    source: MangaSource,
+    trackingState: DesktopTrackingState,
+    onOpenAccounts: () -> Unit,
+    onBack: () -> Unit,
+) {
     val catalogueSource = source as? CatalogueSource
 
     if (catalogueSource == null) {
@@ -1856,6 +1875,8 @@ fun MangaSourceCatalogScreen(source: MangaSource, onBack: () -> Unit) {
         MangaDetailScreen(
             source = catalogueSource,
             manga = selectedManga!!,
+            trackingState = trackingState,
+            onOpenAccounts = onOpenAccounts,
             onBack = { selectedManga = null },
         )
         return
@@ -2002,6 +2023,8 @@ fun MangaSourceCatalogScreen(source: MangaSource, onBack: () -> Unit) {
 fun MangaDetailScreen(
     source: CatalogueSource,
     manga: SManga,
+    trackingState: DesktopTrackingState,
+    onOpenAccounts: () -> Unit,
     onBack: () -> Unit,
 ) {
     var mangaDetails by remember { mutableStateOf<SManga?>(null) }
@@ -2170,6 +2193,14 @@ fun MangaDetailScreen(
                         )
                     }
                 }
+
+                Spacer(modifier = Modifier.height(18.dp))
+                DesktopTrackerPanel(
+                    contentType = DesktopContentType.MANGA,
+                    title = shownManga.title,
+                    trackingState = trackingState,
+                    onOpenAccounts = onOpenAccounts,
+                )
 
                 val filteredChapters = remember(chapters, filterUnreadOnly, sortOption, sortAscending) {
                     var list = chapters.toList()
@@ -3071,16 +3102,22 @@ fun ExtensionsSection(
 ) {
     var extensionsList by remember { mutableStateOf<List<eu.kanade.tachiyomi.extension.ExtensionInfo>>(emptyList()) }
     var searchQuery by remember { mutableStateOf("") }
+    var selectedExtensionLang by remember(repoUrl) { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
-    val filteredExtensions = remember(extensionsList, searchQuery) {
-        if (searchQuery.isBlank()) extensionsList else {
-            extensionsList.filter {
-                it.name.contains(searchQuery, ignoreCase = true) ||
-                it.pkg.contains(searchQuery, ignoreCase = true)
-            }
+    val availableExtensionLanguages = remember(extensionsList) {
+        extensionsList.map { it.lang }.distinct()
+            .sortedWith(compareBy({ it != "all" }, { languageDisplayName(it) }))
+    }
+
+    val filteredExtensions = remember(extensionsList, searchQuery, selectedExtensionLang) {
+        extensionsList.filter {
+            (selectedExtensionLang == null || it.lang == selectedExtensionLang) &&
+                (searchQuery.isBlank() ||
+                    it.name.contains(searchQuery, ignoreCase = true) ||
+                    it.pkg.contains(searchQuery, ignoreCase = true))
         }
     }
 
@@ -3093,6 +3130,7 @@ fun ExtensionsSection(
     }
 
     LaunchedEffect(repoUrl) {
+        selectedExtensionLang = null
         isLoading = true
         errorMessage = null
         try {
@@ -3122,11 +3160,33 @@ fun ExtensionsSection(
             TextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
-                placeholder = { Text("Buscar extensión...") },
-                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                placeholder = { Text("Buscar extensión por nombre o paquete...") },
+                modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
                 singleLine = true,
                 shape = RoundedCornerShape(8.dp)
             )
+
+            if (availableExtensionLanguages.size > 1) {
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(bottom = 12.dp),
+                ) {
+                    item {
+                        FilterChip(
+                            selected = selectedExtensionLang == null,
+                            onClick = { selectedExtensionLang = null },
+                            label = { Text("Todos") },
+                        )
+                    }
+                    items(availableExtensionLanguages) { lang ->
+                        FilterChip(
+                            selected = selectedExtensionLang == lang,
+                            onClick = { selectedExtensionLang = if (selectedExtensionLang == lang) null else lang },
+                            label = { Text(languageDisplayName(lang)) },
+                        )
+                    }
+                }
+            }
 
             Box(modifier = Modifier.fillMaxSize()) {
                 LazyColumn(
@@ -3244,9 +3304,10 @@ fun SourceCatalogScreen(source: AnimeHttpSource, onBack: () -> Unit, onAnimeClic
     var searchQuery by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
     var errorText by remember { mutableStateOf<String?>(null) }
+    var cloudflareRetry by remember { mutableStateOf(0) }
 
     // Load anime list
-    LaunchedEffect(searchQuery) {
+    LaunchedEffect(searchQuery, cloudflareRetry) {
         isLoading = true
         errorText = null
         withContext(Dispatchers.IO) {
@@ -3274,8 +3335,12 @@ fun SourceCatalogScreen(source: AnimeHttpSource, onBack: () -> Unit, onAnimeClic
                 // que hace backtracking catastrófico sobre el HTML de 67KB de /directorio
                 e.printStackTrace()
                 withContext(Dispatchers.Main) {
-                    errorText = when (e) {
-                        is StackOverflowError -> "Error en la extensión: regex con backtracking catastrófico (HTML demasiado grande). Intenta con otra fuente."
+                    errorText = when {
+                        e is StackOverflowError -> "Error en la extensión: regex con backtracking catastrófico (HTML demasiado grande). Intenta con otra fuente."
+                        e is HttpException && e.code == 403 && source.baseUrl.contains("animelatinohd.com", ignoreCase = true) ->
+                            "Anime Latino está bloqueado por un desafío de Cloudflare (HTTP 403). La extensión sí está instalada, pero este sitio exige validación JavaScript en un navegador."
+                        e is HttpException && e.code == 403 ->
+                            "La fuente rechazó la solicitud (HTTP 403). Puede requerir validación del sitio o no estar disponible desde AniYomi Desktop."
                         else -> e.message ?: e.toString()
                     }
                     isLoading = false
@@ -3283,6 +3348,9 @@ fun SourceCatalogScreen(source: AnimeHttpSource, onBack: () -> Unit, onAnimeClic
             }
         }
     }
+
+    val isAnimeLatinoCloudflareBlock = source.baseUrl.contains("animelatinohd.com", ignoreCase = true) &&
+        errorText?.contains("Cloudflare", ignoreCase = true) == true
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Row(
@@ -3320,6 +3388,14 @@ fun SourceCatalogScreen(source: AnimeHttpSource, onBack: () -> Unit, onAnimeClic
                     Text("Error al cargar la información", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.titleMedium)
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(errorText!!, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onBackground)
+                    if (isAnimeLatinoCloudflareBlock) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(
+                            onClick = { cloudflareRetry++ },
+                        ) {
+                            Text("Reintentar verificación de Cloudflare")
+                        }
+                    }
                 }
             }
         } else {

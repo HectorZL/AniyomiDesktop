@@ -21,7 +21,9 @@ kotlin {
                 
                 implementation(projects.i18n)
                 implementation(projects.i18nAniyomi)
-                implementation(projects.sourceApi)
+                implementation(projects.sourceApi) {
+                    exclude(group = "com.squareup.logcat", module = "logcat")
+                }
                 
                 implementation(kotlinx.coroutines.core)
                 implementation("io.github.kdroidfilter:composemediaplayer:0.10.0")
@@ -37,8 +39,46 @@ kotlin {
                 implementation("org.openjfx:javafx-graphics:$javafxVersion:$javafxPlatform")
                 implementation("org.openjfx:javafx-controls:$javafxVersion:$javafxPlatform")
                 implementation("org.openjfx:javafx-web:$javafxVersion:$javafxPlatform")
+                implementation("org.openjfx:javafx-media:$javafxVersion:$javafxPlatform")
                 implementation("org.openjfx:javafx-swing:$javafxVersion:$javafxPlatform")
             }
+        }
+        val desktopTest by getting {
+            dependencies {
+                implementation(kotlin("test"))
+                implementation(project.dependencies.platform(kotlinx.coroutines.bom))
+                implementation(kotlinx.coroutines.test)
+                implementation(libs.kotest.property)
+            }
+        }
+    }
+}
+
+tasks.named<org.gradle.api.tasks.testing.Test>("desktopTest") {
+    systemProperty("kotest.proptest.default.iteration.count", "100")
+}
+
+// JavaFX WebKit resolves its platform classes as named modules (it looks up
+// sibling module jars like javafx-media on the module layer at runtime).
+// Compose's desktop run task puts every dependency on the plain classpath,
+// which leaves WebKit unable to find com.sun.media.jfxmedia.MediaManager
+// because that class only exists inside the javafx.media *module*, not as a
+// plain classpath jar. Having the same jars on both -cp and --module-path
+// also breaks module resolution ("named module ... on both class path and
+// module path"), so we must remove them from the classpath before adding
+// them back exclusively via --module-path.
+tasks.withType<org.gradle.api.tasks.JavaExec>().configureEach {
+    doFirst {
+        val javafxJars = classpath.files
+            .filter { it.name.matches(Regex("javafx-(base|graphics|controls|media|web|swing)-.*-win\\.jar")) }
+        if (javafxJars.isNotEmpty()) {
+            classpath = classpath.minus(project.files(javafxJars))
+            jvmArgs(
+                "--module-path",
+                javafxJars.joinToString(File.pathSeparator) { it.absolutePath },
+                "--add-modules",
+                "javafx.base,javafx.graphics,javafx.controls,javafx.media,javafx.web,javafx.swing",
+            )
         }
     }
 }

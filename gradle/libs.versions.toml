@@ -10,6 +10,7 @@ sqlite = "2.4.0"
 voyager = "1.0.1"
 spotless = "7.0.2"
 ktlint-core = "1.5.0"
+kotest = "5.9.1"
 
 [libraries]
 desugar = "com.android.tools:desugar_jdk_libs:2.1.5"
@@ -88,7 +89,8 @@ sqldelight-android-paging = { module = "app.cash.sqldelight:androidx-paging3-ext
 sqldelight-dialects-sql = { module = "app.cash.sqldelight:sqlite-3-38-dialect", version.ref = "sqldelight" }
 
 junit = "org.junit.jupiter:junit-jupiter:5.11.4"
-kotest-assertions = "io.kotest:kotest-assertions-core:5.9.1"
+kotest-assertions = { module = "io.kotest:kotest-assertions-core", version.ref = "kotest" }
+kotest-property = { module = "io.kotest:kotest-property", version.ref = "kotest" }
 mockk = "io.mockk:mockk:1.13.17"
 
 voyager-navigator = { module = "cafe.adriel.voyager:voyager-navigator", version.ref = "voyager" }

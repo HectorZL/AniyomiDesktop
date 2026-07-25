@@ -1,0 +1,276 @@
+﻿Configuration on demand is an incubating feature.
+Type-safe project accessors is an incubating feature.
+> Task :buildSrc:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :buildSrc:generateExternalPluginSpecBuilders UP-TO-DATE
+> Task :buildSrc:extractPrecompiledScriptPluginPlugins UP-TO-DATE
+> Task :buildSrc:compilePluginsBlocks UP-TO-DATE
+> Task :buildSrc:generatePrecompiledScriptPluginAccessors UP-TO-DATE
+> Task :buildSrc:generateScriptPluginAdapters UP-TO-DATE
+> Task :buildSrc:compileKotlin UP-TO-DATE
+> Task :buildSrc:compileJava NO-SOURCE
+> Task :buildSrc:compileGroovy NO-SOURCE
+> Task :buildSrc:pluginDescriptors UP-TO-DATE
+> Task :buildSrc:processResources UP-TO-DATE
+> Task :buildSrc:classes UP-TO-DATE
+> Task :buildSrc:jar UP-TO-DATE
+
+> Configure project :app-desktop
+w: 'org.jetbrains.kotlin.multiplatform' plugin 'withJava()' configuration deprecation.
+Kotlin multiplatform plugin always configures Java sources compilation and 'withJava()' configuration is deprecated.
+Solution: Please remove 'withJava()' method call from build configuration.
+
+
+> Task :i18n:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :source-api:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :app-desktop:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :i18n-aniyomi:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :app-desktop:convertXmlValueResourcesForCommonMain NO-SOURCE
+> Task :i18n-aniyomi:generateMRcommonMain UP-TO-DATE
+> Task :i18n:generateMRcommonMain UP-TO-DATE
+> Task :app-desktop:copyNonXmlValueResourcesForCommonMain NO-SOURCE
+> Task :i18n:generateMRdesktopMain UP-TO-DATE
+> Task :i18n-aniyomi:generateMRdesktopMain UP-TO-DATE
+> Task :app-desktop:prepareComposeResourcesTaskForCommonMain NO-SOURCE
+> Task :app-desktop:generateResourceAccessorsForCommonMain SKIPPED
+> Task :app-desktop:convertXmlValueResourcesForDesktopMain NO-SOURCE
+> Task :app-desktop:copyNonXmlValueResourcesForDesktopMain NO-SOURCE
+> Task :app-desktop:prepareComposeResourcesTaskForDesktopMain NO-SOURCE
+> Task :app-desktop:generateResourceAccessorsForDesktopMain SKIPPED
+> Task :app-desktop:generateActualResourceCollectorsForDesktopMain SKIPPED
+> Task :app-desktop:generateComposeResClass SKIPPED
+> Task :app-desktop:generateExpectResourceCollectorsForCommonMain SKIPPED
+> Task :app-desktop:assembleDesktopMainResources UP-TO-DATE
+> Task :app-desktop:desktopProcessResources UP-TO-DATE
+> Task :app-desktop:processDesktopMainResources SKIPPED
+> Task :app-desktop:prepareAppResources NO-SOURCE
+> Task :source-api:compileKotlinDesktop UP-TO-DATE
+> Task :i18n:compileKotlinDesktop UP-TO-DATE
+> Task :i18n-aniyomi:compileKotlinDesktop UP-TO-DATE
+> Task :source-api:compileDesktopMainJava NO-SOURCE
+> Task :i18n:compileDesktopMainJava NO-SOURCE
+> Task :i18n-aniyomi:compileDesktopMainJava NO-SOURCE
+> Task :source-api:desktopProcessResources NO-SOURCE
+> Task :source-api:processDesktopMainResources SKIPPED
+> Task :source-api:desktopMainClasses UP-TO-DATE
+> Task :i18n-aniyomi:desktopProcessResources UP-TO-DATE
+> Task :i18n:desktopProcessResources UP-TO-DATE
+> Task :i18n:processDesktopMainResources SKIPPED
+> Task :i18n-aniyomi:processDesktopMainResources SKIPPED
+> Task :i18n:desktopMainClasses UP-TO-DATE
+> Task :i18n-aniyomi:desktopMainClasses UP-TO-DATE
+> Task :source-api:desktopJar UP-TO-DATE
+> Task :i18n-aniyomi:desktopJar UP-TO-DATE
+> Task :i18n:desktopJar UP-TO-DATE
+> Task :app-desktop:compileDesktopMainJava SKIPPED
+> Task :app-desktop:compileKotlinDesktop UP-TO-DATE
+> Task :app-desktop:compileJava NO-SOURCE
+> Task :app-desktop:desktopMainClasses UP-TO-DATE
+> Task :app-desktop:desktopJar
+
+> Task :app-desktop:run
+.\gradlew.bat : OpenJDK 64-Bit Server VM warning: Options -Xverify:none and -noverify were deprecated in JDK 13 and 
+will likely be removed in a future release.
+En línea: 1 Carácter: 1
++ .\gradlew.bat :app-desktop:run 2>&1 | Out-File -FilePath ".\ext_error ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (OpenJDK 64-Bit ...future release.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+OpenJDK 64-Bit Server VM warning: Options -Xverify:none and -noverify were deprecated in JDK 13 and will likely be 
+removed in a future release.
+jul. 17, 2026 9:07:04 A.┬áM. com.sun.javafx.application.PlatformImpl startup
+ADVERTENCIA: Unsupported JavaFX configuration: classes were loaded from 'unnamed module @6a01e23'
+[DesktopWebEngine] JavaFX Platform started.
+[INSPECT] Loading veohentai extension...
+[INSPECT] Loaded sources: 1
+[INSPECT] Found VeoHentai source: VeoHentai
+[INSPECT] Calling getVideoList...
+[HTTP REQUEST] GET https://veohentai.com/ver/ane-wa-yan-mama-junyuu-chuu-1
+[HTTP RESPONSE] 200 https://veohentai.com/ver/ane-wa-yan-mama-junyuu-chuu-1 (Body Length: 53308)
+[INSPECT] Videos found: 0
+[ProxyServer] Starting on port 52487
+[DEBUG] saveHistory called with 24 items
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.exceptionOrNull_impl(Ljava/lang/Object;)Ljava/lang/Throwable;
+[ExtensionManager] Loaded 1 sources from eu.kanade.tachiyomi.animeextension.all.animeonsen.jar: [AnimeOnsen]
+[ExtensionManager] Loaded 1 sources from eu.kanade.tachiyomi.animeextension.all.animetsu.jar: [Animetsu]
+[ExtensionManager] Loaded 1 sources from eu.kanade.tachiyomi.animeextension.all.anizone.jar: [AniZone]
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.exceptionOrNull_impl(Ljava/lang/Object;)Ljava/lang/Throwable;
+[ExtensionManager] Loaded 1 sources from eu.kanade.tachiyomi.animeextension.all.missav.jar: [MissAV]
+[ExtensionManager] Loaded 1 sources from eu.kanade.tachiyomi.animeextension.all.xnxx.jar: [Xnxx]
+[ExtensionManager] Loaded 1 sources from eu.kanade.tachiyomi.animeextension.all.xvideos.jar: [Xvideos]
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.isFailure_impl(Ljava/lang/Object;)Z
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.isFailure_impl(Ljava/lang/Object;)Z
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.exceptionOrNull_impl(Ljava/lang/Object;)Ljava/lang/Throwable;
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.isFailure_impl(Ljava/lang/Object;)Z
+[ExtensionManager] Loaded 1 sources from eu.kanade.tachiyomi.animeextension.en.cineby.jar: [Cineby]
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.isFailure_impl(Ljava/lang/Object;)Z
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.exceptionOrNull_impl(Ljava/lang/Object;)Ljava/lang/Throwable;
+[ExtensionManager] Loaded 1 sources from eu.kanade.tachiyomi.animeextension.en.hanime.jar: [hanime.tv]
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.isFailure_impl(Ljava/lang/Object;)Z
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.isFailure_impl(Ljava/lang/Object;)Z
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.isFailure_impl(Ljava/lang/Object;)Z
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.isFailure_impl(Ljava/lang/Object;)Z
+[HTTP REQUEST] GET https://animeflv.net/uploads/animes/covers/4388.jpg
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.isFailure_impl(Ljava/lang/Object;)Z
+[HTTP REQUEST] GET https://image.tmdb.org/t/p/w500/88HdcCMumGqGAt2kR3vVOr8NYiA.jpg
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.isFailure_impl(Ljava/lang/Object;)Z
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.isFailure_impl(Ljava/lang/Object;)Z
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.exceptionOrNull_impl(Ljava/lang/Object;)Ljava/lang/Throwable;
+[ExtensionManager] Loaded 1 sources from eu.kanade.tachiyomi.animeextension.es.cinecalidad.jar: [CineCalidad]
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.isFailure_impl(Ljava/lang/Object;)Z
+[ExtensionManager] Loaded 1 sources from eu.kanade.tachiyomi.animeextension.es.fanpelis.jar: [FanPelis]
+[ExtensionManager] Skipping blacklisted extension: eu.kanade.tachiyomi.animeextension.es.hentaijk.jar
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.isFailure_impl(Ljava/lang/Object;)Z
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.isFailure_impl(Ljava/lang/Object;)Z
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.isFailure_impl(Ljava/lang/Object;)Z
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.constructor_impl(Ljava/lang/Object;)Ljava/lang/Object;
+[ASMClassLoader] Patching kotlin/Result.isFailure_impl(Ljava/lang/Object;)Z
+[ExtensionManager] Loaded 1 sources from eu.kanade.tachiyomi.animeextension.es.jkanime.jar: [Jkanime]
+[ExtensionManager] Loaded 1 sources from eu.kanade.tachiyomi.animeextension.es.veohentai.jar: [VeoHentai]
+[ExtensionManager] Skipping blacklisted extension: eu.kanade.tachiyomi.extension.all.ahottie.jar
+[ExtensionManager] Skipping blacklisted extension: eu.kanade.tachiyomi.extension.all.hentai3.jar
+[ASMClassLoader] Patching kotlin/time/Duration$Companion.getZERO_UwyO8pc()J ÔåÆ inline long
+[ASMClassLoader] Patching kotlin/time/Duration$Companion.getZERO_UwyO8pc()J ÔåÆ inline long
+[ASMClassLoader] Patching kotlin/time/Duration$Companion.getZERO_UwyO8pc()J ÔåÆ inline long
+[ASMClassLoader] Patching kotlin/time/Duration.box_impl(J)Lkotlin/time/Duration;
+[ASMClassLoader] Patching kotlin/time/Duration.box_impl(J)Lkotlin/time/Duration;
+[ASMClassLoader] Patching kotlin/time/Duration$Companion.getZERO_UwyO8pc()J ÔåÆ inline long
+[ASMClassLoader] Patching kotlin/time/Duration.box_impl(J)Lkotlin/time/Duration;
+[ASMClassLoader] Patching kotlin/time/Duration$Companion.getZERO_UwyO8pc()J ÔåÆ inline long
+[ASMClassLoader] Patching kotlin/time/Duration.equals_impl0(JJ)Z
+[ASMClassLoader] Unknown Duration impl: equals_impl0 ÔÇö passing through
+[ASMClassLoader] Patching kotlin/time/Duration.box_impl(J)Lkotlin/time/Duration;
+[ASMClassLoader] Patching kotlin/time/Duration.box_impl(J)Lkotlin/time/Duration;
+[ASMClassLoader] Patching kotlin/time/Duration.getInWholeNanoseconds_impl(J)J
+[ASMClassLoader] Unknown Duration impl: getInWholeNanoseconds_impl ÔÇö passing through
+[ExtensionManager] Loaded 1 sources from eu.kanade.tachiyomi.extension.en.allanime.jar: [AllManga]
+[LOAD_EXT_ERR] Error al instanciar eu.kanade.tachiyomi.extension.en.allporncomic.ExtensionGenerated
+[LOAD_EXT_ERR] Causa ra├¡z:
+java.lang.NullPointerException: null
+java.lang.NullPointerException
+	at java.base/java.io.Reader.<init>(Reader.java:168)
+	at java.base/java.io.InputStreamReader.<init>(InputStreamReader.java:97)
+	at h.d(Unknown Source)
+	at h.c(Unknown Source)
+	at e.invoke(Unknown Source)
+	at kotlin.SynchronizedLazyImpl.getValue(LazyJVM.kt:86)
+	at h.f(Unknown Source)
+	at h.a(Unknown Source)
+	at f.invoke(Unknown Source)
+	at kotlin.SynchronizedLazyImpl.getValue(LazyJVM.kt:86)
+	at h.g(Unknown Source)
+	at h.e(Unknown Source)
+	at h0.<init>(Unknown Source)
+	at a.<init>(Unknown Source)
+	at eu.kanade.tachiyomi.extension.en.allporncomic.ExtensionGenerated.<init>(Unknown Source)
+	at java.base/jdk.internal.reflect.NativeConstructorAccessorImpl.newInstance0(Native Method)
+	at java.base/jdk.internal.reflect.NativeConstructorAccessorImpl.newInstance(NativeConstructorAccessorImpl.java:77)
+	at 
+java.base/jdk.internal.reflect.DelegatingConstructorAccessorImpl.newInstance(DelegatingConstructorAccessorImpl.java:45)
+	at java.base/java.lang.reflect.Constructor.newInstanceWithCaller(Constructor.java:500)
+	at java.base/java.lang.reflect.Constructor.newInstance(Constructor.java:481)
+	at eu.kanade.tachiyomi.extension.ExtensionManager.loadExtension(ExtensionManager.kt:151)
+	at eu.kanade.tachiyomi.extension.ExtensionManager.loadLocalExtensionsWithErrors(ExtensionManager.kt:248)
+	at MainKt$MainScreen$refreshExtensions$1$1.invokeSuspend(main.kt:504)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
+	at kotlinx.coroutines.internal.LimitedDispatcher$Worker.run(LimitedDispatcher.kt:124)
+	at kotlinx.coroutines.scheduling.TaskImpl.run(Tasks.kt:89)
+	at kotlinx.coroutines.scheduling.CoroutineScheduler.runSafely(CoroutineScheduler.kt:586)
+	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.executeTask(CoroutineScheduler.kt:820)
+	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.runWorker(CoroutineScheduler.kt:717)
+	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.run(CoroutineScheduler.kt:704)
+[ExtensionManager] Loaded 0 sources from eu.kanade.tachiyomi.extension.en.allporncomic.jar WITH 1 errors: eu.kanade.tachiyomi.extension.en.allporncomic.ExtensionGenerated ÔåÆ NullPointerException: null
+java.lang.NullPointerException
+[LOAD_EXT_ERR] Error al instanciar eu.kanade.tachiyomi.extension.en.webtoonxyz.ExtensionGenerated
+[LOAD_EXT_ERR] Causa ra├¡z:
+java.lang.NullPointerException: null
+	at java.base/java.io.Reader.<init>(Reader.java:168)
+	at java.base/java.io.InputStreamReader.<init>(InputStreamReader.java:97)
+	at g.d(Unknown Source)
+	at g.c(Unknown Source)
+	at d.invoke(Unknown Source)
+	at kotlin.SynchronizedLazyImpl.getValue(LazyJVM.kt:86)
+	at g.f(Unknown Source)
+	at g.a(Unknown Source)
+	at e.invoke(Unknown Source)
+	at kotlin.SynchronizedLazyImpl.getValue(LazyJVM.kt:86)
+	at g.g(Unknown Source)
+	at g.e(Unknown Source)
+	at g0.<init>(Unknown Source)
+	at h0.<init>(Unknown Source)
+	at eu.kanade.tachiyomi.extension.en.webtoonxyz.ExtensionGenerated.<init>(Unknown Source)
+	at java.base/jdk.internal.reflect.NativeConstructorAccessorImpl.newInstance0(Native Method)
+	at java.base/jdk.internal.reflect.NativeConstructorAccessorImpl.newInstance(NativeConstructorAccessorImpl.java:77)
+	at 
+java.base/jdk.internal.reflect.DelegatingConstructorAccessorImpl.newInstance(DelegatingConstructorAccessorImpl.java:45)
+	at java.base/java.lang.reflect.Constructor.newInstanceWithCaller(Constructor.java:500)
+	at java.base/java.lang.reflect.Constructor.newInstance(Constructor.java:481)
+	at eu.kanade.tachiyomi.extension.ExtensionManager.loadExtension(ExtensionManager.kt:151)
+	at eu.kanade.tachiyomi.extension.ExtensionManager.loadLocalExtensionsWithErrors(ExtensionManager.kt:248)
+	at MainKt$MainScreen$refreshExtensions$1$1.invokeSuspend(main.kt:504)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:34)
+	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:100)
+	at kotlinx.coroutines.internal.LimitedDispatcher$Worker.run(LimitedDispatcher.kt:124)
+	at kotlinx.coroutines.scheduling.TaskImpl.run(Tasks.kt:89)
+	at kotlinx.coroutines.scheduling.CoroutineScheduler.runSafely(CoroutineScheduler.kt:586)
+	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.executeTask(CoroutineScheduler.kt:820)
+	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.runWorker(CoroutineScheduler.kt:717)
+	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.run(CoroutineScheduler.kt:704)
+[ExtensionManager] Loaded 0 sources from eu.kanade.tachiyomi.extension.en.webtoonxyz.jar WITH 1 errors: eu.kanade.tachiyomi.extension.en.webtoonxyz.ExtensionGenerated ÔåÆ NullPointerException: null
+[ExtensionManager] Loaded 1 sources from eu.kanade.tachiyomi.extension.es.inmanga.jar: [InManga]
+[ExtensionManager] Skipping blacklisted extension: eu.kanade.tachiyomi.extension.es.vcpvmp.jar
+[main.kt] Loaded local extensions: 14 sources found.
+[main.kt] Extension loading errors: eu.kanade.tachiyomi.extension.en.allporncomic.jar: eu.kanade.tachiyomi.extension.en.allporncomic.ExtensionGenerated ÔåÆ NullPointerException: null; eu.kanade.tachiyomi.extension.en.webtoonxyz.jar: eu.kanade.tachiyomi.extension.en.webtoonxyz.ExtensionGenerated ÔåÆ NullPointerException: null
+[HTTP RESPONSE] 200 https://animeflv.net/uploads/animes/covers/4388.jpg (Body Length: 24430)
+[HTTP RESPONSE] 200 https://image.tmdb.org/t/p/w500/88HdcCMumGqGAt2kR3vVOr8NYiA.jpg (Body Length: 74782)
+
+[Incubating] Problems report is available at: file:///C:/Users/jesuc/Documents/proyects/aniyomi/build/reports/problems/problems-report.html
+
+BUILD SUCCESSFUL in 20s
+26 actionable tasks: 2 executed, 24 up-to-date

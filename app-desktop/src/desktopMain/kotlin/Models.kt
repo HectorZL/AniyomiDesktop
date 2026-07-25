@@ -51,6 +51,7 @@ data class AppSettings(
     val animeRepos: List<String> = emptyList(),
     val mangaRepos: List<String> = emptyList(),
     val themeColor: String = "Orange",
+    val themeMode: String = "dark",
     val blacklistedExtensions: List<String> = emptyList()
 )
 
@@ -135,6 +136,7 @@ fun loadSettings(): AppSettings {
                 animeRepos = aRepos,
                 mangaRepos = mRepos,
                 themeColor = loaded.themeColor.ifEmpty { "Orange" },
+                themeMode = loaded.themeMode.ifEmpty { "dark" },
                 blacklistedExtensions = loaded.blacklistedExtensions
             )
         }
