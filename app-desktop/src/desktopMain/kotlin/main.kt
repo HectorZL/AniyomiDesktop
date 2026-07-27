@@ -813,12 +813,66 @@ fun MainScreen(
                                 .padding(horizontal = 24.dp, vertical = 20.dp)
                                 .align(Alignment.BottomCenter)
                         ) {
-                            // Subtitles & Audio Track Row
+                            // Subtitles, Speed & Audio Track Row
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.End,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
+                                // Speed Selector
+                                var showSpeedMenu by remember { mutableStateOf(false) }
+                                var currentSpeed by remember { mutableStateOf(1.0f) }
+                                Box {
+                                    Button(
+                                        onClick = { showSpeedMenu = true },
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = Color.White.copy(alpha = 0.15f),
+                                            contentColor = Color.White
+                                        ),
+                                        shape = RoundedCornerShape(20.dp)
+                                    ) {
+                                        Icon(Icons.Default.Speed, contentDescription = "Velocidad", tint = Color.White)
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(text = "${currentSpeed}x")
+                                    }
+                                    DropdownMenu(
+                                        expanded = showSpeedMenu,
+                                        onDismissRequest = { showSpeedMenu = false },
+                                        modifier = Modifier.background(Color(0xFF1E1E1E))
+                                    ) {
+                                        listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f).forEach { speed ->
+                                            DropdownMenuItem(
+                                                text = {
+                                                    Row(
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                    ) {
+                                                        if (speed == currentSpeed) {
+                                                            Icon(
+                                                                Icons.Default.Check,
+                                                                contentDescription = null,
+                                                                tint = MaterialTheme.colorScheme.primary,
+                                                                modifier = Modifier.size(20.dp)
+                                                            )
+                                                        } else {
+                                                            Spacer(modifier = Modifier.size(20.dp))
+                                                        }
+                                                        Text("${speed}x", color = Color.White)
+                                                    }
+                                                },
+                                                onClick = {
+                                                    currentSpeed = speed
+                                                    playerState.playbackSpeed = speed
+                                                    showSpeedMenu = false
+                                                    println("[SPEED] Velocidad cambiada a ${speed}x")
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+                                
+                                Spacer(modifier = Modifier.width(12.dp))
+                                
                                 // Subtitle Selector
                                 if (playerState.availableSubtitleTracks.isNotEmpty() || (activeVideo != null && activeVideo!!.subtitleTracks.isNotEmpty())) {
                                     var showSubtitleMenu by remember { mutableStateOf(false) }
