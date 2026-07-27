@@ -668,11 +668,16 @@ fun MainScreen(
                             scope.launch {
                                 // Espera a que el motor cargue la duración del video.
                                 kotlinx.coroutines.delay(1_500)
-                                // CORRECCIÓN: seekStart espera milisegundos, no fracción.
-                                val seekPositionMs = progress.progressSeconds * 1000f
-                                println("[SEEK] Saltando a ${progress.progressSeconds}s (${seekPositionMs}ms)")
-                                playerState.seekStart(seekPositionMs)
-                                playerState.seekFinished()
+                                // Calcular posición del slider (0-1000) basado en el progreso
+                                val duration = playerState.duration
+                                if (duration > 0) {
+                                    val sliderPos = (progress.progressSeconds * 1000f / duration.toFloat()) * 1000f
+                                    println("[SEEK] Saltando a ${progress.progressSeconds}s (slider: ${sliderPos}/${1000f}, duration: ${duration}ms)")
+                                    playerState.seekStart(sliderPos)
+                                    playerState.seekFinished()
+                                } else {
+                                    println("[SEEK] ERROR: Duración no disponible todavía")
+                                }
                                 playerState.play()
                             }
                         }) {

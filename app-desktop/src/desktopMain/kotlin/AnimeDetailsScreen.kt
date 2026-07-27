@@ -271,11 +271,12 @@ fun AnimeDetailsScreen(
                     Spacer(modifier = Modifier.height(8.dp))
                     LazyColumn(modifier = Modifier.fillMaxWidth()) {
                         items(filteredEpisodes) { episode ->
-                            val isSeen = historyList.any { item ->
-                                item.anime.url == anime.url &&
-                                    item.episode.url == episode.url &&
-                                    item.isSeen
+                            val historyItem = historyList.find { item ->
+                                item.anime.url == anime.url && item.episode.url == episode.url
                             }
+                            val isSeen = historyItem?.isSeen == true
+                            val isWatching = historyItem != null && !historyItem.isSeen && historyItem.progressSeconds > 5
+                            
                             Card(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -288,15 +289,33 @@ fun AnimeDetailsScreen(
                             ) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth().padding(12.dp),
-                                    verticalAlignment = Alignment.CenterVertically
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    Icon(
-                                        imageVector = if (isSeen) Icons.Default.CheckCircle else Icons.Default.PlayArrow,
-                                        contentDescription = if (isSeen) "Visto" else "Reproducir",
-                                        tint = if (isSeen) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                                    )
-                                    Spacer(modifier = Modifier.width(12.dp))
-                                    Text(text = episode.name, style = MaterialTheme.typography.bodyLarge)
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Icon(
+                                            imageVector = if (isSeen) Icons.Default.CheckCircle else Icons.Default.PlayArrow,
+                                            contentDescription = if (isSeen) "Visto" else "Reproducir",
+                                            tint = if (isSeen) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                        )
+                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Text(text = episode.name, style = MaterialTheme.typography.bodyLarge)
+                                    }
+                                    
+                                    // Mostrar "Viendo - HH:MM" si está parcialmente visto
+                                    if (isWatching) {
+                                        val progress = historyItem.progressSeconds
+                                        val timeStr = String.format("%02d:%02d", progress / 60, progress % 60)
+                                        Text(
+                                            text = "Viendo - $timeStr",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.padding(end = 8.dp)
+                                        )
+                                    }
                                 }
                             }
                         }
