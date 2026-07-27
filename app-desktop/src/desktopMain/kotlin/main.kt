@@ -666,19 +666,25 @@ fun MainScreen(
                             val progress = resumePrompt!!
                             resumePrompt = null
                             scope.launch {
-                                // Espera a que el motor cargue la duración del video.
-                                kotlinx.coroutines.delay(1_500)
-                                // Calcular posición del slider (0-1000) basado en el progreso
+                                // Esperar a que la duración esté disponible (máximo 10 segundos)
+                                var attempts = 0
+                                while (playerState.duration <= 0 && attempts < 100) {
+                                    kotlinx.coroutines.delay(100)
+                                    attempts++
+                                }
+                                
                                 val duration = playerState.duration
                                 if (duration > 0) {
+                                    // Calcular posición del slider (0-1000) basado en el progreso
                                     val sliderPos = (progress.progressSeconds * 1000f / duration.toFloat()) * 1000f
-                                    println("[SEEK] Saltando a ${progress.progressSeconds}s (slider: ${sliderPos}/${1000f}, duration: ${duration}ms)")
+                                    println("[SEEK] Saltando a ${progress.progressSeconds}s (slider: ${sliderPos}/1000, duration: ${duration}ms)")
                                     playerState.seekStart(sliderPos)
                                     playerState.seekFinished()
+                                    playerState.play()
                                 } else {
-                                    println("[SEEK] ERROR: Duración no disponible todavía")
+                                    println("[SEEK] ERROR: Duración no disponible después de 10s, reproduciendo desde inicio")
+                                    playerState.play()
                                 }
-                                playerState.play()
                             }
                         }) {
                             Text("Continuar")
