@@ -577,6 +577,7 @@ fun MainScreen(
             var resumePrompt by remember(activeVideo, currentAnime.url, currentEpisode.url) {
                 mutableStateOf(savedProgress)
             }
+            var pendingSeekSeconds by remember { mutableStateOf<Long?>(null) }
 
             fun savePlaybackPosition(position: Long, duration: Double) {
                 if (position <= 0 || duration <= 0.0) return
@@ -619,6 +620,19 @@ fun MainScreen(
                         playerState.pause()
                         println("[RESUME] Progreso guardado detectado: ${savedProgress.progressSeconds}s de ${savedProgress.durationSeconds}s")
                     }
+                }
+            }
+            
+            // Realizar seek pendiente cuando la duración esté disponible
+            LaunchedEffect(pendingSeekSeconds, playerState.duration) {
+                val seekTarget = pendingSeekSeconds
+                if (seekTarget != null && playerState.duration > 0) {
+                    val duration = playerState.duration
+                    val sliderPos = (seekTarget * 1000f / duration.toFloat()) * 1000f
+                    println("[SEEK] Ejecutando seek a ${seekTarget}s (slider: ${sliderPos}/1000, duration: ${duration}ms)")
+                    playerState.seekTo(sliderPos)
+                    playerState.play()
+                    pendingSeekSeconds = null  // Limpiar después de ejecutar
                 }
             }
 
@@ -665,27 +679,8 @@ fun MainScreen(
                         TextButton(onClick = {
                             val progress = resumePrompt!!
                             resumePrompt = null
-                            scope.launch {
-                                // Esperar a que la duración esté disponible (máximo 10 segundos)
-                                var attempts = 0
-                                while (playerState.duration <= 0 && attempts < 100) {
-                                    kotlinx.coroutines.delay(100)
-                                    attempts++
-                                }
-                                
-                                val duration = playerState.duration
-                                if (duration > 0) {
-                                    // Calcular posición del slider (0-1000) basado en el progreso
-                                    val sliderPos = (progress.progressSeconds * 1000f / duration.toFloat()) * 1000f
-                                    println("[SEEK] Saltando a ${progress.progressSeconds}s (slider: ${sliderPos}/1000, duration: ${duration}ms)")
-                                    playerState.seekStart(sliderPos)
-                                    playerState.seekFinished()
-                                    playerState.play()
-                                } else {
-                                    println("[SEEK] ERROR: Duración no disponible después de 10s, reproduciendo desde inicio")
-                                    playerState.play()
-                                }
-                            }
+                            // Establecer el seek pendiente y dejar que LaunchedEffect lo maneje
+                            pendingSeekSeconds = progress.progressSeconds
                         }) {
                             Text("Continuar")
                         }
