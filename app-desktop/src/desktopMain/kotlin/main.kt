@@ -569,10 +569,10 @@ fun MainScreen(
         Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
             val playerState = rememberVideoPlayerState(cacheConfig = CacheConfig(enabled = true, maxCacheSizeBytes = 100L * 1024L * 1024L))
 
-            // Solo se ofrece reanudar para episodios incompletos con progreso válido.
+            // Solo se ofrece reanudar para episodios incompletos con progreso válido (> 5 segundos).
             val savedProgress = remember(activeVideo, currentAnime.url, currentEpisode.url) {
                 historyList.find { it.anime.url == currentAnime.url && it.episode.url == currentEpisode.url }
-                    ?.takeIf { !it.isSeen && it.progressSeconds > 0 && it.durationSeconds > it.progressSeconds }
+                    ?.takeIf { !it.isSeen && it.progressSeconds > 5 && it.durationSeconds > it.progressSeconds }
             }
             var resumePrompt by remember(activeVideo, currentAnime.url, currentEpisode.url) {
                 mutableStateOf(savedProgress)
@@ -594,6 +594,7 @@ fun MainScreen(
                     durationSeconds = durationSeconds,
                     isSeen = isComplete,
                 )
+                println("[PROGRESS] Guardado: ${String.format("%02d:%02d", position / 60, position % 60)} / ${String.format("%02d:%02d", durationSeconds / 60, durationSeconds % 60)} | Visto: $isComplete")
             }
 
             LaunchedEffect(activeVideo) {
@@ -614,11 +615,14 @@ fun MainScreen(
 
                     playerState.openUri(proxiedUrl)
                     // Evita que el episodio avance desde cero antes de que el usuario elija.
-                    if (savedProgress != null) playerState.pause()
+                    if (savedProgress != null) {
+                        playerState.pause()
+                        println("[RESUME] Progreso guardado detectado: ${savedProgress.progressSeconds}s de ${savedProgress.durationSeconds}s")
+                    }
                 }
             }
 
-            // Guardar progreso periódicamente (cada 5 segundos).
+            // Guardar progreso periódicamente (cada 5 segundos durante reproducción).
             LaunchedEffect(playerState.isPlaying) {
                 while (playerState.isPlaying) {
                     kotlinx.coroutines.delay(5000)
@@ -626,11 +630,15 @@ fun MainScreen(
                 }
             }
 
-            // También persiste al pausar, buscar o salir del reproductor.
+            // Persiste al salir del reproductor (throttled a cada segundo para no saturar).
             LaunchedEffect(activeVideo) {
-                snapshotFlow { playerState.currentTime.toLong() }.collect { position ->
-                    savePlaybackPosition(position, playerState.duration)
-                }
+                snapshotFlow { playerState.currentTime.toLong() }
+                    .collect { position ->
+                        kotlinx.coroutines.delay(1000) // throttle: solo actualiza cada segundo
+                        if (position > 0) {
+                            savePlaybackPosition(position, playerState.duration)
+                        }
+                    }
             }
 
             if (resumePrompt != null) {
@@ -639,8 +647,10 @@ fun MainScreen(
                     title = { Text("Continuar reproducción") },
                     text = {
                         val position = resumePrompt!!.progressSeconds
+                        val duration = resumePrompt!!.durationSeconds
+                        val percentage = if (duration > 0) (position * 100 / duration) else 0
                         Text(
-                            "Este episodio se quedó en ${String.format("%02d:%02d", position / 60, position % 60)}. ¿Quieres continuar desde ahí?",
+                            "Este episodio se quedó en ${String.format("%02d:%02d", position / 60, position % 60)} ($percentage%). ¿Quieres continuar desde ahí?",
                         )
                     },
                     dismissButton = {
@@ -656,11 +666,12 @@ fun MainScreen(
                             val progress = resumePrompt!!
                             resumePrompt = null
                             scope.launch {
-                                // Se busca después de abrir el medio, cuando ya se conoce su duración.
-                                kotlinx.coroutines.delay(1_000)
-                                playerState.seekStart(
-                                    progress.progressSeconds.toFloat() / progress.durationSeconds * 1000f,
-                                )
+                                // Espera a que el motor cargue la duración del video.
+                                kotlinx.coroutines.delay(1_500)
+                                // CORRECCIÓN: seekStart espera milisegundos, no fracción.
+                                val seekPositionMs = progress.progressSeconds * 1000f
+                                println("[SEEK] Saltando a ${progress.progressSeconds}s (${seekPositionMs}ms)")
+                                playerState.seekStart(seekPositionMs)
                                 playerState.seekFinished()
                                 playerState.play()
                             }
