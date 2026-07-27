@@ -1,0 +1,14 @@
+-- Add playback_progress table for per-device resume position tracking
+CREATE TABLE playback_progress(
+    _id INTEGER NOT NULL PRIMARY KEY,
+    episode_id INTEGER NOT NULL,
+    device_id TEXT NOT NULL,
+    position_ms INTEGER NOT NULL,
+    duration_ms INTEGER NOT NULL,
+    last_update_time INTEGER NOT NULL,
+    FOREIGN KEY(episode_id) REFERENCES episodes (_id)
+    ON DELETE CASCADE
+);
+
+CREATE UNIQUE INDEX playback_progress_episode_device_index ON playback_progress(episode_id, device_id);
+CREATE INDEX playback_progress_last_update_index ON playback_progress(last_update_time);

@@ -4,9 +4,19 @@ import com.googlecode.d2j.dex.Dex2jar
 import com.googlecode.d2j.reader.MultiDexFileReader
 import eu.kanade.tachiyomi.animesource.AnimeSource
 import eu.kanade.tachiyomi.animesource.AnimeSourceFactory
+import eu.kanade.tachiyomi.extension.update.index.RepositoryIndexParser
+import eu.kanade.tachiyomi.extension.update.index.isSameRepositoryOrigin
+import eu.kanade.tachiyomi.extension.update.index.normalizeRepositoryUrl
+import eu.kanade.tachiyomi.extension.update.model.HttpCacheValidator
+import eu.kanade.tachiyomi.extension.update.model.RepositoryCategory
+import eu.kanade.tachiyomi.extension.update.model.RepositoryErrorKind
+import eu.kanade.tachiyomi.extension.update.model.RepositoryFailure
+import eu.kanade.tachiyomi.extension.update.model.RepositoryIndexResult
+import eu.kanade.tachiyomi.extension.update.model.RepositoryRef
+import eu.kanade.tachiyomi.network.NetworkHelper
 import eu.kanade.tachiyomi.source.MangaSource
 import eu.kanade.tachiyomi.source.SourceFactory
-import eu.kanade.tachiyomi.network.NetworkHelper
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
@@ -16,6 +26,9 @@ import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
 import java.io.File
 import java.io.FileOutputStream
+import java.io.IOException
+import java.net.SocketTimeoutException
+import java.net.URI
 import java.net.URLClassLoader
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
@@ -29,7 +42,7 @@ data class ExtensionInfo(
     val lang: String = "",
     val version: String = "",
     val nsfw: Int = 0,
-    val sources: List<SourceInfo> = emptyList()
+    val sources: List<SourceInfo> = emptyList(),
 )
 
 @Serializable
@@ -37,7 +50,7 @@ data class SourceInfo(
     val name: String = "",
     val lang: String = "",
     val id: String = "",
-    val baseUrl: String = ""
+    val baseUrl: String = "",
 )
 
 object ExtensionManager {
@@ -50,6 +63,7 @@ object ExtensionManager {
     }
 
     private val json = Json { ignoreUnknownKeys = true }
+    private val repositoryIndexParser = RepositoryIndexParser(json)
     private val client by lazy { Injekt.get<NetworkHelper>().client }
 
     var extensionsDir = File(System.getProperty("user.home"), "AppData/Local/AniyomiDesktop/extensions")
@@ -58,7 +72,7 @@ object ExtensionManager {
     init {
         if (!extensionsDir.exists()) extensionsDir.mkdirs()
         if (!cacheDir.exists()) cacheDir.mkdirs()
-        
+
         // Clean up old versioned JAR files (e.g. aniyomi-all.animeonsen-v14.10.jar)
         try {
             val oldFiles = extensionsDir.listFiles { _, name -> name.startsWith("aniyomi-") && name.endsWith(".jar") }
@@ -75,15 +89,118 @@ object ExtensionManager {
         }
     }
 
-    // Fetches the repository index JSON
-    suspend fun fetchRepository(url: String): List<ExtensionInfo> = withContext(Dispatchers.IO) {
-        val request = Request.Builder().url(url).build()
-        client.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) throw Exception("Error al descargar repositorio: ${response.code}")
-            val body = response.body?.string() ?: throw Exception("Repositorio vacío")
-            json.decodeFromString<List<ExtensionInfo>>(body)
+    /** Fetches and parses repository metadata without acquiring any referenced APK. */
+    suspend fun fetchRepositoryIndex(
+        repository: RepositoryRef,
+        cacheValidator: HttpCacheValidator? = null,
+    ): RepositoryIndexResult = withContext(Dispatchers.IO) {
+        try {
+            val request = Request.Builder()
+                .url(repository.normalizedUrl.value)
+                .apply {
+                    cacheValidator?.etag?.takeIf(String::isNotBlank)?.let {
+                        header("If-None-Match", it)
+                    }
+                    cacheValidator?.lastModified?.takeIf(String::isNotBlank)?.let {
+                        header("If-Modified-Since", it)
+                    }
+                }
+                .build()
+
+            client.newCall(request).execute().use { response ->
+                val finalIndexUrl = URI(response.request.url.toString())
+                val configuredIndexUrl = URI(repository.normalizedUrl.value)
+                if (!isSameRepositoryOrigin(configuredIndexUrl, finalIndexUrl)) {
+                    return@use repositoryFailure(repository, RepositoryErrorKind.UnsafeRedirect)
+                }
+
+                val responseValidator = HttpCacheValidator(
+                    etag = response.header("ETag"),
+                    lastModified = response.header("Last-Modified"),
+                ).takeIf { it.etag != null || it.lastModified != null }
+
+                if (response.code == 304) {
+                    return@use RepositoryIndexResult.NotModified(
+                        repository = repository,
+                        cacheValidator = responseValidator ?: cacheValidator ?: HttpCacheValidator(),
+                    )
+                }
+                if (!response.isSuccessful) {
+                    return@use repositoryFailure(
+                        repository,
+                        RepositoryErrorKind.Http(response.code),
+                    )
+                }
+
+                val body = response.body?.string()
+                if (body.isNullOrBlank()) {
+                    return@use repositoryFailure(repository, RepositoryErrorKind.EmptyBody)
+                }
+
+                repositoryIndexParser.parse(
+                    document = body,
+                    repository = repository,
+                    indexUrl = finalIndexUrl,
+                    cacheValidator = responseValidator,
+                )
+            }
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: SocketTimeoutException) {
+            repositoryFailure(repository, RepositoryErrorKind.Timeout)
+        } catch (_: IOException) {
+            repositoryFailure(repository, RepositoryErrorKind.Network)
+        } catch (error: Exception) {
+            val diagnosticId = error::class.simpleName ?: "UnexpectedRepositoryError"
+            repositoryFailure(
+                repository = repository,
+                kind = RepositoryErrorKind.Unexpected(diagnosticId),
+                diagnosticId = diagnosticId,
+            )
         }
     }
+
+    /** Backward-compatible adapter for the existing desktop extension list. */
+    suspend fun fetchRepository(url: String): List<ExtensionInfo> {
+        val normalizedUrl = normalizeRepositoryUrl(url)
+            ?: throw IllegalArgumentException("URL de repositorio inválida")
+        val repository = RepositoryRef(
+            originalUrl = url,
+            normalizedUrl = normalizedUrl,
+            persistedRank = 0,
+            categories = setOf(RepositoryCategory.ANIME, RepositoryCategory.MANGA),
+            trusted = true,
+        )
+
+        return when (val result = fetchRepositoryIndex(repository)) {
+            is RepositoryIndexResult.Success -> result.entries.map { entry ->
+                ExtensionInfo(
+                    name = entry.name,
+                    pkg = entry.packageId.value,
+                    apk = entry.artifactReference,
+                    lang = entry.language,
+                    version = entry.version.text,
+                )
+            }
+            is RepositoryIndexResult.NotModified ->
+                throw IllegalStateException("El repositorio no cambió, pero el adaptador no tiene una copia local")
+            is RepositoryIndexResult.Failure ->
+                throw IllegalStateException("Error al consultar repositorio: ${result.failure.kind}")
+        }
+    }
+
+    private fun repositoryFailure(
+        repository: RepositoryRef,
+        kind: RepositoryErrorKind,
+        diagnosticId: String? = null,
+    ): RepositoryIndexResult.Failure = RepositoryIndexResult.Failure(
+        repository = repository,
+        failure = RepositoryFailure(
+            url = repository.normalizedUrl,
+            kind = kind,
+            diagnosticId = diagnosticId,
+        ),
+    )
 
     // Downloads the APK and returns the local File
     suspend fun downloadApk(repoBaseUrl: String, apkName: String): File = withContext(Dispatchers.IO) {

@@ -25,6 +25,8 @@ import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadProvider
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadCache
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadManager
 import eu.kanade.tachiyomi.data.download.manga.MangaDownloadProvider
+import eu.kanade.tachiyomi.data.playback.DeviceProvider
+import eu.kanade.tachiyomi.data.playback.PlaybackProgressManager
 import eu.kanade.tachiyomi.data.saver.ImageSaver
 import eu.kanade.tachiyomi.data.track.TrackerManager
 import eu.kanade.tachiyomi.extension.anime.AnimeExtensionManager
@@ -51,6 +53,9 @@ import tachiyomi.data.handlers.anime.AndroidAnimeDatabaseHandler
 import tachiyomi.data.handlers.anime.AnimeDatabaseHandler
 import tachiyomi.data.handlers.manga.AndroidMangaDatabaseHandler
 import tachiyomi.data.handlers.manga.MangaDatabaseHandler
+import tachiyomi.domain.playback.interactor.DeletePlaybackProgress
+import tachiyomi.domain.playback.interactor.GetPlaybackProgress
+import tachiyomi.domain.playback.interactor.UpsertPlaybackProgress
 import tachiyomi.domain.source.anime.service.AnimeSourceManager
 import tachiyomi.domain.source.manga.service.MangaSourceManager
 import tachiyomi.domain.storage.service.StorageManager
@@ -227,7 +232,17 @@ class AppModule(val app: Application) : InjektModule {
 
         addSingletonFactory { StorageManager(app, get()) }
 
+        addSingletonFactory { DeviceProvider(app) }
         addSingletonFactory { ExternalIntents() }
+
+        addSingletonFactory {
+            PlaybackProgressManager(
+                getPlaybackProgress = get<GetPlaybackProgress>(),
+                upsertPlaybackProgress = get<UpsertPlaybackProgress>(),
+                deletePlaybackProgress = get<DeletePlaybackProgress>(),
+                deviceProvider = get<DeviceProvider>(),
+            )
+        }
 
         addSingletonFactory { TorrentServerApi(get(), get()) }
         addSingletonFactory { TorrentServerUtils(get(), get()) }

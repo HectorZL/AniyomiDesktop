@@ -38,7 +38,8 @@ libarchive = "me.zhanghai.android.libarchive:library:1.1.4"
 sqlite-framework = { module = "androidx.sqlite:sqlite-framework", version.ref = "sqlite" }
 sqlite-ktx = { module = "androidx.sqlite:sqlite-ktx", version.ref = "sqlite" }
 sqlite-android = "com.github.requery:sqlite-android:3.45.0"
-cronet-okhttp = "com.google.net.cronet:cronet-okhttp:119.6045.31"
+cronet-embedded = "org.chromium.net:cronet-embedded:119.6045.31"
+cronet-okhttp = "com.google.net.cronet:cronet-okhttp:0.1.1"
 
 preferencektx = "androidx.preference:preference-ktx:1.2.1"
 

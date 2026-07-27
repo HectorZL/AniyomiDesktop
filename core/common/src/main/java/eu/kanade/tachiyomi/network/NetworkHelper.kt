@@ -1,7 +1,7 @@
 package eu.kanade.tachiyomi.network
 
 import android.content.Context
-import com.google.net.cronet.CronetInterceptor
+import com.google.net.cronet.okhttptransport.CronetInterceptor
 import eu.kanade.tachiyomi.network.interceptor.CloudflareInterceptor
 import eu.kanade.tachiyomi.network.interceptor.IgnoreGzipInterceptor
 import eu.kanade.tachiyomi.network.interceptor.UncaughtExceptionInterceptor
@@ -40,12 +40,8 @@ class NetworkHelper(
     val cookieJar = AndroidCookieJar()
 
     private val clientBuilder: OkHttpClient.Builder = run {
-        val trustManager = Conscrypt.newTrustManager()
-        val sslSocketFactory = Conscrypt.newSSLSocketFactory(trustManager)
-
         val builder = OkHttpClient.Builder()
             .cookieJar(cookieJar)
-            .sslSocketFactory(sslSocketFactory, trustManager)
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .callTimeout(2, TimeUnit.MINUTES)
@@ -68,7 +64,7 @@ class NetworkHelper(
         }
 
         cronetEngine?.let {
-            builder.addInterceptor(CronetInterceptor(it))
+            builder.addInterceptor(CronetInterceptor.newBuilder(it).build())
         }
 
         when (preferences.dohProvider().get()) {

@@ -357,60 +357,22 @@ fun main() {
     Injekt.addSingleton(android.app.Application())
     Injekt.addSingleton(Json { ignoreUnknownKeys = true })
 
-    // Boot JavaFX Platform early so extensions that use android.webkit.WebView
-    // get a real WebKit engine (DesktopWebEngine) instead of a no-op stub.
-    // This takes ~1-2 s on first launch; doing it here avoids blocking the UI later.
-    android.webkit.DesktopWebEngine.initPlatform()
-    DesktopCloudflareHandlerRegistry.install(DesktopCloudflareWebViewHandler)
-
-
-    // --- TEMPORARY TEST BLOCK ---
-    try {
-        val jarFile = java.io.File(java.io.File(System.getProperty("user.home"), "AppData/Local/AniyomiDesktop/extensions"), "eu.kanade.tachiyomi.animeextension.es.veohentai.jar")
-        if (jarFile.exists()) {
-            println("[INSPECT] Loading veohentai extension...")
-            val sources = eu.kanade.tachiyomi.extension.ExtensionManager.loadExtension(jarFile)
-            println("[INSPECT] Loaded sources: ${sources.size}")
-            val veohentaiSource = sources.mapNotNull {
-                when (it) {
-                    is eu.kanade.tachiyomi.extension.ExtensionManager.LoadedSource.Anime -> it.source
-                    else -> null
-                }
-            }.firstOrNull { it.name.contains("VeoHentai", ignoreCase = true) }
-            
-            if (veohentaiSource != null) {
-                println("[INSPECT] Found VeoHentai source: ${veohentaiSource.name}")
-                // Mock an episode
-                val mockEpisode = eu.kanade.tachiyomi.animesource.model.SEpisode.create().apply {
-                    url = "/ver/ane-wa-yan-mama-junyuu-chuu-1"
-                    name = "Episodio 1"
-                }
-                
-                kotlinx.coroutines.runBlocking {
-                    try {
-                        println("[INSPECT] Calling getVideoList...")
-                        val videos = veohentaiSource.getVideoList(mockEpisode)
-                        println("[INSPECT] Videos found: ${videos.size}")
-                        videos.forEach { println(" - Video: ${it.quality} | ${it.url}") }
-                    } catch (e: Throwable) {
-                        println("[INSPECT] Error calling getVideoList:")
-                        e.printStackTrace()
-                    }
-                }
-            } else {
-                println("[INSPECT] VeoHentai source NOT found in sources!")
-            }
-        } else {
-            println("[INSPECT] VeoHentai jar file not found at ${jarFile.absolutePath}")
-        }
-    } catch (e: Throwable) {
-        println("[INSPECT] Global inspect error:")
-        e.printStackTrace()
-    }
-    // --- END TEMPORARY TEST BLOCK ---
-
     application {
         val windowState = rememberWindowState(width = 1280.dp, height = 720.dp)
+
+        // WebKit is required only when an extension uses Android WebView. Start it after
+        // Compose has created the application window so a slow or failing native startup cannot
+        // make the desktop application appear to do nothing on launch.
+        LaunchedEffect(Unit) {
+            withContext(Dispatchers.IO) {
+                runCatching {
+                    android.webkit.DesktopWebEngine.initPlatform()
+                    DesktopCloudflareHandlerRegistry.install(DesktopCloudflareWebViewHandler)
+                }.onFailure { error ->
+                    System.err.println("WebKit initialization failed: ${error.message}")
+                }
+            }
+        }
 
         LaunchedEffect(isAppFullscreen.value) {
             windowState.placement = if (isAppFullscreen.value) {
@@ -425,7 +387,11 @@ fun main() {
             state = windowState,
             title = "Aniyomi Desktop (KMP Nativo - Multi-pestaña)"
         ) {
-            var appSettings by remember { mutableStateOf(loadSettings()) }
+            val initiallyLoadedAppSettings = remember { loadSettings() }
+            var appSettings by remember { mutableStateOf(initiallyLoadedAppSettings) }
+            var repositoryNetworkAllowed by remember {
+                mutableStateOf(settingsPersistenceAllowsRepositoryNetwork())
+            }
             var trackingState by remember { mutableStateOf(loadTrackingState()) }
 
             AniyomiDesktopTheme(settings = appSettings) {
@@ -435,10 +401,14 @@ fun main() {
                 ) {
                     MainScreen(
                         appSettings = appSettings,
+                        repositoryNetworkAllowed = repositoryNetworkAllowed,
                         trackingState = trackingState,
                         onSettingsChange = { newSettings ->
-                            appSettings = newSettings
                             saveSettings(newSettings)
+                            repositoryNetworkAllowed = settingsPersistenceAllowsRepositoryNetwork()
+                            if (repositoryNetworkAllowed) {
+                                appSettings = newSettings
+                            }
                         },
                         onTrackingChange = { newTrackingState ->
                             trackingState = newTrackingState
@@ -454,6 +424,7 @@ fun main() {
 @Composable
 fun MainScreen(
     appSettings: AppSettings,
+    repositoryNetworkAllowed: Boolean,
     trackingState: DesktopTrackingState,
     onSettingsChange: (AppSettings) -> Unit,
     onTrackingChange: (DesktopTrackingState) -> Unit,
@@ -598,9 +569,31 @@ fun MainScreen(
         Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
             val playerState = rememberVideoPlayerState(cacheConfig = CacheConfig(enabled = true, maxCacheSizeBytes = 100L * 1024L * 1024L))
 
-            // Buscar progreso guardado para este episodio
-            val savedProgress = remember {
+            // Solo se ofrece reanudar para episodios incompletos con progreso válido.
+            val savedProgress = remember(activeVideo, currentAnime.url, currentEpisode.url) {
                 historyList.find { it.anime.url == currentAnime.url && it.episode.url == currentEpisode.url }
+                    ?.takeIf { !it.isSeen && it.progressSeconds > 0 && it.durationSeconds > it.progressSeconds }
+            }
+            var resumePrompt by remember(activeVideo, currentAnime.url, currentEpisode.url) {
+                mutableStateOf(savedProgress)
+            }
+
+            fun savePlaybackPosition(position: Long, duration: Double) {
+                if (position <= 0 || duration <= 0.0) return
+
+                val historyIndex = historyList.indexOfFirst {
+                    it.anime.url == currentAnime.url && it.episode.url == currentEpisode.url
+                }
+                if (historyIndex < 0) return
+
+                val durationSeconds = duration.toLong()
+                // El motor reporta enteros; un segundo antes del final equivale al 100 % visible.
+                val isComplete = position >= (durationSeconds - 1).coerceAtLeast(1L)
+                historyList[historyIndex] = historyList[historyIndex].copy(
+                    progressSeconds = if (isComplete) 0L else position,
+                    durationSeconds = durationSeconds,
+                    isSeen = isComplete,
+                )
             }
 
             LaunchedEffect(activeVideo) {
@@ -614,62 +607,68 @@ fun MainScreen(
                         else -> Headers.headersOf()
                     }
                     val proxiedUrl = eu.kanade.tachiyomi.network.VideoProxyServer.registerVideo(video.url, headers)
-                    // ponytail: simple check, add more robust validation if needed
                     if (proxiedUrl.isBlank() || !proxiedUrl.startsWith("http")) {
                         println("[Error] Invalid proxied URL: $proxiedUrl")
                         return@let
                     }
 
                     playerState.openUri(proxiedUrl)
-
-                    // Cargar progreso guardado si existe
-                    savedProgress?.let { historyItem ->
-                        if (historyItem.progressSeconds > 0 && historyItem.durationSeconds > 0) {
-                            val progressRatio = historyItem.progressSeconds.toFloat() / historyItem.durationSeconds.toFloat()
-                            kotlinx.coroutines.delay(2000) // Esperar más tiempo para que el video cargue completamente
-                            playerState.seekStart(progressRatio * 1000f)
-                            playerState.seekFinished()
-                            println("[PROGRESS] Resuming from ${historyItem.progressSeconds}s (${String.format("%02d:%02d", historyItem.progressSeconds / 60, historyItem.progressSeconds % 60)})")
-                        }
-                    }
+                    // Evita que el episodio avance desde cero antes de que el usuario elija.
+                    if (savedProgress != null) playerState.pause()
                 }
             }
 
-            // Guardar progreso periódicamente (cada 5 segundos)
+            // Guardar progreso periódicamente (cada 5 segundos).
             LaunchedEffect(playerState.isPlaying) {
                 while (playerState.isPlaying) {
                     kotlinx.coroutines.delay(5000)
-                    val currentPos = playerState.currentTime.toLong()
-                    val duration = playerState.duration
-
-                    if (playerState.currentTime.toLong() > 0 && duration > 0.0) {
-                        // Actualizar el historial con el progreso actual
-                        val historyIndex = historyList.indexOfFirst { it.anime.url == currentAnime.url && it.episode.url == currentEpisode.url }
-                        if (historyIndex >= 0) {
-                            historyList[historyIndex] = historyList[historyIndex].copy(
-                                progressSeconds = currentPos.toLong(),
-                                durationSeconds = duration.toLong()
-                            )
-                            println("[PROGRESS] Saved progress: ${String.format("%02d:%02d", currentPos.toLong() / 60, currentPos.toLong() % 60)} / ${String.format("%02d:%02d", duration.toLong() / 60, duration.toLong() % 60)}")
-                        }
-                    }
+                    savePlaybackPosition(playerState.currentTime.toLong(), playerState.duration)
                 }
             }
 
-            // Guardar progreso al salir del reproductor
+            // También persiste al pausar, buscar o salir del reproductor.
             LaunchedEffect(activeVideo) {
                 snapshotFlow { playerState.currentTime.toLong() }.collect { position ->
-                    if (playerState.currentTime.toLong() > 0) {
-                        val duration = playerState.duration
-                        val historyIndex = historyList.indexOfFirst { it.anime.url == currentAnime.url && it.episode.url == currentEpisode.url }
-                        if (historyIndex >= 0 && duration > 0.0) {
-                            historyList[historyIndex] = historyList[historyIndex].copy(
-                                progressSeconds = position.toLong(),
-                                durationSeconds = duration.toLong()
-                            )
-                        }
-                    }
+                    savePlaybackPosition(position, playerState.duration)
                 }
+            }
+
+            if (resumePrompt != null) {
+                AlertDialog(
+                    onDismissRequest = { resumePrompt = null },
+                    title = { Text("Continuar reproducción") },
+                    text = {
+                        val position = resumePrompt!!.progressSeconds
+                        Text(
+                            "Este episodio se quedó en ${String.format("%02d:%02d", position / 60, position % 60)}. ¿Quieres continuar desde ahí?",
+                        )
+                    },
+                    dismissButton = {
+                        TextButton(onClick = {
+                            resumePrompt = null
+                            playerState.play()
+                        }) {
+                            Text("Empezar desde el inicio")
+                        }
+                    },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            val progress = resumePrompt!!
+                            resumePrompt = null
+                            scope.launch {
+                                // Se busca después de abrir el medio, cuando ya se conoce su duración.
+                                kotlinx.coroutines.delay(1_000)
+                                playerState.seekStart(
+                                    progress.progressSeconds.toFloat() / progress.durationSeconds * 1000f,
+                                )
+                                playerState.seekFinished()
+                                playerState.play()
+                            }
+                        }) {
+                            Text("Continuar")
+                        }
+                    },
+                )
             }
 
             VideoPlayerSurface(
@@ -1134,6 +1133,7 @@ fun MainScreen(
                         mangaSources = dynamicMangaSources,
                         animeRepos = appSettings.animeRepos,
                         mangaRepos = appSettings.mangaRepos,
+                        repositoryNetworkAllowed = repositoryNetworkAllowed,
                         installedJars = installedJars,
                         onAnimeClick = { selectedAnime = it },
                         onMangaClick = { selectedMangaSource = it },
@@ -1483,6 +1483,7 @@ fun BrowseTab(
     mangaSources: List<MangaSource>,
     animeRepos: List<String>,
     mangaRepos: List<String>,
+    repositoryNetworkAllowed: Boolean,
     installedJars: List<String>,
     extensionLoadErrors: List<String> = emptyList(),
     onAnimeClick: (RealAnime) -> Unit,
@@ -1701,6 +1702,7 @@ fun BrowseTab(
                     if (currentRepoUrl.isNotEmpty()) {
                         ExtensionsSection(
                             repoUrl = currentRepoUrl,
+                            repositoryNetworkAllowed = repositoryNetworkAllowed,
                             installedJars = installedJars,
                             onInstallSuccess = onInstallSuccess,
                             onUninstallSuccess = onUninstallSuccess,
@@ -3094,6 +3096,7 @@ fun MangaReaderScreen(
 @Composable
 fun ExtensionsSection(
     repoUrl: String,
+    repositoryNetworkAllowed: Boolean,
     installedJars: List<String>,
     onInstallSuccess: () -> Unit,
     onUninstallSuccess: () -> Unit,
@@ -3129,10 +3132,17 @@ fun ExtensionsSection(
         ).groupBy { it.lang }
     }
 
-    LaunchedEffect(repoUrl) {
+    LaunchedEffect(repoUrl, repositoryNetworkAllowed) {
         selectedExtensionLang = null
-        isLoading = true
         errorMessage = null
+        if (!repositoryNetworkAllowed) {
+            extensionsList = emptyList()
+            isLoading = false
+            errorMessage = "No se consultó el repositorio porque no se pudieron persistir los ajustes."
+            return@LaunchedEffect
+        }
+
+        isLoading = true
         try {
             val list = eu.kanade.tachiyomi.extension.ExtensionManager.fetchRepository(repoUrl)
             extensionsList = list

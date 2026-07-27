@@ -118,6 +118,10 @@ enum class Panels {
 sealed class Dialogs {
     data object None : Dialogs()
     data object EpisodeList : Dialogs()
+    data class Resume(
+        val positionMs: Long,
+        val durationMs: Long,
+    ) : Dialogs()
     data class IntegerPicker(
         val defaultValue: Int,
         val minValue: Int,

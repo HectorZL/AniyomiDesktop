@@ -86,9 +86,10 @@ tasks.withType<org.gradle.api.tasks.JavaExec>().configureEach {
 compose.desktop {
     application {
         mainClass = "MainKt"
-        jvmArgs += listOf("-noverify", "-Xverify:none")
+        jvmArgs += listOf("-noverify", "-Xverify:none", "--add-modules=jdk.httpserver")
         nativeDistributions {
             targetFormats(org.jetbrains.compose.desktop.application.dsl.TargetFormat.Msi)
+            modules("jdk.httpserver")
             packageName = "AniyomiDesktop"
             packageVersion = "1.0.0"
         }

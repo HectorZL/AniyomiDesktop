@@ -5,6 +5,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.ArrowDownward
@@ -227,8 +228,17 @@ fun AnimeDetailsScreen(
                 }
             }
         } else {
-            val filteredEpisodes = remember(episodes, filterUnreadOnly, sortOption, sortAscending) {
+            val filteredEpisodes = remember(episodes, historyList.toList(), filterUnreadOnly, sortOption, sortAscending) {
                 var list = episodes
+                if (filterUnreadOnly) {
+                    list = list.filterNot { episode ->
+                        historyList.any { item ->
+                            item.anime.url == anime.url &&
+                                item.episode.url == episode.url &&
+                                item.isSeen
+                        }
+                    }
+                }
                 list = when (sortOption) {
                     "number" -> if (sortAscending) list.sortedBy { it.episodeNumber } else list.sortedByDescending { it.episodeNumber }
                     "alpha" -> if (sortAscending) list.sortedBy { it.name } else list.sortedByDescending { it.name }
@@ -261,6 +271,11 @@ fun AnimeDetailsScreen(
                     Spacer(modifier = Modifier.height(8.dp))
                     LazyColumn(modifier = Modifier.fillMaxWidth()) {
                         items(filteredEpisodes) { episode ->
+                            val isSeen = historyList.any { item ->
+                                item.anime.url == anime.url &&
+                                    item.episode.url == episode.url &&
+                                    item.isSeen
+                            }
                             Card(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -275,7 +290,11 @@ fun AnimeDetailsScreen(
                                     modifier = Modifier.fillMaxWidth().padding(12.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Icon(Icons.Default.PlayArrow, contentDescription = "Play")
+                                    Icon(
+                                        imageVector = if (isSeen) Icons.Default.CheckCircle else Icons.Default.PlayArrow,
+                                        contentDescription = if (isSeen) "Visto" else "Reproducir",
+                                        tint = if (isSeen) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                    )
                                     Spacer(modifier = Modifier.width(12.dp))
                                     Text(text = episode.name, style = MaterialTheme.typography.bodyLarge)
                                 }

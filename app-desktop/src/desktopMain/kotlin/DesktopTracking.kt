@@ -136,6 +136,11 @@ private fun trackerDescription(type: DesktopTrackerType): String = when (type) {
     DesktopTrackerType.ANILIST -> "Manga · capítulos leídos, lista y puntuación"
 }
 
+private fun configuredAniListClientId(): String =
+    System.getenv("ANILIST_CLIENT_ID")
+        ?: readLocalProperty("anilistClientId")
+        ?: ""
+
 private fun trackerLoginUrl(type: DesktopTrackerType): String = when (type) {
     DesktopTrackerType.ANILIST -> "https://anilist.co/api/v2/oauth/authorize?client_id=5338&response_type=token"
     DesktopTrackerType.TRAKT -> {
@@ -160,10 +165,22 @@ private fun readLocalProperty(name: String): String? {
         ?.takeIf { it.isNotBlank() }
 }
 
-fun openDesktopUrl(url: String) {
-    runCatching {
-        if (Desktop.isDesktopSupported()) Desktop.getDesktop().browse(URI(url))
-    }.onFailure { it.printStackTrace() }
+fun openDesktopUrl(url: String): String? {
+    return runCatching {
+        val uri = URI(url)
+        if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
+            Desktop.getDesktop().browse(uri)
+        } else if (System.getProperty("os.name").startsWith("Windows", ignoreCase = true)) {
+            // Some Compose Desktop distributions cannot expose AWT's BROWSE action even though
+            // Windows has a default browser. Use the native protocol handler as a fallback.
+            ProcessBuilder("rundll32.exe", "url.dll,FileProtocolHandler", uri.toString()).start()
+        } else {
+            error("No hay un navegador compatible configurado en este equipo.")
+        }
+    }.exceptionOrNull()?.let { error ->
+        error.printStackTrace()
+        error.message ?: "No se pudo abrir el navegador predeterminado."
+    }
 }
 
 private fun trackerSearchUrl(type: DesktopTrackerType, title: String): String {
@@ -383,7 +400,11 @@ private fun TrackerConnectDialog(
 ) {
     var username by remember(account) { mutableStateOf(account.username) }
     var token by remember(account) { mutableStateOf(account.token) }
+    var aniListClientId by remember(type) { mutableStateOf(configuredAniListClientId()) }
+    var aniListAuthorization by remember { mutableStateOf<AniListLocalAuthorization?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var launchMessage by remember(type) { mutableStateOf<String?>(null) }
+    var launchFailed by remember(type) { mutableStateOf(false) }
     var isProcessing by remember { mutableStateOf(false) }
     val scope = androidx.compose.runtime.rememberCoroutineScope()
 
@@ -393,14 +414,99 @@ private fun TrackerConnectDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(trackerDescription(type), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (type == DesktopTrackerType.ANILIST) {
+                    OutlinedTextField(
+                        value = aniListClientId,
+                        onValueChange = { aniListClientId = it },
+                        label = { Text("Client ID de AniList") },
+                        supportingText = {
+                            Text("Registra http://127.0.0.1:42731/anilist/callback como Redirect URL en tu aplicación AniList.")
+                        },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !isProcessing,
+                    )
+                }
                 Button(
-                    onClick = { openDesktopUrl(trackerLoginUrl(type)) },
+                    onClick = {
+                        if (type == DesktopTrackerType.ANILIST) {
+                            val clientId = aniListClientId.trim()
+                            if (clientId.isBlank()) {
+                                launchFailed = true
+                                launchMessage = "Introduce el Client ID de la aplicación que registraste en AniList."
+                                return@Button
+                            }
+
+                            isProcessing = true
+                            errorMessage = null
+                            launchFailed = false
+                            launchMessage = "Esperando la autorización de AniList en el navegador…"
+                            val authorization = runCatching {
+                                AniListLocalAuthorization.start(
+                                    onToken = { receivedToken ->
+                                        scope.launch {
+                                            aniListAuthorization = null
+                                            token = receivedToken
+                                            launchMessage = "Token recibido. Verificando tu cuenta de AniList…"
+                                            try {
+                                                val verification = verifyTrackerAccount(type, receivedToken)
+                                                onSave(
+                                                    DesktopTrackerAccount(
+                                                        connected = true,
+                                                        username = verification.username.ifBlank { username.trim() },
+                                                        token = verification.accessToken,
+                                                        connectedAt = LocalDateTime.now().toString(),
+                                                    ),
+                                                )
+                                            } catch (error: Throwable) {
+                                                errorMessage = error.message ?: "No se pudo validar la cuenta de AniList."
+                                            } finally {
+                                                isProcessing = false
+                                            }
+                                        }
+                                    },
+                                    onFailure = { message ->
+                                        scope.launch {
+                                            aniListAuthorization = null
+                                            launchFailed = true
+                                            launchMessage = message
+                                            isProcessing = false
+                                        }
+                                    },
+                                )
+                            }.getOrElse { error ->
+                                launchFailed = true
+                                launchMessage = error.message ?: "No se pudo iniciar el receptor local de AniList."
+                                isProcessing = false
+                                null
+                            }
+                            authorization?.let {
+                                aniListAuthorization = it
+                                openDesktopUrl(it.authorizationUrl(clientId))?.let { failure ->
+                                    it.cancel()
+                                    launchFailed = true
+                                    launchMessage = failure
+                                }
+                            }
+                        } else {
+                            val failure = openDesktopUrl(trackerLoginUrl(type))
+                            launchFailed = failure != null
+                            launchMessage = failure ?: "Se abrió el navegador predeterminado. Completa el inicio de sesión y pega aquí el token o código OAuth."
+                        }
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !isProcessing,
                 ) {
                     Icon(Icons.Default.OpenInNew, contentDescription = null)
                     Spacer(Modifier.width(8.dp))
                     Text("Abrir inicio de sesión oficial")
+                }
+                launchMessage?.let {
+                    Text(
+                        it,
+                        color = if (launchFailed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
                 }
                 OutlinedTextField(
                     value = username,

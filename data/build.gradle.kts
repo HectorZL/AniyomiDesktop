@@ -40,6 +40,7 @@ dependencies {
     implementation(projects.sourceApi)
     implementation(projects.domain)
     implementation(projects.core.common)
+    implementation(androidx.room.common)
 
     api(libs.bundles.sqldelight)
 }

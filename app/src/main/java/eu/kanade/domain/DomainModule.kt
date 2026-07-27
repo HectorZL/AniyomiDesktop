@@ -77,6 +77,7 @@ import tachiyomi.data.history.anime.AnimeHistoryRepositoryImpl
 import tachiyomi.data.history.manga.MangaHistoryRepositoryImpl
 import tachiyomi.data.items.chapter.ChapterRepositoryImpl
 import tachiyomi.data.items.episode.EpisodeRepositoryImpl
+import tachiyomi.data.playback.PlaybackProgressRepositoryImpl
 import tachiyomi.data.release.ReleaseServiceImpl
 import tachiyomi.data.source.anime.AnimeSourceRepositoryImpl
 import tachiyomi.data.source.anime.AnimeStubSourceRepositoryImpl
@@ -170,6 +171,10 @@ import tachiyomi.domain.items.episode.repository.EpisodeRepository
 import tachiyomi.domain.items.season.interactor.GetAnimeSeasonsByParentId
 import tachiyomi.domain.items.season.interactor.SetAnimeDefaultSeasonFlags
 import tachiyomi.domain.items.season.interactor.ShouldUpdateDbSeason
+import tachiyomi.domain.playback.interactor.DeletePlaybackProgress
+import tachiyomi.domain.playback.interactor.GetPlaybackProgress
+import tachiyomi.domain.playback.interactor.UpsertPlaybackProgress
+import tachiyomi.domain.playback.repository.PlaybackProgressRepository
 import tachiyomi.domain.release.interactor.GetApplicationRelease
 import tachiyomi.domain.release.service.ReleaseService
 import tachiyomi.domain.source.anime.interactor.GetAnimeSourcesWithNonLibraryAnime
@@ -326,6 +331,11 @@ class DomainModule : InjektModule {
         addFactory { GetAnimeHistory(get()) }
         addFactory { UpsertAnimeHistory(get()) }
         addFactory { RemoveAnimeHistory(get()) }
+
+        addSingletonFactory<PlaybackProgressRepository> { PlaybackProgressRepositoryImpl(get()) }
+        addFactory { GetPlaybackProgress(get()) }
+        addFactory { UpsertPlaybackProgress(get()) }
+        addFactory { DeletePlaybackProgress(get()) }
 
         addFactory { DeleteEpisodeDownload(get(), get()) }
 

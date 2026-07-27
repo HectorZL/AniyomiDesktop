@@ -250,6 +250,8 @@ dependencies {
 
     // Job scheduling
     implementation(androidx.workmanager)
+    implementation(androidx.room.runtime)
+    implementation(androidx.room.ktx)
 
     // RxJava
     implementation(libs.rxjava)

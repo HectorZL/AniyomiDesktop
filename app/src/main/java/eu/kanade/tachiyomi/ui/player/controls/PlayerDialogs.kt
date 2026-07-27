@@ -5,6 +5,7 @@ import eu.kanade.tachiyomi.data.database.models.anime.Episode
 import eu.kanade.tachiyomi.ui.player.Dialogs
 import eu.kanade.tachiyomi.ui.player.controls.components.dialogs.EpisodeListDialog
 import eu.kanade.tachiyomi.ui.player.controls.components.dialogs.IntegerPickerDialog
+import eu.kanade.tachiyomi.ui.player.controls.components.dialogs.ResumeDialog
 import java.time.format.DateTimeFormatter
 
 @Composable
@@ -21,6 +22,10 @@ fun PlayerDialogs(
     onFillermarkClicked: (Long?, Boolean) -> Unit,
     onEpisodeClicked: (Long?) -> Unit,
 
+    // Resume dialog
+    onResumeSelected: (Long) -> Unit,
+    onStartFromBeginningSelected: () -> Unit,
+
     onDismissRequest: () -> Unit,
 ) {
     when (dialogShown) {
@@ -35,6 +40,14 @@ fun PlayerDialogs(
                 onBookmarkClicked = onBookmarkClicked,
                 onFillermarkClicked = onFillermarkClicked,
                 onEpisodeClicked = onEpisodeClicked,
+                onDismissRequest = onDismissRequest,
+            )
+        }
+        is Dialogs.Resume -> {
+            ResumeDialog(
+                positionMs = dialogShown.positionMs,
+                onResume = { onResumeSelected(dialogShown.positionMs) },
+                onStartFromBeginning = onStartFromBeginningSelected,
                 onDismissRequest = onDismissRequest,
             )
         }

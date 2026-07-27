@@ -260,6 +260,10 @@
     <string name="player_generic_unit_ms">ms</string>
     <string name="numeric_chooser_value_too_big">Value too big</string>
     <string name="numeric_chooser_value_too_small">Value too small</string>
+    <string name="player_resume_dialog_title">Resume playback?</string>
+    <string name="player_resume_dialog_message">Continue from %1$s?</string>
+    <string name="player_resume_dialog_resume">Resume</string>
+    <string name="player_resume_dialog_start_over">Start from beginning</string>
     <string name="enable_auto_play">Auto-play is on</string>
     <string name="disable_auto_play">Auto-play is off</string>
     <string name="player_aniskip_dontskip">Don\'t skip</string>

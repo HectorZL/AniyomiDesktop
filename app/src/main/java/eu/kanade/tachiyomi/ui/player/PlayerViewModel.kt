@@ -66,6 +66,7 @@ import eu.kanade.tachiyomi.data.database.models.anime.isRecognizedNumber
 import eu.kanade.tachiyomi.data.database.models.anime.toDomainEpisode
 import eu.kanade.tachiyomi.data.download.anime.AnimeDownloadManager
 import eu.kanade.tachiyomi.data.download.anime.model.AnimeDownload
+import eu.kanade.tachiyomi.data.playback.PlaybackProgressManager
 import eu.kanade.tachiyomi.data.saver.Image
 import eu.kanade.tachiyomi.data.saver.ImageSaver
 import eu.kanade.tachiyomi.data.saver.Location
@@ -175,6 +176,7 @@ class PlayerViewModel @JvmOverloads constructor(
     private val trackSelect: TrackSelect = Injekt.get(),
     private val getIncognitoState: GetAnimeIncognitoState = Injekt.get(),
     private val libraryPreferences: LibraryPreferences = Injekt.get(),
+    private val playbackProgressManager: PlaybackProgressManager = Injekt.get(),
     uiPreferences: UiPreferences = Injekt.get(),
 ) : ViewModel() {
 
@@ -314,6 +316,10 @@ class PlayerViewModel @JvmOverloads constructor(
     private var timerJob: Job? = null
     private val _remainingTime = MutableStateFlow(0)
     val remainingTime = _remainingTime.asStateFlow()
+
+    /** Avoid showing another resume prompt when a source reloads tracks for the same episode. */
+    private var resumePromptedEpisodeId: Long? = null
+    private var resumePlaybackAfterDialog = false
 
     val cachePath: String = activity.cacheDir.path
 
@@ -469,6 +475,7 @@ class PlayerViewModel @JvmOverloads constructor(
         isLoadingTracks.update { _ -> true }
         updateIsLoadingEpisode(false)
         setPausedState()
+        offerResumeIfAvailable()
     }
 
     @Immutable
@@ -674,12 +681,20 @@ class PlayerViewModel @JvmOverloads constructor(
 
     private var _wasPlayingBeforeBackground = false
 
-    fun pause() {
+    fun pause(persistProgress: Boolean = true) {
         logcat { "Playback paused" }
         activity.player.paused = true
         _paused.update { true }
         runCatching {
             activity.setPictureInPictureParams(activity.createPipParams())
+        }
+        val id = currentEpisode.value?.id
+        if (persistProgress && id != null && !isLoadingEpisode.value) {
+            playbackProgressManager.onPlaybackPaused(
+                episodeId = id,
+                positionMs = pos.value.toLong() * 1000L,
+                durationMs = duration.value.toLong() * 1000L,
+            )
         }
     }
 
@@ -1122,10 +1137,17 @@ class PlayerViewModel @JvmOverloads constructor(
     }
 
     override fun onCleared() {
-        if (currentEpisode.value != null) {
-            saveWatchingProgress(currentEpisode.value!!)
+        currentEpisode.value?.let { episode ->
+            saveWatchingProgress(episode)
             episodeToDownload?.let {
                 downloadManager.addDownloadsToStartOfQueue(listOf(it))
+            }
+            episode.id?.let { id ->
+                playbackProgressManager.flushOnTeardown(
+                    episodeId = id,
+                    positionMs = episode.last_second_seen,
+                    durationMs = episode.total_seconds,
+                )
             }
         }
     }
@@ -1679,6 +1701,60 @@ class PlayerViewModel @JvmOverloads constructor(
     }
 
     /**
+     * Checks whether this device has a saved position for the current episode worth resuming
+     * from, and shows [Dialogs.Resume] if so.
+     *
+     * Called once per episode load, after tracks finish loading, so playback has started (and is
+     * then immediately paused via [setPausedState]) before the dialog can appear.
+     */
+    private fun offerResumeIfAvailable() {
+        val episode = currentEpisode.value ?: return
+        val id = episode.id ?: return
+        if (resumePromptedEpisodeId == id) return
+        resumePromptedEpisodeId = id
+
+        viewModelScope.launchIO {
+            val resume = playbackProgressManager.loadResumePosition(id) ?: return@launchIO
+            withUIContext {
+                // The episode may have changed while the lookup was in flight.
+                if (currentEpisode.value?.id != id) return@withUIContext
+
+                // The source may have restored the prior play state already. Pause until the user
+                // chooses, then restore that state after the dialog closes.
+                resumePlaybackAfterDialog = !paused.value
+                pause(persistProgress = false)
+                showDialog(Dialogs.Resume(resume.positionMs, resume.durationMs))
+            }
+        }
+    }
+
+    /** Called when the user chooses to resume from the saved position in [Dialogs.Resume]. */
+    fun onResumeSelected(positionMs: Long) {
+        seekTo((positionMs / 1000L).toInt())
+        finishResumeDialog()
+    }
+
+    /** Called when the user chooses to discard the saved position and start over. */
+    fun onStartFromBeginningSelected() {
+        seekTo(0)
+        currentEpisode.value?.id?.let { playbackProgressManager.clearProgress(it) }
+        finishResumeDialog()
+    }
+
+    /** Called when the user dismisses [Dialogs.Resume] without choosing either action. */
+    fun onDismissResumeDialog() {
+        finishResumeDialog()
+    }
+
+    private fun finishResumeDialog() {
+        showDialog(Dialogs.None)
+        if (resumePlaybackAfterDialog) {
+            unpause()
+        }
+        resumePlaybackAfterDialog = false
+    }
+
+    /**
      * Called every time a second is reached in the player. Used to mark the flag of episode being
      * seen, update tracking services, enqueue downloaded episode deletion and download next episode.
      */
@@ -1698,10 +1774,17 @@ class PlayerViewModel @JvmOverloads constructor(
 
         val progress = playerPreferences.progressPreference().get()
         val shouldTrack = !incognitoMode || hasTrackers
-        if (seconds >= totalSeconds * progress && shouldTrack) {
+        val hasReachedCompletion = seconds >= totalSeconds * progress && shouldTrack
+        if (hasReachedCompletion) {
             viewModelScope.launchNonCancellable {
                 updateEpisodeProgressOnComplete(currentEp)
             }
+        } else {
+            playbackProgressManager.onPlaybackPositionChanged(
+                episodeId = currentEp.id!!,
+                positionMs = seconds,
+                durationMs = totalSeconds,
+            )
         }
 
         saveWatchingProgress(currentEp)
@@ -1716,6 +1799,7 @@ class PlayerViewModel @JvmOverloads constructor(
         currentEp.seen = true
         updateTrackEpisodeSeen(currentEp)
         deleteEpisodeIfNeeded(currentEp)
+        playbackProgressManager.clearProgress(currentEp.id!!)
 
         val markDuplicateAsSeen = libraryPreferences.markDuplicateSeenEpisodeAsSeen().get()
             .contains(LibraryPreferences.MARK_DUPLICATE_EPISODE_SEEN_EXISTING)
@@ -1803,7 +1887,6 @@ class PlayerViewModel @JvmOverloads constructor(
      * If incognito mode isn't on or has at least 1 tracker
      */
     private suspend fun saveEpisodeProgress(episode: Episode) {
-        Log.d("AniyomiPlayerDebug", "Saving progress for episode ${episode.name} at position ${episode.last_second_seen} ms")
         logcat(LogPriority.DEBUG) { "saveEpisodeProgress: id=${episode.id}, last_second_seen=${episode.last_second_seen}, incognitoMode=$incognitoMode, hasTrackers=$hasTrackers" }
         updateEpisode.await(
             EpisodeUpdate(

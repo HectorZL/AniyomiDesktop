@@ -1,0 +1,515 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1.1 Crear entidad PlaybackProgress con índices": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091977623
+      },
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785092014917
+      },
+      {
+        "executionId": "6afc9a74-7e02-4290-be0e-79e25fc33aeb",
+        "chatSessionId": "sess_e3911442-8673-4442-a68a-1c1db44c8265",
+        "timestamp": 1785169443121
+      },
+      {
+        "executionId": "6afc9a74-7e02-4290-be0e-79e25fc33aeb",
+        "chatSessionId": "sess_e3911442-8673-4442-a68a-1c1db44c8265",
+        "timestamp": 1785169455264
+      },
+      {
+        "executionId": "6afc9a74-7e02-4290-be0e-79e25fc33aeb",
+        "chatSessionId": "sess_e3911442-8673-4442-a68a-1c1db44c8265",
+        "timestamp": 1785169889849
+      }
+    ],
+    "1.2 Implementar PlaybackProgressDao con operaciones CRUD": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091978530
+      },
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785092050332
+      },
+      {
+        "executionId": "6afc9a74-7e02-4290-be0e-79e25fc33aeb",
+        "chatSessionId": "sess_e3911442-8673-4442-a68a-1c1db44c8265",
+        "timestamp": 1785169443496
+      },
+      {
+        "executionId": "6afc9a74-7e02-4290-be0e-79e25fc33aeb",
+        "chatSessionId": "sess_e3911442-8673-4442-a68a-1c1db44c8265",
+        "timestamp": 1785169458904
+      },
+      {
+        "executionId": "3a634df6-249a-4a94-87df-0f13017cba9d",
+        "chatSessionId": "sess_e3911442-8673-4442-a68a-1c1db44c8265",
+        "timestamp": 1785169944731
+      }
+    ],
+    "1.4 Crear DeadLink entity y DAO para manejo de links rotos": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091978744
+      },
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785092063203
+      },
+      {
+        "executionId": "6afc9a74-7e02-4290-be0e-79e25fc33aeb",
+        "chatSessionId": "sess_e3911442-8673-4442-a68a-1c1db44c8265",
+        "timestamp": 1785169443563
+      },
+      {
+        "executionId": "6afc9a74-7e02-4290-be0e-79e25fc33aeb",
+        "chatSessionId": "sess_e3911442-8673-4442-a68a-1c1db44c8265",
+        "timestamp": 1785169462635
+      },
+      {
+        "executionId": "3a634df6-249a-4a94-87df-0f13017cba9d",
+        "chatSessionId": "sess_e3911442-8673-4442-a68a-1c1db44c8265",
+        "timestamp": 1785169945933
+      }
+    ],
+    "2.1 Crear clase repository con transacciones": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091979448
+      },
+      {
+        "executionId": "6afc9a74-7e02-4290-be0e-79e25fc33aeb",
+        "chatSessionId": "sess_e3911442-8673-4442-a68a-1c1db44c8265",
+        "timestamp": 1785169443617
+      },
+      {
+        "executionId": "3a634df6-249a-4a94-87df-0f13017cba9d",
+        "chatSessionId": "sess_e3911442-8673-4442-a68a-1c1db44c8265",
+        "timestamp": 1785169958584
+      },
+      {
+        "executionId": "3a634df6-249a-4a94-87df-0f13017cba9d",
+        "chatSessionId": "sess_e3911442-8673-4442-a68a-1c1db44c8265",
+        "timestamp": 1785170487252
+      }
+    ],
+    "2.2 Implementar rollback automático en escrituras fallidas": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091979585
+      },
+      {
+        "executionId": "6afc9a74-7e02-4290-be0e-79e25fc33aeb",
+        "chatSessionId": "sess_e3911442-8673-4442-a68a-1c1db44c8265",
+        "timestamp": 1785169443657
+      }
+    ],
+    "3.1 Crear validator para validación de posiciones": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091979684
+      },
+      {
+        "executionId": "6afc9a74-7e02-4290-be0e-79e25fc33aeb",
+        "chatSessionId": "sess_e3911442-8673-4442-a68a-1c1db44c8265",
+        "timestamp": 1785169443730
+      },
+      {
+        "executionId": "3a634df6-249a-4a94-87df-0f13017cba9d",
+        "chatSessionId": "sess_e3911442-8673-4442-a68a-1c1db44c8265",
+        "timestamp": 1785169959442
+      },
+      {
+        "executionId": "3a634df6-249a-4a94-87df-0f13017cba9d",
+        "chatSessionId": "sess_e3911442-8673-4442-a68a-1c1db44c8265",
+        "timestamp": 1785170487966
+      }
+    ],
+    "3.2 Implementar ajustes de posición para recuperación": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091979818
+      },
+      {
+        "executionId": "6afc9a74-7e02-4290-be0e-79e25fc33aeb",
+        "chatSessionId": "sess_e3911442-8673-4442-a68a-1c1db44c8265",
+        "timestamp": 1785169443791
+      },
+      {
+        "executionId": "3a634df6-249a-4a94-87df-0f13017cba9d",
+        "chatSessionId": "sess_e3911442-8673-4442-a68a-1c1db44c8265",
+        "timestamp": 1785169960265
+      },
+      {
+        "executionId": "3a634df6-249a-4a94-87df-0f13017cba9d",
+        "chatSessionId": "sess_e3911442-8673-4442-a68a-1c1db44c8265",
+        "timestamp": 1785170488852
+      }
+    ],
+    "4.1 Crear proveedor de identificador único de dispositivo": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091979950
+      },
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785092065764
+      },
+      {
+        "executionId": "6afc9a74-7e02-4290-be0e-79e25fc33aeb",
+        "chatSessionId": "sess_e3911442-8673-4442-a68a-1c1db44c8265",
+        "timestamp": 1785169443827
+      },
+      {
+        "executionId": "6afc9a74-7e02-4290-be0e-79e25fc33aeb",
+        "chatSessionId": "sess_e3911442-8673-4442-a68a-1c1db44c8265",
+        "timestamp": 1785169466841
+      },
+      {
+        "executionId": "3a634df6-249a-4a94-87df-0f13017cba9d",
+        "chatSessionId": "sess_e3911442-8673-4442-a68a-1c1db44c8265",
+        "timestamp": 1785169946992
+      }
+    ],
+    "4.2 Implementar getDeviceId() sincrónico": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091980099
+      },
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785092078205
+      },
+      {
+        "executionId": "6afc9a74-7e02-4290-be0e-79e25fc33aeb",
+        "chatSessionId": "sess_e3911442-8673-4442-a68a-1c1db44c8265",
+        "timestamp": 1785169443866
+      },
+      {
+        "executionId": "6afc9a74-7e02-4290-be0e-79e25fc33aeb",
+        "chatSessionId": "sess_e3911442-8673-4442-a68a-1c1db44c8265",
+        "timestamp": 1785169470442
+      },
+      {
+        "executionId": "3a634df6-249a-4a94-87df-0f13017cba9d",
+        "chatSessionId": "sess_e3911442-8673-4442-a68a-1c1db44c8265",
+        "timestamp": 1785169947903
+      }
+    ],
+    "5. Checkpoint - Validar capas de persistencia": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091980208
+      },
+      {
+        "executionId": "6afc9a74-7e02-4290-be0e-79e25fc33aeb",
+        "chatSessionId": "sess_e3911442-8673-4442-a68a-1c1db44c8265",
+        "timestamp": 1785169443903
+      }
+    ],
+    "6.1 Crear manager con debouncing de 5 segundos": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091980362
+      },
+      {
+        "executionId": "6afc9a74-7e02-4290-be0e-79e25fc33aeb",
+        "chatSessionId": "sess_e3911442-8673-4442-a68a-1c1db44c8265",
+        "timestamp": 1785169443983
+      }
+    ],
+    "6.2 Implementar onPlaybackPaused() para guardado inmediato": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091980482
+      },
+      {
+        "executionId": "6afc9a74-7e02-4290-be0e-79e25fc33aeb",
+        "chatSessionId": "sess_e3911442-8673-4442-a68a-1c1db44c8265",
+        "timestamp": 1785169444018
+      }
+    ],
+    "6.3 Implementar handleWriteFailure() con reintentos": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091980595
+      },
+      {
+        "executionId": "6afc9a74-7e02-4290-be0e-79e25fc33aeb",
+        "chatSessionId": "sess_e3911442-8673-4442-a68a-1c1db44c8265",
+        "timestamp": 1785169444052
+      }
+    ],
+    "6.4 Implementar flushPendingUpdates() para cierre de app": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091980708
+      },
+      {
+        "executionId": "6afc9a74-7e02-4290-be0e-79e25fc33aeb",
+        "chatSessionId": "sess_e3911442-8673-4442-a68a-1c1db44c8265",
+        "timestamp": 1785169444084
+      }
+    ],
+    "7.1 Crear composable ResumeDialog con dos botones": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091980851
+      },
+      {
+        "executionId": "6afc9a74-7e02-4290-be0e-79e25fc33aeb",
+        "chatSessionId": "sess_e3911442-8673-4442-a68a-1c1db44c8265",
+        "timestamp": 1785169444123
+      }
+    ],
+    "7.2 Integrar dialog con PlayerViewModel": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091980996
+      },
+      {
+        "executionId": "6afc9a74-7e02-4290-be0e-79e25fc33aeb",
+        "chatSessionId": "sess_e3911442-8673-4442-a68a-1c1db44c8265",
+        "timestamp": 1785169444168
+      }
+    ],
+    "8.1 Conectar eventos del reproductor a PlaybackProgressManager": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091981086
+      },
+      {
+        "executionId": "6afc9a74-7e02-4290-be0e-79e25fc33aeb",
+        "chatSessionId": "sess_e3911442-8673-4442-a68a-1c1db44c8265",
+        "timestamp": 1785169444204
+      }
+    ],
+    "8.2 Implementar hook de pausa": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091981198
+      },
+      {
+        "executionId": "6afc9a74-7e02-4290-be0e-79e25fc33aeb",
+        "chatSessionId": "sess_e3911442-8673-4442-a68a-1c1db44c8265",
+        "timestamp": 1785169444234
+      }
+    ],
+    "8.3 Implementar hook de cierre": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091981395
+      },
+      {
+        "executionId": "6afc9a74-7e02-4290-be0e-79e25fc33aeb",
+        "chatSessionId": "sess_e3911442-8673-4442-a68a-1c1db44c8265",
+        "timestamp": 1785169444310
+      }
+    ],
+    "9.1 Crear lógica para marcar episodio como completado": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091981521
+      },
+      {
+        "executionId": "6afc9a74-7e02-4290-be0e-79e25fc33aeb",
+        "chatSessionId": "sess_e3911442-8673-4442-a68a-1c1db44c8265",
+        "timestamp": 1785169444411
+      }
+    ],
+    "9.2 Limpiar posición guardada de completados": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091981642
+      },
+      {
+        "executionId": "6afc9a74-7e02-4290-be0e-79e25fc33aeb",
+        "chatSessionId": "sess_e3911442-8673-4442-a68a-1c1db44c8265",
+        "timestamp": 1785169444443
+      }
+    ],
+    "10.1 Aislar datos por deviceId": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091981746
+      },
+      {
+        "executionId": "6afc9a74-7e02-4290-be0e-79e25fc33aeb",
+        "chatSessionId": "sess_e3911442-8673-4442-a68a-1c1db44c8265",
+        "timestamp": 1785169444475
+      }
+    ],
+    "10.2 Crear lógica de conflicto multi-dispositivo": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091981883
+      },
+      {
+        "executionId": "6afc9a74-7e02-4290-be0e-79e25fc33aeb",
+        "chatSessionId": "sess_e3911442-8673-4442-a68a-1c1db44c8265",
+        "timestamp": 1785169444508
+      }
+    ],
+    "11.1 Detectar datos corruptos al cargar": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091982022
+      },
+      {
+        "executionId": "6afc9a74-7e02-4290-be0e-79e25fc33aeb",
+        "chatSessionId": "sess_e3911442-8673-4442-a68a-1c1db44c8265",
+        "timestamp": 1785169444541
+      }
+    ],
+    "11.2 Implementar recuperación tras reboot": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091982149
+      },
+      {
+        "executionId": "6afc9a74-7e02-4290-be0e-79e25fc33aeb",
+        "chatSessionId": "sess_e3911442-8673-4442-a68a-1c1db44c8265",
+        "timestamp": 1785169444595
+      }
+    ],
+    "12. Checkpoint - Validar integraciones": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091982299
+      },
+      {
+        "executionId": "6afc9a74-7e02-4290-be0e-79e25fc33aeb",
+        "chatSessionId": "sess_e3911442-8673-4442-a68a-1c1db44c8265",
+        "timestamp": 1785169444626
+      }
+    ],
+    "13.1 Crear database configuration": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091982396
+      },
+      {
+        "executionId": "6afc9a74-7e02-4290-be0e-79e25fc33aeb",
+        "chatSessionId": "sess_e3911442-8673-4442-a68a-1c1db44c8265",
+        "timestamp": 1785169444656
+      }
+    ],
+    "13.2 Implementar migración de database (si existe versión anterior)": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091982546
+      },
+      {
+        "executionId": "6afc9a74-7e02-4290-be0e-79e25fc33aeb",
+        "chatSessionId": "sess_e3911442-8673-4442-a68a-1c1db44c8265",
+        "timestamp": 1785169444690
+      }
+    ],
+    "14.1 Escribir unit tests para validator": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091982657
+      },
+      {
+        "executionId": "6afc9a74-7e02-4290-be0e-79e25fc33aeb",
+        "chatSessionId": "sess_e3911442-8673-4442-a68a-1c1db44c8265",
+        "timestamp": 1785169444760
+      }
+    ],
+    "14.2 Escribir integration tests": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091982768
+      },
+      {
+        "executionId": "6afc9a74-7e02-4290-be0e-79e25fc33aeb",
+        "chatSessionId": "sess_e3911442-8673-4442-a68a-1c1db44c8265",
+        "timestamp": 1785169444819
+      }
+    ],
+    "14.3 Escribir instrumented tests": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091982927
+      },
+      {
+        "executionId": "6afc9a74-7e02-4290-be0e-79e25fc33aeb",
+        "chatSessionId": "sess_e3911442-8673-4442-a68a-1c1db44c8265",
+        "timestamp": 1785169444868
+      }
+    ],
+    "15. Final checkpoint - Todas las propiedades validadas": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091983037
+      },
+      {
+        "executionId": "6afc9a74-7e02-4290-be0e-79e25fc33aeb",
+        "chatSessionId": "sess_e3911442-8673-4442-a68a-1c1db44c8265",
+        "timestamp": 1785169444900
+      }
+    ],
+    "1. Configurar base de datos Room y entidades": [
+      {
+        "executionId": "3a634df6-249a-4a94-87df-0f13017cba9d",
+        "chatSessionId": "sess_e3911442-8673-4442-a68a-1c1db44c8265",
+        "timestamp": 1785169945993
+      }
+    ],
+    "4. Implementar DeviceProvider": [
+      {
+        "executionId": "3a634df6-249a-4a94-87df-0f13017cba9d",
+        "chatSessionId": "sess_e3911442-8673-4442-a68a-1c1db44c8265",
+        "timestamp": 1785169947946
+      }
+    ],
+    "3. Implementar PlaybackSessionValidator": [
+      {
+        "executionId": "3a634df6-249a-4a94-87df-0f13017cba9d",
+        "chatSessionId": "sess_e3911442-8673-4442-a68a-1c1db44c8265",
+        "timestamp": 1785170488892
+      }
+    ]
+  }
+}

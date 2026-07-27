@@ -595,10 +595,7 @@ fun PlayerControls(
             subtitles = subtitles.toImmutableList(),
             selectedSubtitles = selectedSubtitles.toList().toImmutableList(),
             onAddSubtitle = viewModel::addSubtitle,
-            onSelectSubtitle = { id ->
-                logcat { "Subtitle track selected: $id" }
-                viewModel.selectSub(id)
-            },
+            onSelectSubtitle = viewModel::selectSub,
             audioTracks = audioTracks.toImmutableList(),
             selectedAudio = selectedAudio,
             onAddAudio = viewModel::addAudio,
@@ -668,7 +665,9 @@ fun PlayerControls(
                 viewModel.showDialog(Dialogs.None)
                 activity.changeEpisode(it)
             },
-            onDismissRequest = { viewModel.showDialog(Dialogs.None) },
+            onResumeSelected = viewModel::onResumeSelected,
+            onStartFromBeginningSelected = viewModel::onStartFromBeginningSelected,
+            onDismissRequest = { viewModel.onDismissResumeDialog() },
         )
 
         BrightnessOverlay(

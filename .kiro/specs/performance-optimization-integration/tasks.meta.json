@@ -1,0 +1,418 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1.1 Crear MemoryCache<T> con LRU eviction": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091977655
+      }
+    ],
+    "1.2 Crear DiskCache<T> con File system": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091978525
+      }
+    ],
+    "1.3 Crear CacheEntry<T> con metadatos": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091978744
+      }
+    ],
+    "1.4 Crear CacheChain<T> multinivel": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091979448
+      }
+    ],
+    "2.1 Crear handler con retry logic": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091979587
+      }
+    ],
+    "2.2 Implementar Circuit Breaker": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091979681
+      }
+    ],
+    "2.3 Implementar health monitoring": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091979816
+      }
+    ],
+    "2.4 Implementar fallback a cache": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091979949
+      }
+    ],
+    "2.5 Implementar metrics collection": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091980099
+      }
+    ],
+    "3.1 Crear resolver con validación de links": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091980207
+      }
+    ],
+    "3.2 Crear validador de links": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091980358
+      }
+    ],
+    "3.3 Implementar dead links tracking": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091980482
+      }
+    ],
+    "3.4 Crear DeadLink entity en Room": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091980594
+      }
+    ],
+    "4.1 Crear optimizer con WEBP compression": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091980711
+      }
+    ],
+    "4.2 Implementar descarga de imágenes": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091980851
+      }
+    ],
+    "4.3 Implementar compresión WEBP": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091980997
+      }
+    ],
+    "4.4 Implementar caching de imágenes": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091981089
+      }
+    ],
+    "5. Checkpoint - Validar caching y link resolution": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091981206
+      }
+    ],
+    "6.1 Crear flujo de búsqueda con caching": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091981394
+      }
+    ],
+    "6.2 Implementar timeout de 2000ms": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091981509
+      }
+    ],
+    "6.3 Implementar lazy loading de imágenes": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091981643
+      }
+    ],
+    "6.4 Implementar invalidación de cache": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091981747
+      }
+    ],
+    "7.1 Crear flujo con virtual scrolling": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091981884
+      }
+    ],
+    "7.2 Implementar paginación on-demand": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091982023
+      }
+    ],
+    "7.3 Implementar caching de episodios": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091982150
+      }
+    ],
+    "7.4 Implementar lazy loading de metadatos": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091982295
+      }
+    ],
+    "7.5 Implementar batch loading": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091982397
+      }
+    ],
+    "8.1 Crear limpieza automática de cache": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091982546
+      }
+    ],
+    "8.2 Crear limpieza manual": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091982660
+      }
+    ],
+    "9.1 Crear validador de estructura": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091982771
+      }
+    ],
+    "9.2 Implementar sanitización de datos": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091982927
+      }
+    ],
+    "9.3 Implementar límites de campos": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091983041
+      }
+    ],
+    "9.4 Implementar validación de URLs": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091983132
+      }
+    ],
+    "9.5 Implementar schema validation": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091983234
+      }
+    ],
+    "10. Checkpoint - Validar búsqueda y carga de episodios": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091983416
+      }
+    ],
+    "11.1 Crear prefetcher con WorkManager": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091983503
+      }
+    ],
+    "11.2 Implementar constraints": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091983593
+      }
+    ],
+    "11.3 Implementar PrefetchWorker": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091983672
+      }
+    ],
+    "11.4 Implementar rate limiting": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091983763
+      }
+    ],
+    "11.5 Implementar configuración de usuario": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091983903
+      }
+    ],
+    "12.1 Crear collector con telemetría": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091984038
+      }
+    ],
+    "12.2 Implementar agregación de métricas": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091984151
+      }
+    ],
+    "12.3 Implementar debug overlay": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091984285
+      }
+    ],
+    "12.4 Implementar memory monitoring": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091984342
+      }
+    ],
+    "13.1 Crear ejecutor paralelo": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091984389
+      }
+    ],
+    "13.2 Implementar race condition handling": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091984434
+      }
+    ],
+    "14.1 Crear settings de cache y rendimiento": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091984487
+      }
+    ],
+    "14.2 Implementar perfiles predefinidos": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091984557
+      }
+    ],
+    "14.3 Implementar detección automática de red": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091984616
+      }
+    ],
+    "14.4 Implementar per-source timeouts": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091984734
+      }
+    ],
+    "15.1 Escribir unit tests para CacheChain": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091984784
+      }
+    ],
+    "15.2 Escribir unit tests para SourceRequestHandler": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091984842
+      }
+    ],
+    "15.3 Escribir unit tests para validator": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091984906
+      }
+    ],
+    "15.4 Escribir integration tests": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091984995
+      }
+    ],
+    "15.5 Escribir stress tests": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091985075
+      }
+    ],
+    "16. Final checkpoint - Todas las propiedades validadas": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091985144
+      }
+    ],
+    "17.1 Optimizar queries de cache": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091985216
+      }
+    ],
+    "17.2 Optimizar image loading pipeline": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091985280
+      }
+    ],
+    "17.3 Benchmark y profiling": [
+      {
+        "executionId": "71e69055-00e2-41fb-b21c-b12a43e1cb94",
+        "chatSessionId": "sess_dfedea16-9e88-49dc-8533-a574183cda05",
+        "timestamp": 1785091985350
+      }
+    ]
+  }
+}

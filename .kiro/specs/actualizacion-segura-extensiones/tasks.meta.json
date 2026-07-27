@@ -45,6 +45,26 @@
         "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
         "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
         "timestamp": 1785012642771
+      },
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785013003666
+      },
+      {
+        "executionId": "8c9626e0-0c24-4d50-a9bf-3ac759b72479",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785013687426
+      },
+      {
+        "executionId": "c127b036-20a4-4020-9728-9c3b3154aa19",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785013741555
+      },
+      {
+        "executionId": "c127b036-20a4-4020-9728-9c3b3154aa19",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785014145736
       }
     ],
     "1.4 Escribir pruebas obligatorias de las primitivas de almacenamiento": [
@@ -52,6 +72,26 @@
         "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
         "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
         "timestamp": 1785010308103
+      },
+      {
+        "executionId": "8c9626e0-0c24-4d50-a9bf-3ac759b72479",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785013134828
+      },
+      {
+        "executionId": "8c9626e0-0c24-4d50-a9bf-3ac759b72479",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785013690952
+      },
+      {
+        "executionId": "c127b036-20a4-4020-9728-9c3b3154aa19",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785014153182
+      },
+      {
+        "executionId": "c127b036-20a4-4020-9728-9c3b3154aa19",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785014305870
       }
     ],
     "2.1 Ampliar `AppSettings` y convertir su persistencia en atómica y migrable": [
@@ -64,6 +104,11 @@
         "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
         "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
         "timestamp": 1785012645659
+      },
+      {
+        "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785013000398
       }
     ],
     "2.2 Implementar normalización, confianza y `RepositoryPlanner`": [
@@ -71,6 +116,16 @@
         "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
         "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
         "timestamp": 1785010308206
+      },
+      {
+        "executionId": "8c9626e0-0c24-4d50-a9bf-3ac759b72479",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785013138196
+      },
+      {
+        "executionId": "8c9626e0-0c24-4d50-a9bf-3ac759b72479",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785013694670
       }
     ],
     "2.3 Escribir la prueba basada en propiedades de normalización": [
@@ -78,6 +133,16 @@
         "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
         "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
         "timestamp": 1785010308246
+      },
+      {
+        "executionId": "c127b036-20a4-4020-9728-9c3b3154aa19",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785014318661
+      },
+      {
+        "executionId": "c127b036-20a4-4020-9728-9c3b3154aa19",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785014626683
       }
     ],
     "2.4 Escribir la prueba basada en propiedades de round-trip de ajustes": [
@@ -85,6 +150,16 @@
         "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
         "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
         "timestamp": 1785010308290
+      },
+      {
+        "executionId": "8c9626e0-0c24-4d50-a9bf-3ac759b72479",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785013141595
+      },
+      {
+        "executionId": "8c9626e0-0c24-4d50-a9bf-3ac759b72479",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785013683685
       }
     ],
     "2.5 Escribir la prueba basada en propiedades de migración": [
@@ -92,6 +167,16 @@
         "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
         "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
         "timestamp": 1785010308342
+      },
+      {
+        "executionId": "c127b036-20a4-4020-9728-9c3b3154aa19",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785014321782
+      },
+      {
+        "executionId": "c127b036-20a4-4020-9728-9c3b3154aa19",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785014630053
       }
     ],
     "2.6 Escribir la prueba basada en propiedades del plan de consulta": [
@@ -99,6 +184,16 @@
         "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
         "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
         "timestamp": 1785010308396
+      },
+      {
+        "executionId": "c127b036-20a4-4020-9728-9c3b3154aa19",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785014325593
+      },
+      {
+        "executionId": "c127b036-20a4-4020-9728-9c3b3154aa19",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785014633749
       }
     ],
     "2.7 Escribir pruebas de integración del almacén de ajustes": [
@@ -106,6 +201,16 @@
         "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
         "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
         "timestamp": 1785010308436
+      },
+      {
+        "executionId": "c127b036-20a4-4020-9728-9c3b3154aa19",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785014328403
+      },
+      {
+        "executionId": "c127b036-20a4-4020-9728-9c3b3154aa19",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785014637531
       }
     ],
     "3.1 Ampliar la consulta y el parseo de índices detrás de `ExtensionManager`": [
@@ -113,6 +218,16 @@
         "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
         "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
         "timestamp": 1785010308473
+      },
+      {
+        "executionId": "c127b036-20a4-4020-9728-9c3b3154aa19",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785014644375
+      },
+      {
+        "executionId": "c127b036-20a4-4020-9728-9c3b3154aa19",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785015089340
       }
     ],
     "3.2 Implementar `VersionComparator`": [
@@ -120,6 +235,16 @@
         "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
         "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
         "timestamp": 1785010308508
+      },
+      {
+        "executionId": "c127b036-20a4-4020-9728-9c3b3154aa19",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785014647369
+      },
+      {
+        "executionId": "c127b036-20a4-4020-9728-9c3b3154aa19",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785015092755
       }
     ],
     "3.3 Implementar `RemoteCandidateSelector`": [
@@ -127,6 +252,11 @@
         "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
         "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
         "timestamp": 1785010308544
+      },
+      {
+        "executionId": "c127b036-20a4-4020-9728-9c3b3154aa19",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785015104606
       }
     ],
     "3.4 Escribir la prueba basada en propiedades de selección máxima": [
@@ -155,6 +285,11 @@
         "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
         "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
         "timestamp": 1785010308710
+      },
+      {
+        "executionId": "c127b036-20a4-4020-9728-9c3b3154aa19",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785015107628
       }
     ],
     "3.8 Escribir la prueba basada en propiedades de aislamiento de entradas": [
@@ -162,6 +297,11 @@
         "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
         "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
         "timestamp": 1785010308748
+      },
+      {
+        "executionId": "c127b036-20a4-4020-9728-9c3b3154aa19",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785015112888
       }
     ],
     "3.9 Escribir pruebas de integración HTTP y de parseo": [
@@ -176,6 +316,16 @@
         "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
         "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
         "timestamp": 1785010308821
+      },
+      {
+        "executionId": "c127b036-20a4-4020-9728-9c3b3154aa19",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785014652191
+      },
+      {
+        "executionId": "c127b036-20a4-4020-9728-9c3b3154aa19",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785015096855
       }
     ],
     "4.2 Implementar `InventoryBuilder` y las acciones derivadas": [
@@ -218,6 +368,11 @@
         "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
         "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
         "timestamp": 1785010309072
+      },
+      {
+        "executionId": "c127b036-20a4-4020-9728-9c3b3154aa19",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785015116017
       }
     ],
     "5. Punto de control de lógica pura": [
@@ -547,6 +702,20 @@
         "executionId": "af67342a-dc84-405a-84bb-a3853a3a40d9",
         "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
         "timestamp": 1785010310995
+      }
+    ],
+    "1. Preparar los contratos de dominio, la infraestructura de pruebas y el almacenamiento puro": [
+      {
+        "executionId": "c127b036-20a4-4020-9728-9c3b3154aa19",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785014305947
+      }
+    ],
+    "2. Implementar ajustes retrocompatibles, confianza y planificación de repositorios": [
+      {
+        "executionId": "c127b036-20a4-4020-9728-9c3b3154aa19",
+        "chatSessionId": "sess_2d42ed09-a897-4fc2-a155-15cf5f1c5988",
+        "timestamp": 1785014637604
       }
     ]
   }

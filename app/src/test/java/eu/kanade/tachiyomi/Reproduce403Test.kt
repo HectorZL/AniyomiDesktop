@@ -2,7 +2,7 @@ package eu.kanade.tachiyomi
 
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import org.junit.Test
+import org.junit.jupiter.api.Test
 import java.io.IOException
 
 class Reproduce403Test {

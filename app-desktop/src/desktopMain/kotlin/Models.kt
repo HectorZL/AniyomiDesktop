@@ -41,7 +41,23 @@ data class HistoryItem(
     val videoUrl: String,
     val timestamp: String,
     val progressSeconds: Long = 0L, // Progreso en segundos
-    val durationSeconds: Long = 0L // Duración total en segundos
+    val durationSeconds: Long = 0L, // Duración total en segundos
+    val isSeen: Boolean = false // Se marca al terminar el episodio
+)
+
+@Serializable
+data class TrustedPublicKey(
+    val keyId: String,
+    val algorithm: String,
+    val encodedKey: String,
+)
+
+@Serializable
+data class ExtensionUpdateSettings(
+    val schemaVersion: Int = 0,
+    val automaticCheckEnabled: Boolean = false,
+    val trustedRepositories: List<String> = emptyList(),
+    val repositoryKeys: Map<String, List<TrustedPublicKey>> = emptyMap(),
 )
 
 @Serializable
@@ -52,7 +68,8 @@ data class AppSettings(
     val mangaRepos: List<String> = emptyList(),
     val themeColor: String = "Orange",
     val themeMode: String = "dark",
-    val blacklistedExtensions: List<String> = emptyList()
+    val blacklistedExtensions: List<String> = emptyList(),
+    val extensionUpdates: ExtensionUpdateSettings = ExtensionUpdateSettings(),
 )
 
 fun saveLibrary(library: List<RealAnime>) {
@@ -105,50 +122,18 @@ fun loadHistory(): List<HistoryItem> {
     return emptyList()
 }
 
-fun saveSettings(settings: AppSettings) {
-    try {
-        val appDir = File(System.getProperty("user.home"), "AppData/Local/AniyomiDesktop")
-        if (!appDir.exists()) appDir.mkdirs()
-        val file = File(appDir, "settings.json")
-        file.writeText(Json.encodeToString(settings))
-    } catch (e: Exception) {
-        e.printStackTrace()
-    }
+private val legacyAppSettingsStore by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+    AppSettingsStore.default()
 }
 
-fun loadSettings(): AppSettings {
-    val defaultPath = File(System.getProperty("user.home"), "AppData/Local/AniyomiDesktop/extensions").absolutePath
-    val defaultRepo = "https://raw.githubusercontent.com/yuzono/anime-repo/repo/index.min.json"
-    try {
-        val appDir = File(System.getProperty("user.home"), "AppData/Local/AniyomiDesktop")
-        val file = File(appDir, "settings.json")
-        if (file.exists()) {
-            val loaded = Json.decodeFromString<AppSettings>(file.readText())
-            val aRepos = if (loaded.animeRepos.isNotEmpty()) loaded.animeRepos else {
-                if (loaded.extensionRepoUrl.isNotEmpty()) listOf(loaded.extensionRepoUrl) else listOf(defaultRepo)
-            }
-            val mRepos = if (loaded.mangaRepos.isNotEmpty()) loaded.mangaRepos else {
-                if (loaded.extensionRepoUrl.isNotEmpty()) listOf(loaded.extensionRepoUrl) else listOf(defaultRepo)
-            }
-            return AppSettings(
-                extensionDirPath = if (loaded.extensionDirPath.isNotEmpty()) loaded.extensionDirPath else defaultPath,
-                extensionRepoUrl = loaded.extensionRepoUrl.ifEmpty { defaultRepo },
-                animeRepos = aRepos,
-                mangaRepos = mRepos,
-                themeColor = loaded.themeColor.ifEmpty { "Orange" },
-                themeMode = loaded.themeMode.ifEmpty { "dark" },
-                blacklistedExtensions = loaded.blacklistedExtensions
-            )
-        }
-    } catch (e: Exception) {
-        e.printStackTrace()
-    }
-    return AppSettings(
-        extensionDirPath = defaultPath,
-        extensionRepoUrl = defaultRepo,
-        animeRepos = listOf(defaultRepo),
-        mangaRepos = listOf(defaultRepo),
-        themeColor = "Orange",
-        blacklistedExtensions = emptyList()
-    )
+/** Legacy adapter kept while callers migrate to [AppSettingsStore]. */
+fun saveSettings(settings: AppSettings) {
+    legacyAppSettingsStore.save(settings).exceptionOrNull()?.printStackTrace()
 }
+
+/** Legacy adapter kept while callers migrate to [AppSettingsStore]. */
+fun loadSettings(): AppSettings = legacyAppSettingsStore.load()
+
+/** Existing repository fetches must fail closed after any settings persistence error. */
+fun settingsPersistenceAllowsRepositoryNetwork(): Boolean =
+    legacyAppSettingsStore.canAccessRepositoryNetwork

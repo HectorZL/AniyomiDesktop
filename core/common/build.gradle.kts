@@ -56,6 +56,7 @@ dependencies {
     // TorrServer
     implementation(aniyomilibs.torrserver)
 
+    implementation(libs.cronet.embedded)
     implementation(libs.cronet.okhttp)
 
     // Tests
