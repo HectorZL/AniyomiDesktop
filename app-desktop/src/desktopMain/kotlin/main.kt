@@ -633,8 +633,7 @@ fun MainScreen(
             LaunchedEffect(pendingSeekSeconds, playerState.duration) {
                 val seekTarget = pendingSeekSeconds
                 if (seekTarget != null && playerState.duration > 0) {
-                    val durationMs = playerState.duration
-                    val durationSeconds = durationMs / 1000.0
+                    val durationSeconds = playerState.duration
                     // Verificar que la duración sea razonable (debe ser mayor que el seek target)
                     if (durationSeconds < seekTarget.toDouble()) {
                         println("[SEEK] Esperando duración correcta... actual: ${durationSeconds}s, necesita: >${seekTarget}s")
@@ -643,7 +642,7 @@ fun MainScreen(
 
                     // Calcular posición del slider (0-1000)
                     val sliderPos = (seekTarget.toFloat() / durationSeconds.toFloat() * 1000f).coerceIn(0f, 1000f)
-                    println("[SEEK] Ejecutando seek a ${seekTarget}s (slider: ${sliderPos}/1000, duration: ${durationSeconds}s = ${durationMs}ms)")
+                    println("[SEEK] Ejecutando seek a ${seekTarget}s (slider: ${sliderPos}/1000, duration: ${durationSeconds}s)")
                     playerState.seekTo(sliderPos)
                     playerState.play()
                     pendingSeekSeconds = null  // Limpiar después de ejecutar
@@ -916,7 +915,11 @@ fun MainScreen(
                                     // Skip Back 10s button
                                     IconButton(
                                         onClick = {
-                                            val delta = 10000f / (if (playerState.duration > 0) playerState.duration.toFloat() else 1f)
+                                            val delta = if (playerState.duration > 0) {
+                                                10f / playerState.duration.toFloat() * 1000f
+                                            } else {
+                                                0f
+                                            }
                                             playerState.seekTo((playerState.sliderPos - delta).coerceIn(0f, 1000f))
                                         }
                                     ) {
@@ -931,7 +934,11 @@ fun MainScreen(
                                     // Skip Forward 10s button
                                     IconButton(
                                         onClick = {
-                                            val delta = 10000f / (if (playerState.duration > 0) playerState.duration.toFloat() else 1f)
+                                            val delta = if (playerState.duration > 0) {
+                                                10f / playerState.duration.toFloat() * 1000f
+                                            } else {
+                                                0f
+                                            }
                                             playerState.seekTo((playerState.sliderPos + delta).coerceIn(0f, 1000f))
                                         }
                                     ) {

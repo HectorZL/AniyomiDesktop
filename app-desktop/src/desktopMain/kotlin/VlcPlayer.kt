@@ -148,7 +148,8 @@ class VlcPlayerState internal constructor() {
     fun refresh() {
         val lengthMillis = mediaPlayer.status().length()
         val timeMillis = mediaPlayer.status().time()
-        duration = lengthMillis.coerceAtLeast(0).toDouble()
+        // Keep the public state in seconds. LibVLC reports both values in milliseconds.
+        duration = lengthMillis.coerceAtLeast(0) / 1000.0
         currentTime = timeMillis.coerceAtLeast(0) / 1000.0
         sliderPos = if (lengthMillis > 0) {
             (timeMillis.toFloat() / lengthMillis.toFloat() * 1000f).coerceIn(0f, 1000f)
@@ -164,7 +165,7 @@ class VlcPlayerState internal constructor() {
     }
 
     private fun formatTime(value: Double): String {
-        val seconds = (if (value > 100_000) value / 1000 else value).toLong().coerceAtLeast(0)
+        val seconds = value.toLong().coerceAtLeast(0)
         return "%02d:%02d".format(seconds / 60, seconds % 60)
     }
 }
@@ -192,13 +193,16 @@ fun VlcPlayerSurface(
         modifier = modifier.background(androidx.compose.ui.graphics.Color.Black),
         contentAlignment = Alignment.Center,
     ) {
-        playerState.frame?.let { frame ->
+        val frame = playerState.frame
+        if (frame != null) {
             Image(
                 bitmap = frame,
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Fit,
             )
+        } else {
+            androidx.compose.material3.CircularProgressIndicator()
         }
     }
 }
@@ -224,9 +228,14 @@ private class ComposeFrameRenderer(
         }
 
         val pixels = IntArray(width * height)
-        val source = nativeBuffers[0].duplicate().order(ByteOrder.LITTLE_ENDIAN)
+        val source = nativeBuffers[0].duplicate().order(ByteOrder.nativeOrder())
         source.rewind()
-        source.asIntBuffer().get(pixels, 0, pixels.size)
+        val requiredBytes = pixels.size * Int.SIZE_BYTES
+        if (source.remaining() < requiredBytes) {
+            framePending.set(false)
+            return
+        }
+        source.asIntBuffer().get(pixels)
         for (index in pixels.indices) {
             pixels[index] = pixels[index] or 0xFF000000.toInt()
         }
