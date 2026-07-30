@@ -26,7 +26,14 @@ kotlin {
                 }
                 
                 implementation(kotlinx.coroutines.core)
-                implementation("io.github.kdroidfilter:composemediaplayer:0.10.0")
+                // Compose Desktop y AWT deben compartir el Main dispatcher de Swing.
+                // No añadimos el proveedor JavaFX: ambos proveedores compiten por
+                // Dispatchers.Main y pueden hacer que LifecycleRegistry crea que
+                // ComposeWindow se está creando fuera del hilo principal.
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.10.1")
+                // LibVLC ofrece un motor multimedia maduro para los streams y códecs
+                // que provocaban crashes en NativeVideoPlayer.dll.
+                implementation("uk.co.caprica:vlcj:4.8.2")
                 implementation("de.femtopedia.dex2jar:dex-translator:2.4.37")
                 implementation("de.femtopedia.dex2jar:dex-tools:2.4.37")
 

@@ -35,7 +35,7 @@ Implementar un sistema robusto de persistencia de progreso de reproducción en A
     - Crear markAsCompleted() cuando episodio alcanza 95%
     - _Requirements: 1.2, 1.3_
 
-  - [~] 2.2 Implementar rollback automático en escrituras fallidas
+  - [ ] 2.2 Implementar rollback automático en escrituras fallidas
     - Retornar estado anterior si write falla
     - Registrar error pero no interrumpir reproducción
     - _Requirements: 8.1, 8.2_
@@ -70,28 +70,28 @@ Implementar un sistema robusto de persistencia de progreso de reproducción en A
     - Cachear ID en memoria para acceso rápido
     - _Requirements: 7.3_
 
-- [~] 5. Checkpoint - Validar capas de persistencia
+- [ ] 5. Checkpoint - Validar capas de persistencia
   - Ejecutar todos los tests de Room y repository
   - Verificar que las transacciones son atómicas
   - Preguntar al usuario si hay dudas antes de continuar
 
 - [ ] 6. Implementar PlaybackProgressManager
-  - [~] 6.1 Crear manager con debouncing de 5 segundos
+  - [ ] 6.1 Crear manager con debouncing de 5 segundos
     - Implementar onPlaybackPositionChanged() con Job debounce
     - Cancelar job anterior cuando nueva posición llega
     - _Requirements: 1.2, 1.1_
 
-  - [~] 6.2 Implementar onPlaybackPaused() para guardado inmediato
+  - [ ] 6.2 Implementar onPlaybackPaused() para guardado inmediato
     - Guardar sin debounce cuando usuario pausa
     - _Requirements: 1.3_
 
-  - [~] 6.3 Implementar handleWriteFailure() con reintentos
+  - [ ] 6.3 Implementar handleWriteFailure() con reintentos
     - Encolar actualizaciones fallidas en memoria (List<PlaybackProgressDTO>)
     - Reintentar después de 5 segundos
     - Contar fallos consecutivos, notificar si >= 3 en 30s
     - _Requirements: 8.1, 8.3_
 
-  - [~] 6.4 Implementar flushPendingUpdates() para cierre de app
+  - [ ] 6.4 Implementar flushPendingUpdates() para cierre de app
     - Procesar todas las actualizaciones pendientes
     - Ejecutar en onAppTerminating()
     - _Requirements: 3.2_
@@ -105,13 +105,13 @@ Implementar un sistema robusto de persistencia de progreso de reproducción en A
     - **Validates: Requirements 1.3**
 
 - [ ] 7. Implementar ResumeDialog UI Composable
-  - [~] 7.1 Crear composable ResumeDialog con dos botones
+  - [ ] 7.1 Crear composable ResumeDialog con dos botones
     - Mostrar posición guardada formateada (ej: "10:30")
     - Botón "Continuar" y "Desde el inicio"
     - Botón para descartar (X)
     - _Requirements: 2.2, 2.3_
 
-  - [~] 7.2 Integrar dialog con PlayerViewModel
+  - [ ] 7.2 Integrar dialog con PlayerViewModel
     - loadResumeState() al abrir episodio
     - onResumeSelected() hace seekTo() en reproductor
     - onStartFromBeginning() limpia y busca a 0
@@ -122,17 +122,17 @@ Implementar un sistema robusto de persistencia de progreso de reproducción en A
     - **Validates: Requirements 2.2**
 
 - [ ] 8. Integración con Video Player (mpv-android)
-  - [~] 8.1 Conectar eventos del reproductor a PlaybackProgressManager
+  - [ ] 8.1 Conectar eventos del reproductor a PlaybackProgressManager
     - Escuchar onPositionChanged() emitido por mpv-android
     - Llamar onPlaybackPositionChanged() con posición y duración
     - _Requirements: 1.1_
 
-  - [~] 8.2 Implementar hook de pausa
+  - [ ] 8.2 Implementar hook de pausa
     - Escuchar onPaused() del reproductor
     - Llamar onPlaybackPaused() inmediatamente
     - _Requirements: 1.3_
 
-  - [~] 8.3 Implementar hook de cierre
+  - [ ] 8.3 Implementar hook de cierre
     - Llamar onAppTerminating() en onDestroy()
     - Flush pending writes antes de terminar
     - _Requirements: 3.2_
@@ -142,12 +142,12 @@ Implementar un sistema robusto de persistencia de progreso de reproducción en A
     - **Validates: Requirements 2.3**
 
 - [ ] 9. Implementar limpieza de completados
-  - [~] 9.1 Crear lógica para marcar episodio como completado
+  - [ ] 9.1 Crear lógica para marcar episodio como completado
     - Detectar cuando posición >= 95% de duración
     - Llamar markAsCompleted()
     - _Requirements: 6.2, 6.3_
 
-  - [~] 9.2 Limpiar posición guardada de completados
+  - [ ] 9.2 Limpiar posición guardada de completados
     - deleteCompletedProgress() elimina entries con status COMPLETED
     - Ejecutar daily cleanup en background
     - _Requirements: 6.2_
@@ -157,12 +157,12 @@ Implementar un sistema robusto de persistencia de progreso de reproducción en A
     - **Validates: Requirements 6.2, 6.3**
 
 - [ ] 10. Implementar soporte multi-dispositivo
-  - [~] 10.1 Aislar datos por deviceId
+  - [ ] 10.1 Aislar datos por deviceId
     - Queries siempre incluyen filtro deviceId
     - No cargar posiciones de otros dispositivos
     - _Requirements: 7.2, 7.3_
 
-  - [~] 10.2 Crear lógica de conflicto multi-dispositivo
+  - [ ] 10.2 Crear lógica de conflicto multi-dispositivo
     - Si múltiples dispositivos tienen posiciones, usar más reciente del dispositivo actual
     - Ignorar posiciones de otros dispositivos
     - _Requirements: 7.1_
@@ -172,49 +172,49 @@ Implementar un sistema robusto de persistencia de progreso de reproducción en A
     - **Validates: Requirements 7.2, 7.3**
 
 - [ ] 11. Implementar manejo de corrupciones
-  - [~] 11.1 Detectar datos corruptos al cargar
+  - [ ] 11.1 Detectar datos corruptos al cargar
     - Validar posición <= duración
     - Si falla, marcar como CORRUPTED
     - Comenzar reproducción desde 0
     - _Requirements: 5.4_
 
-  - [~] 11.2 Implementar recuperación tras reboot
+  - [ ] 11.2 Implementar recuperación tras reboot
     - Leer datos de Room tras reinicio de sistema
     - Validar integridad con transacciones
     - _Requirements: 5.2_
 
-- [~] 12. Checkpoint - Validar integraciones
+- [ ] 12. Checkpoint - Validar integraciones
   - Ejecutar flujos end-to-end: abrir episodio → pausar → cerrar → reabrir
   - Verificar resume dialog se muestra correctamente
   - Preguntar al usuario si hay dudas
 
 - [ ] 13. Configuración de persistencia
-  - [~] 13.1 Crear database configuration
+  - [ ] 13.1 Crear database configuration
     - Configurar Room database con versión 1
     - Habilitar WAL (Write-Ahead Logging) para durabilidad
     - _Requirements: 5.3_
 
-  - [~] 13.2 Implementar migración de database (si existe versión anterior)
+  - [ ] 13.2 Implementar migración de database (si existe versión anterior)
     - Crear migration strategy
     - _Requirements: 5.2_
 
 - [ ] 14. Testing y validación
-  - [~] 14.1 Escribir unit tests para validator
+  - [ ] 14.1 Escribir unit tests para validator
     - Testear validación de posiciones
     - Testear detección de sesiones expiradas
     - _Requirements: 1.5_
 
-  - [~] 14.2 Escribir integration tests
+  - [ ] 14.2 Escribir integration tests
     - Testear flujo completo: guardar → cargar → restaurar
     - Testear manejo de fallos de storage
     - _Requirements: 8.1, 8.3_
 
-  - [~] 14.3 Escribir instrumented tests
+  - [ ] 14.3 Escribir instrumented tests
     - Testear con Room database real
     - Testear cierre de app y flush pending
     - _Requirements: 3.2_
 
-- [~] 15. Final checkpoint - Todas las propiedades validadas
+- [ ] 15. Final checkpoint - Todas las propiedades validadas
   - Ejecutar suite completa de property tests
   - Verificar recuperación ante fallos de storage
   - Preguntar al usuario si hay dudas

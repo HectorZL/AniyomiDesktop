@@ -41,10 +41,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
-import io.github.kdroidfilter.composemediaplayer.VideoPlayerSurface
-import io.github.kdroidfilter.composemediaplayer.rememberVideoPlayerState
-import io.github.kdroidfilter.composemediaplayer.SubtitleTrack
-import io.github.kdroidfilter.composemediaplayer.CacheConfig
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -57,6 +53,7 @@ import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.foundation.lazy.rememberLazyListState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.swing.Swing
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -156,7 +153,7 @@ fun AsyncImage(
                             val bytes = response.body?.bytes()
                             if (bytes != null) {
                                 val bitmap = decodeImageBytes(bytes)
-                                withContext(Dispatchers.Main) {
+                                withContext(Dispatchers.Swing) {
                                     if (bitmap != null) {
                                         imageBitmap = bitmap
                                         imageCache?.put(url, bitmap)
@@ -166,11 +163,11 @@ fun AsyncImage(
                                 }
                             }
                         } else {
-                            withContext(Dispatchers.Main) { loadFailed = true }
+                            withContext(Dispatchers.Swing) { loadFailed = true }
                         }
                     }
                 } catch (_: Exception) {
-                    withContext(Dispatchers.Main) { loadFailed = true }
+                    withContext(Dispatchers.Swing) { loadFailed = true }
                 }
             }
         }
@@ -262,12 +259,12 @@ fun MangaPageImage(
                 }
                 httpSource.getImage(page).use { response ->
                     if (!response.isSuccessful) {
-                        withContext(Dispatchers.Main) { loadFailed = true }
+                        withContext(Dispatchers.Swing) { loadFailed = true }
                         return@withContext
                     }
                     val bytes = response.body.bytes()
                     val bitmap = decodeImageBytes(bytes)
-                    withContext(Dispatchers.Main) {
+                    withContext(Dispatchers.Swing) {
                         if (bitmap != null) {
                             imageBitmap = bitmap
                             imageCache?.put(page.index, bitmap)
@@ -278,7 +275,7 @@ fun MangaPageImage(
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
-                withContext(Dispatchers.Main) { loadFailed = true }
+                withContext(Dispatchers.Swing) { loadFailed = true }
             }
         }
     }
@@ -474,7 +471,7 @@ fun MainScreen(
                         println("[main.kt] Extension loading errors: ${errors.entries.joinToString("; ") { (file, errs) -> "$file: ${errs.joinToString(", ")}" }}")
                     }
 
-                    withContext(Dispatchers.Main) {
+                    withContext(Dispatchers.Swing) {
                         installedJars.clear()
                         installedJars.addAll(jarNames)
                         extensionLoadErrors.clear()
@@ -567,7 +564,16 @@ fun MainScreen(
     if (activeVideo != null && currentEpisode != null && currentAnime != null) {
         // Player View
         Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
-            val playerState = rememberVideoPlayerState(cacheConfig = CacheConfig(enabled = true, maxCacheSizeBytes = 100L * 1024L * 1024L))
+            val playerState = rememberVlcPlayerState()
+            var isLeavingPlayer by remember { mutableStateOf(false) }
+
+            fun leavePlayer() {
+                if (isLeavingPlayer) return
+                isLeavingPlayer = true
+                runCatching { playerState.stop() }
+                activeVideo = null
+                selectedEpisode = null
+            }
 
             // Solo se ofrece reanudar para episodios incompletos con progreso válido (> 5 segundos).
             val savedProgress = remember(activeVideo, currentAnime.url, currentEpisode.url) {
@@ -614,7 +620,7 @@ fun MainScreen(
                         return@let
                     }
 
-                    playerState.openUri(proxiedUrl)
+                    playerState.verifyAndOpen(proxiedUrl)
                     // Evita que el episodio avance desde cero antes de que el usuario elija.
                     if (savedProgress != null) {
                         playerState.pause()
@@ -627,9 +633,17 @@ fun MainScreen(
             LaunchedEffect(pendingSeekSeconds, playerState.duration) {
                 val seekTarget = pendingSeekSeconds
                 if (seekTarget != null && playerState.duration > 0) {
-                    val duration = playerState.duration
-                    val sliderPos = (seekTarget * 1000f / duration.toFloat()) * 1000f
-                    println("[SEEK] Ejecutando seek a ${seekTarget}s (slider: ${sliderPos}/1000, duration: ${duration}ms)")
+                    val durationMs = playerState.duration
+                    val durationSeconds = durationMs / 1000.0
+                    // Verificar que la duración sea razonable (debe ser mayor que el seek target)
+                    if (durationSeconds < seekTarget.toDouble()) {
+                        println("[SEEK] Esperando duración correcta... actual: ${durationSeconds}s, necesita: >${seekTarget}s")
+                        return@LaunchedEffect  // Esperar a la próxima actualización de duration
+                    }
+
+                    // Calcular posición del slider (0-1000)
+                    val sliderPos = (seekTarget.toFloat() / durationSeconds.toFloat() * 1000f).coerceIn(0f, 1000f)
+                    println("[SEEK] Ejecutando seek a ${seekTarget}s (slider: ${sliderPos}/1000, duration: ${durationSeconds}s = ${durationMs}ms)")
                     playerState.seekTo(sliderPos)
                     playerState.play()
                     pendingSeekSeconds = null  // Limpiar después de ejecutar
@@ -688,10 +702,40 @@ fun MainScreen(
                 )
             }
 
-            VideoPlayerSurface(
-                playerState = playerState,
-                modifier = Modifier.fillMaxSize()
-            )
+            if (playerState.canRender) {
+                VlcPlayerSurface(
+                    playerState = playerState,
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.padding(24.dp),
+                    ) {
+                        Text(
+                            text = "No se pudo abrir el video",
+                            color = Color.White,
+                            style = MaterialTheme.typography.titleLarge,
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = playerState.errorMessage.orEmpty(),
+                            color = Color.White.copy(alpha = 0.8f),
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        Spacer(modifier = Modifier.height(20.dp))
+                        Button(onClick = { leavePlayer() }) {
+                            Text("Volver")
+                        }
+                    }
+                }
+            }
 
             // Controls overlay
             var showControls by remember { mutableStateOf(true) }
@@ -739,10 +783,7 @@ fun MainScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 IconButton(
-                                    onClick = {
-                                        playerState.stop()
-                                        activeVideo = null
-                                    },
+                                    onClick = { leavePlayer() },
                                     modifier = Modifier.background(Color.White.copy(alpha = 0.15f), shape = CircleShape)
                                 ) {
                                     Icon(
@@ -819,75 +860,8 @@ fun MainScreen(
                                 .padding(horizontal = 24.dp, vertical = 20.dp)
                                 .align(Alignment.BottomCenter)
                         ) {
-                            // Subtitles Row (arriba)
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.End,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                // Subtitle Selector
-                                if (playerState.availableSubtitleTracks.isNotEmpty() || (activeVideo != null && activeVideo!!.subtitleTracks.isNotEmpty())) {
-                                    var showSubtitleMenu by remember { mutableStateOf(false) }
-                                    Box {
-                                        Button(
-                                            onClick = { showSubtitleMenu = true },
-                                            colors = ButtonDefaults.buttonColors(
-                                                containerColor = Color.White.copy(alpha = 0.15f),
-                                                contentColor = Color.White
-                                            ),
-                                            shape = RoundedCornerShape(20.dp)
-                                        ) {
-                                            Icon(Icons.Default.Subtitles, contentDescription = "Subtítulos", tint = Color.White)
-                                            Spacer(modifier = Modifier.width(8.dp))
-                                            Text(
-                                                text = playerState.currentSubtitleTrack?.language ?: if (playerState.subtitlesEnabled) "Activos" else "Desactivados"
-                                            )
-                                        }
-                                        DropdownMenu(
-                                            expanded = showSubtitleMenu,
-                                            onDismissRequest = { showSubtitleMenu = false },
-                                            modifier = Modifier.background(Color(0xFF1E1E1E))
-                                        ) {
-                                            DropdownMenuItem(
-                                                text = { Text("Desactivar Subtítulos", color = Color.White) },
-                                                onClick = {
-                                                    playerState.subtitlesEnabled = false
-                                                    playerState.disableSubtitles()
-                                                    showSubtitleMenu = false
-                                                }
-                                            )
-                                            // Embedded tracks
-                                            playerState.availableSubtitleTracks.forEach { track ->
-                                                DropdownMenuItem(
-                                                    text = { Text(track.language.ifEmpty { "Desconocido" }, color = Color.White) },
-                                                    onClick = {
-                                                        playerState.subtitlesEnabled = true
-                                                        playerState.selectSubtitleTrack(track)
-                                                        showSubtitleMenu = false
-                                                    }
-                                                )
-                                            }
-                                            // External tracks from extension Video model
-                                            activeVideo?.subtitleTracks?.forEach { track ->
-                                                DropdownMenuItem(
-                                                    text = { Text("[Ext] ${track.lang}", color = Color.White) },
-                                                    onClick = {
-                                                        playerState.subtitlesEnabled = true
-                                                        val extTrack = SubtitleTrack(
-                                                            label = track.lang,
-                                                            language = track.lang,
-                                                            src = track.url
-                                                        )
-                                                        playerState.selectSubtitleTrack(extTrack)
-                                                        showSubtitleMenu = false
-                                                    }
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-
+                            // Los subtítulos externos se habilitarán sobre la API de LibVLC en una
+                            // iteración posterior. Se mantiene el reproductor estable primero.
                             Spacer(modifier = Modifier.height(12.dp))
 
                             // Progress Slider Row (full screen width slider)
@@ -977,7 +951,7 @@ fun MainScreen(
                                         val isMuted = playerState.volume == 0f
                                         IconButton(
                                             onClick = {
-                                                playerState.volume = if (isMuted) 0.5f else 0f
+                                                playerState.updateVolume(if (isMuted) 0.5f else 0f)
                                             }
                                         ) {
                                             Icon(
@@ -988,7 +962,7 @@ fun MainScreen(
                                         }
                                         Slider(
                                             value = playerState.volume,
-                                            onValueChange = { playerState.volume = it },
+                                            onValueChange = { playerState.updateVolume(it) },
                                             valueRange = 0f..1f,
                                             modifier = Modifier.width(100.dp),
                                             colors = SliderDefaults.colors(
@@ -1066,7 +1040,7 @@ fun MainScreen(
                                                     },
                                                     onClick = {
                                                         currentSpeed = speed
-                                                        playerState.playbackSpeed = speed
+                                                        playerState.updatePlaybackSpeed(speed)
                                                         showSpeedMenu = false
                                                         println("[SPEED] Velocidad cambiada a ${speed}x")
                                                     }
@@ -1101,6 +1075,8 @@ fun MainScreen(
             trackingState = trackingState,
             onOpenAccounts = {
                 selectedMangaSource = null
+                selectedEpisode = null
+                activeVideo = null
                 currentTab = "cuentas"
             },
             onBack = { selectedMangaSource = null },
@@ -1120,11 +1096,14 @@ fun MainScreen(
             trackingState = trackingState,
             onOpenAccounts = {
                 selectedAnime = null
+                selectedEpisode = null
+                activeVideo = null
                 currentTab = "cuentas"
             },
             onBack = {
                 selectedAnime = null
                 selectedEpisode = null
+                activeVideo = null
             },
             onPlayEpisode = { episode, video ->
                 selectedEpisode = episode
@@ -1346,7 +1325,7 @@ fun UpdatesTab(onAnimeClick: (RealAnime) -> Unit) {
             try {
                 val response = source.client.newCall(source.latestUpdatesRequest(1)).execute()
                 val page = source.latestUpdatesParse(response)
-                withContext(Dispatchers.Main) {
+                withContext(Dispatchers.Swing) {
                     updatesList = page.animes.map {
                         RealAnime(
                             title = safeAnimeTitle(it, source.name),
@@ -1360,7 +1339,7 @@ fun UpdatesTab(onAnimeClick: (RealAnime) -> Unit) {
             } catch (e: Throwable) {
                 // Captura también StackOverflowError (catastrophic backtracking en regex de extensiones)
                 e.printStackTrace()
-                withContext(Dispatchers.Main) {
+                withContext(Dispatchers.Swing) {
                     isLoading = false
                 }
             }
@@ -1979,7 +1958,7 @@ fun MangaSourceCatalogScreen(
                 } else {
                     catalogueSource.getSearchManga(1, searchQuery.trim(), catalogueSource.getFilterList())
                 }
-                withContext(Dispatchers.Main) {
+                withContext(Dispatchers.Swing) {
                     // Filter out any SManga objects whose url was never initialized by the
                     // extension — accessing an uninitialized lateinit property crashes the app.
                     val filtered = page.mangas.filter { smanga ->
@@ -1999,7 +1978,7 @@ fun MangaSourceCatalogScreen(
             } catch (e: Throwable) {
                 // Captura también StackOverflowError (catastrophic backtracking en regex de extensiones)
                 e.printStackTrace()
-                withContext(Dispatchers.Main) {
+                withContext(Dispatchers.Swing) {
                     errorText = when (e) {
                         is StackOverflowError -> "Error en la extensión: regex con backtracking catastrófico (HTML demasiado grande). Intenta con otra fuente."
                         else -> e.message ?: e.toString()
@@ -2179,7 +2158,7 @@ fun MangaDetailScreen(
                     }
                 }
 
-                withContext(Dispatchers.Main) {
+                withContext(Dispatchers.Swing) {
                     mangaDetails = detailedManga
                     chapters = chapterList
                     isLoading = false
@@ -2192,7 +2171,7 @@ fun MangaDetailScreen(
                     is NoClassDefFoundError -> "Falta una clase requerida por la extensión: ${e.message}"
                     else -> e.message ?: e.toString()
                 }
-                withContext(Dispatchers.Main) {
+                withContext(Dispatchers.Swing) {
                     errorText = friendlyMessage
                     isLoading = false
                 }
@@ -2492,7 +2471,7 @@ fun MangaReaderScreen(
         withContext(Dispatchers.IO) {
             try {
                 val pageList = source.getPageList(chapter)
-                withContext(Dispatchers.Main) {
+                withContext(Dispatchers.Swing) {
                     pages = pageList
                     isLoading = false
                 }
@@ -2504,7 +2483,7 @@ fun MangaReaderScreen(
                     is NoClassDefFoundError -> "Falta una clase requerida por la extensión: ${e.message}"
                     else -> e.message ?: e.toString()
                 }
-                withContext(Dispatchers.Main) {
+                withContext(Dispatchers.Swing) {
                     errorText = msg
                     isLoading = false
                 }
@@ -3412,7 +3391,7 @@ fun SourceCatalogScreen(source: AnimeHttpSource, onBack: () -> Unit, onAnimeClic
                 } else {
                     source.getSearchAnime(1, searchQuery.trim(), source.getFilterList())
                 }
-                withContext(Dispatchers.Main) {
+                withContext(Dispatchers.Swing) {
                     animeList = page.animes.map { anime ->
                         RealAnime(
                             title = safeAnimeTitle(anime, source.name),
@@ -3429,7 +3408,7 @@ fun SourceCatalogScreen(source: AnimeHttpSource, onBack: () -> Unit, onAnimeClic
                 // Ejemplo: Jkanime usa el regex `Lvar\s+animes\s*=\s*(\{(?:[^"']|"...|'...')*?\})\s*;`
                 // que hace backtracking catastrófico sobre el HTML de 67KB de /directorio
                 e.printStackTrace()
-                withContext(Dispatchers.Main) {
+                withContext(Dispatchers.Swing) {
                     errorText = when {
                         e is StackOverflowError -> "Error en la extensión: regex con backtracking catastrófico (HTML demasiado grande). Intenta con otra fuente."
                         e is HttpException && e.code == 403 && source.baseUrl.contains("animelatinohd.com", ignoreCase = true) ->

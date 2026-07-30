@@ -20,6 +20,7 @@ import java.net.URI
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.swing.Swing
 import kotlinx.coroutines.withContext
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.animesource.model.SAnime
@@ -67,7 +68,7 @@ fun AnimeDetailsScreen(
                 val parsedAnime = source.getAnimeDetails(sAnime)
                 val parsedEpisodes = source.getEpisodeList(sAnime)
                 
-                withContext(Dispatchers.Main) {
+                withContext(Dispatchers.Swing) {
                     detailAnime = detailAnime.copy(description = parsedAnime.description ?: "")
                     episodes = parsedEpisodes.map {
                         RealEpisode(
@@ -85,7 +86,7 @@ fun AnimeDetailsScreen(
                     is NoClassDefFoundError -> "Falta una clase requerida por la extensión: ${e.message}"
                     else -> e.message ?: e.toString()
                 }
-                withContext(Dispatchers.Main) {
+                withContext(Dispatchers.Swing) {
                     errorText = friendlyMessage
                     isLoading = false
                 }
@@ -113,7 +114,7 @@ fun AnimeDetailsScreen(
                         }
                     }
                     
-                    withContext(Dispatchers.Main) {
+                    withContext(Dispatchers.Swing) {
                         videos = parsedVideos.map {
                             val headersMap = mutableMapOf<String, String>()
                             it.headers?.let { h ->
@@ -142,7 +143,7 @@ fun AnimeDetailsScreen(
                         is NoClassDefFoundError -> "Falta una clase requerida por la extensión: ${e.message}"
                         else -> e.message ?: e.toString()
                     }
-                    withContext(Dispatchers.Main) {
+                    withContext(Dispatchers.Swing) {
                         errorText = friendlyMessage
                         isLoading = false
                     }
